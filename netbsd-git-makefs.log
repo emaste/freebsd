@@ -1,0 +1,253 @@
+commit 1cde70e4173632b72b5cb6e568a2d4ce67e6e707
+Author: christos <christos>
+Date:   Wed Nov 25 00:48:49 2015 +0000
+
+    Provide a -T option to set timestamps to a consistent value for MKREPRO
+
+commit ddc5879ea625143fd8befcf4a6d2a10de230da3c
+Author: agc <agc>
+Date:   Sun Mar 29 05:52:59 2015 +0000
+
+    Make the userland signature and uses of bread() match the kernel ones,
+    after the removal of the cred argument.
+
+commit 9e243ac3ec63ed1ae6dbf56ba0d750b493dcd81f
+Author: apb <apb>
+Date:   Thu Oct 24 14:01:01 2013 +0000
+
+    Now that tools/compat/compat_defs.h defones __USE, there's no
+    need to treat the tools build as a special case.
+
+commit ae1806ae838e4657c8ac7025d68809d27a1a2fea
+Author: mrg <mrg>
+Date:   Sat Oct 19 20:49:22 2013 +0000
+
+    avoid using __USE() in the tools version of this.
+
+commit 67d44fc1c3519f7a07afa31d0940fa3edde6d928
+Author: christos <christos>
+Date:   Sat Oct 19 17:16:37 2013 +0000
+
+    fix unused variable warnings.
+
+commit ff5f461d2d7a395de1459742c8f5f2feaeb34f11
+Author: wiz <wiz>
+Date:   Tue Aug 6 20:16:54 2013 +0000
+
+    New sentence, new line.
+    Use one list instead of two consecutive ones.
+    Add .El to end list.
+
+commit 4e01251c20e29dbeb493206d077b279d92e110c3
+Author: wiz <wiz>
+Date:   Tue Aug 6 12:12:51 2013 +0000
+
+    New sentence, new line.
+
+commit f4ff403b7476521fec4a03de8c4fd3bfc963c857
+Author: reinoud <reinoud>
+Date:   Tue Aug 6 09:43:41 2013 +0000
+
+    Update makefs(8) man page to reflect the selection of default sector and disc
+    sizes based on the disc type.
+
+commit 876392c88f3308a5ee6ea5dcfbeec296ae3c3648
+Author: wiz <wiz>
+Date:   Mon Aug 5 14:50:32 2013 +0000
+
+    Sort. Improve table formatting.
+
+commit 267e29a24be249273f70b203729d251bc78d92ad
+Author: dholland <dholland>
+Date:   Sun Jun 23 22:03:34 2013 +0000
+
+    Stick ffs_ in front of the following macros:
+       fragstoblks()
+       blkstofrags()
+       fragnum()
+       blknum()
+    
+    to finish the job of distinguishing them from the lfs versions, which
+    Christos renamed the other day.
+    
+    I believe this is the last of the overtly ambiguous exported symbols
+    from ffs... or at least, the last of the ones that conflicted with lfs.
+    ffs still pollutes the C namespace very broadly (as does ufs) and this
+    needs quite a bit more cleanup.
+    
+    XXX: boo on macros with lowercase names. But I'm not tackling that just yet.
+
+commit 9badf91cd57540919df5c412af725a04576c49ae
+Author: dholland <dholland>
+Date:   Sun Jun 23 07:28:36 2013 +0000
+
+    Stick ffs_, ext2_, chfs_, filecore_, cd9660_, or mfs_ in front of
+    the following symbols so as to disambiguate fully. (Christos already
+    did the lfs ones.)
+    
+       lblkno
+       lblktosize
+       lfragtosize
+       numfrags
+       blkroundup
+       fragroundup
+
+commit 789bb5a53492e9181712650f7a2425d362c2984a
+Author: dholland <dholland>
+Date:   Sun Jun 23 02:06:04 2013 +0000
+
+    fsbtodb() -> FFS_FSBTODB(), EXT2_FSBTODB(), or MFS_FSBTODB()
+    dbtofsb() -> FFS_DBTOFSB() or EXT2_DBTOFSB()
+    
+    (Christos already did the lfs ones a few days back)
+
+commit ca3acdf6ec1717f237fa9de40857f4694440bff6
+Author: dholland <dholland>
+Date:   Wed Jun 19 17:51:25 2013 +0000
+
+    Rename ambiguous macros:
+       MAXDIRSIZE -> UFS_MAXDIRSIZE or LFS_MAXDIRSIZE
+       NINDIR -> FFS_NINDIR, EXT2_NINDIR, LFS_NINDIR, or MFS_NINDIR
+       INOPB -> FFS_INOPB, LFS_INOPB
+       INOPF -> FFS_INOPF, LFS_INOPF
+       blksize -> ffs_blksize, ext2_blksize, or lfs_blksize
+       sblksize -> ffs_blksize
+    
+    These are not the only ambiguously defined filesystem macros, of
+    course, there's a pile more. I may not have found all the ambiguous
+    definitions of blksize(), too, as there are a lot of other things
+    called 'blksize' in the system.
+
+commit 20187151caea088a69474faae80e131f3123290c
+Author: dholland <dholland>
+Date:   Sun Jun 9 17:57:08 2013 +0000
+
+    Stick UFS_ in front of these symbols:
+       DIRBLKSIZ
+       DIRECTSIZ
+       DIRSIZ
+       OLDDIRFMT
+       NEWDIRFMT
+    
+    Part of PR 47909.
+
+commit 852bbfc6c27da1d3e2479b3e2288622e2fb1502d
+Author: christos <christos>
+Date:   Sun Feb 3 06:16:53 2013 +0000
+
+    add a replace flag so we can overlay exiting files when we merge directories.
+
+commit 358ec754d3943312f154294516783ab20d9fc062
+Author: christos <christos>
+Date:   Sun Feb 3 03:21:21 2013 +0000
+
+    - more changes to make -O work
+    - fix err* calls.
+
+commit c64f300739477e5f41349de5841c99320e7d0283
+Author: christos <christos>
+Date:   Sat Feb 2 20:42:02 2013 +0000
+
+    add and document offset.
+
+commit eaa3002611c8bf2f6fcd1badf20d61db8aca5289
+Author: christos <christos>
+Date:   Fri Feb 1 14:02:17 2013 +0000
+
+    remove bogus err.
+
+commit 2b3beb376cc56d73df724cc6fbd5b922dc887897
+Author: christos <christos>
+Date:   Wed Jan 30 19:19:19 2013 +0000
+
+    - don't abuse vp->fs to mean struct fs for ffs and struct msdos_opts;
+      make it always fsinfo_t and change void * to that.
+    - kill unused structure members.
+
+commit 42019c67967a4f00759a583101af8e3b992b6029
+Author: christos <christos>
+Date:   Wed Jan 30 17:29:25 2013 +0000
+
+    gc global sectorsize.
+
+commit 0e1212789fa1aa0038c15abc2c78f414d53d70d0
+Author: christos <christos>
+Date:   Wed Jan 30 17:29:05 2013 +0000
+
+    buf is generic; it has nothing to do with ffs and will eventually be moved.
+    gc sectorize.
+
+commit a0918e22af2d7cb2c4a1a53e7f5e90b0d35b5a16
+Author: christos <christos>
+Date:   Mon Jan 28 21:03:26 2013 +0000
+
+    - use emalloc and friends
+    - kill a bunch of global variables, more work to be done here
+    - homogenize option parsing. more work for cd9660
+    - use the new options parsing code to print an fs-specific usage
+
+commit baeb776b8d5adfd02022cee51f5ad69a9ae9e47a
+Author: mlelstv <mlelstv>
+Date:   Mon Jan 28 10:16:35 2013 +0000
+
+    Do not use *bp after freeing it in brelse.
+
+commit b977d13b2771302e20a19d294765c3617fae1b03
+Author: christos <christos>
+Date:   Sun Jan 27 20:05:46 2013 +0000
+
+    This works well enough to populate plain files in the root dir. creating
+    directories fails.
+
+commit 1b144e51fea2745593b6b2e667114875885393fd
+Author: christos <christos>
+Date:   Sun Jan 27 14:10:22 2013 +0000
+
+    zero memory
+
+commit 59670d473d2fbce6f4eda49ce4ba0fde05988456
+Author: christos <christos>
+Date:   Sun Jan 27 14:10:03 2013 +0000
+
+    Don't print the pointers in debugging, it is not useful.
+    zero all memory
+
+commit 3cd6e1997b46878e87f7a7a6674440fb29f21604
+Author: christos <christos>
+Date:   Sat Jan 26 16:58:14 2013 +0000
+
+    depend on TOOLS instead of __NetBSD__ for extra functionality
+
+commit add2f34a863c1fab879fdc61741db9b81d4a3722
+Author: christos <christos>
+Date:   Sat Jan 26 16:50:46 2013 +0000
+
+    make this cross-compile friendly.
+
+commit 9cacfb1a1d4eac4c15334db8388ddc85ca2f75e3
+Author: joerg <joerg>
+Date:   Sun Apr 29 13:32:21 2012 +0000
+
+    usage is dead. name_len should be read as unsigned byte.
+
+commit 51abbbaeefabf089c687147988ea6357c46c5b5b
+Author: christos <christos>
+Date:   Thu Apr 19 17:28:25 2012 +0000
+
+    WARNS=5
+
+commit 13ac55a642aa0fd7ef1768be9833c30324a6b2e9
+Author: bouyer <bouyer>
+Date:   Sun Mar 6 17:08:10 2011 +0000
+
+    merge the bouyer-quota2 branch. This adds a new on-disk format
+    to store disk quota usage and limits, integrated with ffs
+    metadata. Usage is checked by fsck_ffs (no more quotacheck)
+    and is covered by the WAPBL journal. Enabled with kernel
+    option QUOTA2 (added where QUOTA was enabled in kernel config files),
+    turned on with tunefs(8) on a per-filesystem
+    basis. mount_mfs(8) can also turn quotas on.
+    
+    See http://mail-index.netbsd.org/tech-kern/2011/02/19/msg010025.html
+    for details.
+
