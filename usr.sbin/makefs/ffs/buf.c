@@ -187,7 +187,7 @@ getblk(struct vnode *vp, daddr_t blkno, int size, int u1 __unused,
 	int fd = vp->fd;
 	struct fs *fs = vp->fs;
 
-	blkno += vp->offset;
+	//blkno += vp->offset;
 	assert (fs != NULL);
 	if (debug & DEBUG_BUF_GETBLK)
 		printf("getblk: blkno %lld size %d\n", (long long)blkno, size);
