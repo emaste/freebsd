@@ -158,6 +158,7 @@ typedef struct makefs_fsinfo {
 	int	needswap;	/* non-zero if byte swapping needed */
 	int	sectorsize;	/* sector size */
 	int	sparse;		/* sparse image, don't fill it with zeros */
+	int	replace;	/* replace files when merging */
 
 	void	*fs_specific;	/* File system specific additions. */
 	option_t *fs_options;	/* File system specific options */
@@ -171,7 +172,7 @@ fsnode *	read_mtree(const char *, fsnode *);
 int		set_option(const option_t *, const char *, char *, size_t);
 int		set_option_var(const option_t *, const char *, const char *,
     char *, size_t);
-fsnode *	walk_dir(const char *, const char *, fsnode *, fsnode *);
+fsnode *	walk_dir(const char *, const char *, fsnode *, fsnode *, int);
 void		free_fsnodes(fsnode *);
 option_t *	copy_opts(const option_t *);
 

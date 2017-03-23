@@ -71,7 +71,8 @@ static	fsnode	*create_fsnode(const char *, const char *, const char *,
  *	at the start of the list, and without ".." entries.
  */
 fsnode *
-walk_dir(const char *root, const char *dir, fsnode *parent, fsnode *join)
+walk_dir(const char *root, const char *dir, fsnode *parent, fsnode *join,
+    int replace)
 {
 	fsnode		*first, *cur, *prev, *last;
 	DIR		*dirp;
@@ -150,12 +151,30 @@ walk_dir(const char *root, const char *dir, fsnode *parent, fsnode *join)
 						printf("merging %s with %p\n",
 						    path, cur->child);
 					cur->child = walk_dir(root, rp, cur,
-					    cur->child);
+					    cur->child, replace);
 					continue;
 				}
-				errx(1, "Can't merge %s `%s' with existing %s",
-				    inode_type(stbuf.st_mode), path,
-				    inode_type(cur->type));
+				if (!replace)
+					errx(1, "Can't merge %s `%s' with "
+					    "existing %s",
+					    inode_type(stbuf.st_mode), path,
+					    inode_type(cur->type));
+				else {
+					if (debug & DEBUG_WALK_DIR_NODE)
+						printf("replacing %s %s\n",
+						    inode_type(stbuf.st_mode),
+						    path);
+					if (cur == join->next)
+						join->next = cur->next;
+					else {
+						fsnode *p;
+						for (p = join->next;
+						    p->next != cur; p = p->next)
+							continue;
+						p->next = cur->next;
+					}
+					free(cur);
+				}
 			}
 		}
 
@@ -176,7 +195,8 @@ walk_dir(const char *root, const char *dir, fsnode *parent, fsnode *join)
 				first = cur;
 			cur->first = first;
 			if (S_ISDIR(cur->type)) {
-				cur->child = walk_dir(root, rp, cur, NULL);
+				cur->child = walk_dir(root, rp, cur, NULL,
+				    replace);
 				continue;
 			}
 		}

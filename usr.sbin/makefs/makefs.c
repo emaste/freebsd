@@ -124,7 +124,7 @@ main(int argc, char *argv[])
 		err(1, "Unable to get system time");
 
 
-	while ((ch = getopt(argc, argv, "B:b:Dd:f:F:M:m:N:O:o:pR:s:S:t:T:xZ")) != -1) {
+	while ((ch = getopt(argc, argv, "B:b:Dd:f:F:M:m:N:O:o:pRr:s:S:t:T:xZ")) != -1) {
 		switch (ch) {
 
 		case 'B':
@@ -225,6 +225,10 @@ main(int argc, char *argv[])
 			fsoptions.sparse = 1;
 			break;
 
+		case 'r':
+			fsoptions.replace = 1;
+			break;
+
 		case 'R':
 			/* Round image size up to specified block size */
 			fsoptions.roundup =
@@ -302,7 +306,7 @@ main(int argc, char *argv[])
 	case S_IFDIR:		/* walk the tree */
 		subtree = argv[1];
 		TIMER_START(start);
-		root = walk_dir(subtree, ".", NULL, NULL);
+		root = walk_dir(subtree, ".", NULL, NULL, fsoptions.replace);
 		TIMER_RESULTS(start, "walk_dir");
 		break;
 	case S_IFREG:		/* read the manifest file */
@@ -323,7 +327,7 @@ main(int argc, char *argv[])
 		if (!S_ISDIR(sb.st_mode))
 			errx(1, "%s: not a directory", argv[i]);
 		TIMER_START(start);
-		root = walk_dir(argv[i], ".", NULL, root);
+		root = walk_dir(argv[i], ".", NULL, root, fsoptions.replace);
 		TIMER_RESULTS(start, "walk_dir2");
 	}
 
@@ -482,7 +486,7 @@ usage(fstype_t *fstype, fsinfo_t *fsoptions)
 
 	prog = getprogname();
 	fprintf(stderr,
-"Usage: %s [-xZ] [-B endian] [-b free-blocks] [-d debug-mask]\n"
+"Usage: %s [-DrxZ] [-B endian] [-b free-blocks] [-d debug-mask]\n"
 "\t[-F mtree-specfile] [-f free-files] [-M minimum-size] [-m maximum-size]\n"
 "\t[-N userdb-dir] [-O offset] [-o fs-options] [-R roundup-size]\n"
 "\t[-S sector-size] [-s image-size] [-T <timestamp/file>] [-t fs-type]\n"

@@ -43,7 +43,7 @@
 .Nd create a file system image from a directory tree or a mtree manifest
 .Sh SYNOPSIS
 .Nm
-.Op Fl DxZ
+.Op Fl DrxZ
 .Op Fl B Ar endian
 .Op Fl b Ar free-blocks
 .Op Fl d Ar debug-mask
@@ -222,6 +222,8 @@ Set the file system sector size to
 .Ar sector-size .
 .\" XXX: next line also true for cd9660?
 Defaults to 512.
+.It Fl r
+When merging multiple directories replace duplicate files with the last found.
 .It Fl s Ar image-size
 Set the size of the file system image to
 .Ar image-size .
