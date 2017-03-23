@@ -137,19 +137,6 @@ Date:   Sun Feb 3 06:16:53 2013 +0000
 
     add a replace flag so we can overlay exiting files when we merge directories.
 
-commit 358ec754d3943312f154294516783ab20d9fc062
-Author: christos <christos>
-Date:   Sun Feb 3 03:21:21 2013 +0000
-
-    - more changes to make -O work
-    - fix err* calls.
-
-commit c64f300739477e5f41349de5841c99320e7d0283
-Author: christos <christos>
-Date:   Sat Feb 2 20:42:02 2013 +0000
-
-    add and document offset.
-
 commit eaa3002611c8bf2f6fcd1badf20d61db8aca5289
 Author: christos <christos>
 Date:   Fri Feb 1 14:02:17 2013 +0000

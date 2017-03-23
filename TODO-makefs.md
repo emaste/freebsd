@@ -17,33 +17,6 @@ This TODO file documents the work remaining in the update process.
 TODO
 ----
 
-### implement -O (offset) option
-
-```
-commit 358ec754d3943312f154294516783ab20d9fc062
-Author: christos <christos>
-Date:   Sun Feb 3 03:21:21 2013 +0000
-
-    - more changes to make -O work
-    - fix err* calls.
-
-commit c64f300739477e5f41349de5841c99320e7d0283
-Author: christos <christos>
-Date:   Sat Feb 2 20:42:02 2013 +0000
-
-    add and document offset.
-```
-
-```
-NetBSD revs:
-ffs.c		1.60
-makefs.8	1.44
-makefs.c	1.48
-makefs.h	1.33
-ffs/buf.c	1.20
-ffs/mkfs.c	1.27
-```
-
 ### implement -r (replace) option
 
 ```
