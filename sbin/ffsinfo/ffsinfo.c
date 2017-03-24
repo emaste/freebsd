@@ -251,7 +251,7 @@ main(int argc, char **argv)
 		/* get the cylinder summary into the memory ... */
 		for (i = 0; i < sblock.fs_cssize; i += sblock.fs_bsize) {
 			if (bread(&disk, fsbtodb(&sblock,
-			    sblock.fs_csaddr + numfrags(&sblock, i)), 
+			    sblock.fs_csaddr + ffs_numfrags(&sblock, i)), 
 			    (void *)(((char *)fscs)+i), 
 			    (size_t)(sblock.fs_cssize-i < sblock.fs_bsize ?
 			    sblock.fs_cssize - i : sblock.fs_bsize)) == -1)

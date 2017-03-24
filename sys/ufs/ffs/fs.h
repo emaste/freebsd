@@ -94,7 +94,7 @@
  * necessary.  The filesystem format retains only a single pointer
  * to such a fragment, which is a piece of a single large block that
  * has been divided.  The size of such a fragment is determinable from
- * information in the inode, using the ``blksize(fs, ip, lbn)'' macro.
+ * information in the inode, using the ``ffs_blksize(fs, ip, lbn)'' macro.
  *
  * The filesystem records space availability at the fragment level;
  * to determine block availability, aligned fragments are examined.
@@ -291,8 +291,8 @@ struct fs {
 	int32_t	 fs_sbsize;		/* actual size of super block */
 	int32_t	 fs_spare1[2];		/* old fs_csmask */
 					/* old fs_csshift */
-	int32_t	 fs_nindir;		/* value of NINDIR */
-	u_int32_t fs_inopb;		/* value of INOPB */
+	int32_t	 fs_nindir;		/* value of FFS_NINDIR */
+	u_int32_t fs_inopb;		/* value of FFS_INOPB */
 	int32_t	 fs_old_nspf;		/* value of NSPF */
 /* yet another configuration parameter */
 	int32_t	 fs_optim;		/* optimization preference, see below */
@@ -454,7 +454,7 @@ CTASSERT(sizeof(struct fs) == 1376);
     /* block map */	howmany((fs)->fs_fpg, NBBY) +\
     /* if present */	((fs)->fs_contigsumsize <= 0 ? 0 : \
     /* cluster sum */	(fs)->fs_contigsumsize * sizeof(int32_t) + \
-    /* cluster map */	howmany(fragstoblks(fs, (fs)->fs_fpg), NBBY)))
+    /* cluster map */	howmany(ffs_fragstoblks(fs, (fs)->fs_fpg), NBBY)))
 
 /*
  * The minimal number of cylinder groups that should be created.
@@ -545,8 +545,8 @@ struct cg {
 #define	ino_to_cg(fs, x)	(((ino_t)(x)) / (fs)->fs_ipg)
 #define	ino_to_fsba(fs, x)						\
 	((ufs2_daddr_t)(cgimin(fs, ino_to_cg(fs, (ino_t)(x))) +		\
-	    (blkstofrags((fs), ((((ino_t)(x)) % (fs)->fs_ipg) / INOPB(fs))))))
-#define	ino_to_fsbo(fs, x)	(((ino_t)(x)) % INOPB(fs))
+	    (ffs_blkstofrags((fs), ((((ino_t)(x)) % (fs)->fs_ipg) / FFS_INOPB(fs))))))
+#define	ino_to_fsbo(fs, x)	(((ino_t)(x)) % FFS_INOPB(fs))
 
 /*
  * Give cylinder group number for a filesystem block.
@@ -567,32 +567,32 @@ struct cg {
  * quantities by using shifts and masks in place of divisions
  * modulos and multiplications.
  */
-#define	blkoff(fs, loc)		/* calculates (loc % fs->fs_bsize) */ \
+#define	ffs_blkoff(fs, loc)	/* calculates (loc % fs->fs_bsize) */ \
 	((loc) & (fs)->fs_qbmask)
-#define	fragoff(fs, loc)	/* calculates (loc % fs->fs_fsize) */ \
+#define	ffs_fragoff(fs, loc)	/* calculates (loc % fs->fs_fsize) */ \
 	((loc) & (fs)->fs_qfmask)
-#define	lfragtosize(fs, frag)	/* calculates ((off_t)frag * fs->fs_fsize) */ \
+#define	ffs_lfragtosize(fs, frag) /* calculates ((off_t)frag * fs->fs_fsize)*/ \
 	(((off_t)(frag)) << (fs)->fs_fshift)
-#define	lblktosize(fs, blk)	/* calculates ((off_t)blk * fs->fs_bsize) */ \
+#define	ffs_lblktosize(fs, blk)	/* calculates ((off_t)blk * fs->fs_bsize) */ \
 	(((off_t)(blk)) << (fs)->fs_bshift)
 /* Use this only when `blk' is known to be small, e.g., < UFS_NDADDR. */
-#define	smalllblktosize(fs, blk)    /* calculates (blk * fs->fs_bsize) */ \
+#define	ffs_smalllblktosize(fs, blk) /* calculates (blk * fs->fs_bsize) */ \
 	((blk) << (fs)->fs_bshift)
-#define	lblkno(fs, loc)		/* calculates (loc / fs->fs_bsize) */ \
+#define	ffs_lblkno(fs, loc)	/* calculates (loc / fs->fs_bsize) */ \
 	((loc) >> (fs)->fs_bshift)
-#define	numfrags(fs, loc)	/* calculates (loc / fs->fs_fsize) */ \
+#define	ffs_numfrags(fs, loc)	/* calculates (loc / fs->fs_fsize) */ \
 	((loc) >> (fs)->fs_fshift)
-#define	blkroundup(fs, size)	/* calculates roundup(size, fs->fs_bsize) */ \
+#define	ffs_blkroundup(fs, size) /* calculates roundup(size, fs->fs_bsize) */ \
 	(((size) + (fs)->fs_qbmask) & (fs)->fs_bmask)
-#define	fragroundup(fs, size)	/* calculates roundup(size, fs->fs_fsize) */ \
+#define	ffs_fragroundup(fs, size) /* calculates roundup(size, fs->fs_fsize) */ \
 	(((size) + (fs)->fs_qfmask) & (fs)->fs_fmask)
-#define	fragstoblks(fs, frags)	/* calculates (frags / fs->fs_frag) */ \
+#define	ffs_fragstoblks(fs, frags) /* calculates (frags / fs->fs_frag) */ \
 	((frags) >> (fs)->fs_fragshift)
-#define	blkstofrags(fs, blks)	/* calculates (blks * fs->fs_frag) */ \
+#define	ffs_blkstofrags(fs, blks) /* calculates (blks * fs->fs_frag) */ \
 	((blks) << (fs)->fs_fragshift)
-#define	fragnum(fs, fsb)	/* calculates (fsb % fs->fs_frag) */ \
+#define	ffs_fragnum(fs, fsb)	/* calculates (fsb % fs->fs_frag) */ \
 	((fsb) & ((fs)->fs_frag - 1))
-#define	blknum(fs, fsb)		/* calculates rounddown(fsb, fs->fs_frag) */ \
+#define	ffs_blknum(fs, fsb)	/* calculates rounddown(fsb, fs->fs_frag) */ \
 	((fsb) &~ ((fs)->fs_frag - 1))
 
 /*
@@ -600,21 +600,21 @@ struct cg {
  * percentage to hold in reserve.
  */
 #define	freespace(fs, percentreserved) \
-	(blkstofrags((fs), (fs)->fs_cstotal.cs_nbfree) + \
+	(ffs_blkstofrags((fs), (fs)->fs_cstotal.cs_nbfree) + \
 	(fs)->fs_cstotal.cs_nffree - \
 	(((off_t)((fs)->fs_dsize)) * (percentreserved) / 100))
 
 /*
  * Determining the size of a file block in the filesystem.
  */
-#define	blksize(fs, ip, lbn) \
-	(((lbn) >= UFS_NDADDR || (ip)->i_size >= smalllblktosize(fs, (lbn) + 1)) \
+#define	ffs_blksize(fs, ip, lbn) \
+	(((lbn) >= UFS_NDADDR || (ip)->i_size >= ffs_smalllblktosize(fs, (lbn) + 1)) \
 	    ? (fs)->fs_bsize \
-	    : (fragroundup(fs, blkoff(fs, (ip)->i_size))))
-#define	sblksize(fs, size, lbn) \
+	    : (ffs_fragroundup(fs, ffs_blkoff(fs, (ip)->i_size))))
+#define	ffs_sblksize(fs, size, lbn) \
 	(((lbn) >= UFS_NDADDR || (size) >= ((lbn) + 1) << (fs)->fs_bshift) \
 	  ? (fs)->fs_bsize \
-	  : (fragroundup(fs, blkoff(fs, (size)))))
+	  : (ffs_fragroundup(fs, ffs_blkoff(fs, (size)))))
 
 /*
  * Number of indirects in a filesystem block.
@@ -660,8 +660,8 @@ lbn_offset(struct fs *fs, int level)
 /*
  * Number of inodes in a secondary storage block/fragment.
  */
-#define	INOPB(fs)	((fs)->fs_inopb)
-#define	INOPF(fs)	((fs)->fs_inopb >> (fs)->fs_fragshift)
+#define	FFS_INOPB(fs)	((fs)->fs_inopb)
+#define	FFS_INOPF(fs)	((fs)->fs_inopb >> (fs)->fs_fragshift)
 
 /*
  * Softdep journal record format.

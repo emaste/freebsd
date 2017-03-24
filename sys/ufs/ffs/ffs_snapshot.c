@@ -308,11 +308,11 @@ restart:
 	 * to set size to that of the filesystem.
 	 */
 	numblks = howmany(fs->fs_size, fs->fs_frag);
-	error = UFS_BALLOC(vp, lblktosize(fs, (off_t)(numblks - 1)),
+	error = UFS_BALLOC(vp, ffs_lblktosize(fs, (off_t)(numblks - 1)),
 	    fs->fs_bsize, KERNCRED, BA_CLRBUF, &bp);
 	if (error)
 		goto out;
-	ip->i_size = lblktosize(fs, (off_t)numblks);
+	ip->i_size = ffs_lblktosize(fs, (off_t)numblks);
 	DIP_SET(ip, i_size, ip->i_size);
 	ip->i_flag |= IN_CHANGE | IN_UPDATE;
 	error = readblock(vp, bp, numblks - 1);
@@ -331,7 +331,7 @@ restart:
 	 * needing to be copied.
 	 */
 	for (blkno = UFS_NDADDR; blkno < numblks; blkno += NINDIR(fs)) {
-		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)blkno),
+		error = UFS_BALLOC(vp, ffs_lblktosize(fs, (off_t)blkno),
 		    fs->fs_bsize, td->td_ucred, BA_METAONLY, &ibp);
 		if (error)
 			goto out;
@@ -345,10 +345,10 @@ restart:
 	if (error)
 		goto out;
 	bawrite(nbp);
-	blkno = fragstoblks(fs, fs->fs_csaddr);
+	blkno = ffs_fragstoblks(fs, fs->fs_csaddr);
 	len = howmany(fs->fs_cssize, fs->fs_bsize);
 	for (loc = 0; loc < len; loc++) {
-		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)(blkno + loc)),
+		error = UFS_BALLOC(vp, ffs_lblktosize(fs, (off_t)(blkno + loc)),
 		    fs->fs_bsize, KERNCRED, 0, &nbp);
 		if (error)
 			goto out;
@@ -358,7 +358,7 @@ restart:
 	 * Allocate all cylinder group blocks.
 	 */
 	for (cg = 0; cg < fs->fs_ncg; cg++) {
-		error = UFS_BALLOC(vp, lfragtosize(fs, cgtod(fs, cg)),
+		error = UFS_BALLOC(vp, ffs_lfragtosize(fs, cgtod(fs, cg)),
 		    fs->fs_bsize, KERNCRED, 0, &nbp);
 		if (error)
 			goto out;
@@ -380,7 +380,7 @@ restart:
 	fs->fs_active = space;
 	UFS_UNLOCK(ump);
 	for (cg = 0; cg < fs->fs_ncg; cg++) {
-		error = UFS_BALLOC(vp, lfragtosize(fs, cgtod(fs, cg)),
+		error = UFS_BALLOC(vp, ffs_lfragtosize(fs, cgtod(fs, cg)),
 		    fs->fs_bsize, KERNCRED, 0, &nbp);
 		if (error)
 			goto out;
@@ -442,7 +442,7 @@ restart:
 		nanotime(&starttime);
 
 	/* The last block might have changed.  Copy it again to be sure. */
-	error = UFS_BALLOC(vp, lblktosize(fs, (off_t)(numblks - 1)),
+	error = UFS_BALLOC(vp, ffs_lblktosize(fs, (off_t)(numblks - 1)),
 	    fs->fs_bsize, KERNCRED, BA_CLRBUF, &bp);
 	if (error != 0)
 		goto out1;
@@ -458,7 +458,7 @@ restart:
 		if ((ACTIVECGNUM(fs, cg) & ACTIVECGOFF(cg)) != 0)
 			continue;
 		redo++;
-		error = UFS_BALLOC(vp, lfragtosize(fs, cgtod(fs, cg)),
+		error = UFS_BALLOC(vp, ffs_lfragtosize(fs, cgtod(fs, cg)),
 		    fs->fs_bsize, KERNCRED, 0, &nbp);
 		if (error)
 			goto out1;
@@ -479,7 +479,7 @@ restart:
 	if (fs->fs_sbsize < size)
 		bzero(&((char *)copy_fs)[fs->fs_sbsize],
 		    size - fs->fs_sbsize);
-	size = blkroundup(fs, fs->fs_cssize);
+	size = ffs_blkroundup(fs, fs->fs_cssize);
 	if (fs->fs_contigsumsize > 0)
 		size += fs->fs_ncg * sizeof(int32_t);
 	space = malloc((u_long)size, M_UFSMNT, M_WAITOK);
@@ -577,7 +577,7 @@ loop:
 		blkno = 0;
 		loc = howmany(xp->i_size, fs->fs_bsize) - 1;
 		if (loc < UFS_NDADDR) {
-			len = fragroundup(fs, blkoff(fs, xp->i_size));
+			len = ffs_fragroundup(fs, ffs_blkoff(fs, xp->i_size));
 			if (len != 0 && len < fs->fs_bsize) {
 				ffs_blkfree(ump, copy_fs, vp,
 				    DIP(xp, i_db[loc]), len, xp->i_number,
@@ -649,18 +649,18 @@ loop:
 		snapblklist = malloc(snaplistsize * sizeof(daddr_t),
 		    M_UFSMNT, M_WAITOK);
 		blkp = &snapblklist[1];
-		*blkp++ = lblkno(fs, fs->fs_sblockloc);
-		blkno = fragstoblks(fs, fs->fs_csaddr);
+		*blkp++ = ffs_lblkno(fs, fs->fs_sblockloc);
+		blkno = ffs_fragstoblks(fs, fs->fs_csaddr);
 		for (cg = 0; cg < fs->fs_ncg; cg++) {
-			if (fragstoblks(fs, cgtod(fs, cg) > blkno))
+			if (ffs_fragstoblks(fs, cgtod(fs, cg) > blkno))
 				break;
-			*blkp++ = fragstoblks(fs, cgtod(fs, cg));
+			*blkp++ = ffs_fragstoblks(fs, cgtod(fs, cg));
 		}
 		len = howmany(fs->fs_cssize, fs->fs_bsize);
 		for (loc = 0; loc < len; loc++)
 			*blkp++ = blkno + loc;
 		for (; cg < fs->fs_ncg; cg++)
-			*blkp++ = fragstoblks(fs, cgtod(fs, cg));
+			*blkp++ = ffs_fragstoblks(fs, cgtod(fs, cg));
 		snapblklist[0] = blkp - snapblklist;
 		VI_LOCK(devvp);
 		if (sn->sn_blklist != NULL)
@@ -772,7 +772,7 @@ out1:
 	 * Write the superblock and its summary information
 	 * to the snapshot.
 	 */
-	blkno = fragstoblks(fs, fs->fs_csaddr);
+	blkno = ffs_fragstoblks(fs, fs->fs_csaddr);
 	len = howmany(fs->fs_cssize, fs->fs_bsize);
 	space = copy_fs->fs_csp;
 	for (loc = 0; loc < len; loc++) {
@@ -787,12 +787,12 @@ out1:
 		space = (char *)space + fs->fs_bsize;
 		bawrite(nbp);
 	}
-	error = bread(vp, lblkno(fs, fs->fs_sblockloc), fs->fs_bsize,
+	error = bread(vp, ffs_lblkno(fs, fs->fs_sblockloc), fs->fs_bsize,
 	    KERNCRED, &nbp);
 	if (error) {
 		brelse(nbp);
 	} else {
-		loc = blkoff(fs, fs->fs_sblockloc);
+		loc = ffs_blkoff(fs, fs->fs_sblockloc);
 		bcopy((char *)copy_fs, &nbp->b_data[loc], (u_int)fs->fs_sbsize);
 		bawrite(nbp);
 	}
@@ -819,7 +819,7 @@ out1:
 	for (blockno = 0; blockno < UFS_NDADDR; blockno++) {
 		if (DIP(ip, i_db[blockno]) != 0)
 			continue;
-		error = UFS_BALLOC(vp, lblktosize(fs, blockno),
+		error = UFS_BALLOC(vp, ffs_lblktosize(fs, blockno),
 		    fs->fs_bsize, KERNCRED, BA_CLRBUF, &bp);
 		if (error)
 			break;
@@ -933,7 +933,7 @@ cgaccount(cg, vp, nbp, passno)
 				panic("ffs_snapshot: lost direct block");
 		}
 	}
-	error = UFS_BALLOC(vp, lblktosize(fs, (off_t)(base + loc)),
+	error = UFS_BALLOC(vp, ffs_lblktosize(fs, (off_t)(base + loc)),
 	    fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
 	if (error) {
 		return (error);
@@ -945,7 +945,7 @@ cgaccount(cg, vp, nbp, passno)
 				ibp->b_flags |= B_VALIDSUSPWRT;
 			bawrite(ibp);
 			error = UFS_BALLOC(vp,
-			    lblktosize(fs, (off_t)(base + loc)),
+			    ffs_lblktosize(fs, (off_t)(base + loc)),
 			    fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
 			if (error) {
 				return (error);
@@ -1008,7 +1008,7 @@ expunge_ufs1(snapvp, cancelip, fs, acctfunc, expungetype, clearmode)
 	 * Prepare to expunge the inode. If its inode block has not
 	 * yet been copied, then allocate and fill the copy.
 	 */
-	lbn = fragstoblks(fs, ino_to_fsba(fs, cancelip->i_number));
+	lbn = ffs_fragstoblks(fs, ino_to_fsba(fs, cancelip->i_number));
 	blkno = 0;
 	if (lbn < UFS_NDADDR) {
 		blkno = VTOI(snapvp)->i_din1->di_db[lbn];
@@ -1016,7 +1016,7 @@ expunge_ufs1(snapvp, cancelip, fs, acctfunc, expungetype, clearmode)
 		if (DOINGSOFTDEP(snapvp))
 			softdep_prealloc(snapvp, MNT_WAIT);
 		td->td_pflags |= TDP_COWINPROGRESS;
-		error = ffs_balloc_ufs1(snapvp, lblktosize(fs, (off_t)lbn),
+		error = ffs_balloc_ufs1(snapvp, ffs_lblktosize(fs, (off_t)lbn),
 		   fs->fs_bsize, KERNCRED, BA_METAONLY, &bp);
 		td->td_pflags &= ~TDP_COWINPROGRESS;
 		if (error)
@@ -1029,7 +1029,7 @@ expunge_ufs1(snapvp, cancelip, fs, acctfunc, expungetype, clearmode)
 		if ((error = bread(snapvp, lbn, fs->fs_bsize, KERNCRED, &bp)))
 			return (error);
 	} else {
-		error = ffs_balloc_ufs1(snapvp, lblktosize(fs, (off_t)lbn),
+		error = ffs_balloc_ufs1(snapvp, ffs_lblktosize(fs, (off_t)lbn),
 		    fs->fs_bsize, KERNCRED, 0, &bp);
 		if (error)
 			return (error);
@@ -1120,7 +1120,7 @@ indiracct_ufs1(snapvp, cancelvp, level, blkno, lbn, rlbn, remblks,
 	bp = getblk(cancelvp, lbn, fs->fs_bsize, 0, 0, 0);
 	bp->b_blkno = fsbtodb(fs, blkno);
 	if ((bp->b_flags & (B_DONE | B_DELWRI)) == 0 &&
-	    (error = readblock(cancelvp, bp, fragstoblks(fs, blkno)))) {
+	    (error = readblock(cancelvp, bp, ffs_fragstoblks(fs, blkno)))) {
 		brelse(bp);
 		return (error);
 	}
@@ -1195,12 +1195,12 @@ snapacct_ufs1(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 		blkno = *oldblkp;
 		if (blkno == 0 || blkno == BLK_NOCOPY || blkno == BLK_SNAP)
 			continue;
-		lbn = fragstoblks(fs, blkno);
+		lbn = ffs_fragstoblks(fs, blkno);
 		if (lbn < UFS_NDADDR) {
 			blkp = &ip->i_din1->di_db[lbn];
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		} else {
-			error = ffs_balloc_ufs1(vp, lblktosize(fs, (off_t)lbn),
+			error = ffs_balloc_ufs1(vp, ffs_lblktosize(fs, (off_t)lbn),
 			    fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
 			if (error)
 				return (error);
@@ -1256,7 +1256,7 @@ mapacct_ufs1(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 		if (acctit && expungetype == BLK_SNAP && blkno != BLK_SNAP)
 			*ip->i_snapblklist++ = lblkno;
 		if (blkno == BLK_SNAP)
-			blkno = blkstofrags(fs, lblkno);
+			blkno = ffs_blkstofrags(fs, lblkno);
 		ffs_blkfree(ITOUMP(ip), fs, vp, blkno, fs->fs_bsize, inum,
 		    vp->v_type, NULL);
 	}
@@ -1292,7 +1292,7 @@ expunge_ufs2(snapvp, cancelip, fs, acctfunc, expungetype, clearmode)
 	 * Prepare to expunge the inode. If its inode block has not
 	 * yet been copied, then allocate and fill the copy.
 	 */
-	lbn = fragstoblks(fs, ino_to_fsba(fs, cancelip->i_number));
+	lbn = ffs_fragstoblks(fs, ino_to_fsba(fs, cancelip->i_number));
 	blkno = 0;
 	if (lbn < UFS_NDADDR) {
 		blkno = VTOI(snapvp)->i_din2->di_db[lbn];
@@ -1300,7 +1300,7 @@ expunge_ufs2(snapvp, cancelip, fs, acctfunc, expungetype, clearmode)
 		if (DOINGSOFTDEP(snapvp))
 			softdep_prealloc(snapvp, MNT_WAIT);
 		td->td_pflags |= TDP_COWINPROGRESS;
-		error = ffs_balloc_ufs2(snapvp, lblktosize(fs, (off_t)lbn),
+		error = ffs_balloc_ufs2(snapvp, ffs_lblktosize(fs, (off_t)lbn),
 		   fs->fs_bsize, KERNCRED, BA_METAONLY, &bp);
 		td->td_pflags &= ~TDP_COWINPROGRESS;
 		if (error)
@@ -1313,7 +1313,7 @@ expunge_ufs2(snapvp, cancelip, fs, acctfunc, expungetype, clearmode)
 		if ((error = bread(snapvp, lbn, fs->fs_bsize, KERNCRED, &bp)))
 			return (error);
 	} else {
-		error = ffs_balloc_ufs2(snapvp, lblktosize(fs, (off_t)lbn),
+		error = ffs_balloc_ufs2(snapvp, ffs_lblktosize(fs, (off_t)lbn),
 		    fs->fs_bsize, KERNCRED, 0, &bp);
 		if (error)
 			return (error);
@@ -1404,7 +1404,7 @@ indiracct_ufs2(snapvp, cancelvp, level, blkno, lbn, rlbn, remblks,
 	bp = getblk(cancelvp, lbn, fs->fs_bsize, 0, 0, 0);
 	bp->b_blkno = fsbtodb(fs, blkno);
 	if ((bp->b_flags & (B_DONE | B_DELWRI)) == 0 &&
-	    (error = readblock(cancelvp, bp, fragstoblks(fs, blkno)))) {
+	    (error = readblock(cancelvp, bp, ffs_fragstoblks(fs, blkno)))) {
 		brelse(bp);
 		return (error);
 	}
@@ -1479,12 +1479,12 @@ snapacct_ufs2(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 		blkno = *oldblkp;
 		if (blkno == 0 || blkno == BLK_NOCOPY || blkno == BLK_SNAP)
 			continue;
-		lbn = fragstoblks(fs, blkno);
+		lbn = ffs_fragstoblks(fs, blkno);
 		if (lbn < UFS_NDADDR) {
 			blkp = &ip->i_din2->di_db[lbn];
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		} else {
-			error = ffs_balloc_ufs2(vp, lblktosize(fs, (off_t)lbn),
+			error = ffs_balloc_ufs2(vp, ffs_lblktosize(fs, (off_t)lbn),
 			    fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
 			if (error)
 				return (error);
@@ -1540,7 +1540,7 @@ mapacct_ufs2(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 		if (acctit && expungetype == BLK_SNAP && blkno != BLK_SNAP)
 			*ip->i_snapblklist++ = lblkno;
 		if (blkno == BLK_SNAP)
-			blkno = blkstofrags(fs, lblkno);
+			blkno = ffs_blkstofrags(fs, lblkno);
 		ffs_blkfree(ITOUMP(ip), fs, vp, blkno, fs->fs_bsize, inum,
 		    vp->v_type, NULL);
 	}
@@ -1645,7 +1645,7 @@ ffs_snapremove(vp)
 			continue;
 		if (dblk == BLK_NOCOPY || dblk == BLK_SNAP)
 			DIP_SET(ip, i_db[blkno], 0);
-		else if ((dblk == blkstofrags(fs, blkno) &&
+		else if ((dblk == ffs_blkstofrags(fs, blkno) &&
 		     ffs_snapblkfree(fs, ITODEVVP(ip), dblk, fs->fs_bsize,
 		     ip->i_number, vp->v_type, NULL))) {
 			DIP_SET(ip, i_blocks, DIP(ip, i_blocks) -
@@ -1655,7 +1655,7 @@ ffs_snapremove(vp)
 	}
 	numblks = howmany(ip->i_size, fs->fs_bsize);
 	for (blkno = UFS_NDADDR; blkno < numblks; blkno += NINDIR(fs)) {
-		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)blkno),
+		error = UFS_BALLOC(vp, ffs_lblktosize(fs, (off_t)blkno),
 		    fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
 		if (error)
 			continue;
@@ -1670,7 +1670,7 @@ ffs_snapremove(vp)
 					continue;
 				if (dblk == BLK_NOCOPY || dblk == BLK_SNAP)
 					((ufs1_daddr_t *)(ibp->b_data))[loc]= 0;
-				else if ((dblk == blkstofrags(fs, blkno) &&
+				else if ((dblk == ffs_blkstofrags(fs, blkno) &&
 				     ffs_snapblkfree(fs, ITODEVVP(ip), dblk,
 				     fs->fs_bsize, ip->i_number, vp->v_type,
 				     NULL))) {
@@ -1685,7 +1685,7 @@ ffs_snapremove(vp)
 				continue;
 			if (dblk == BLK_NOCOPY || dblk == BLK_SNAP)
 				((ufs2_daddr_t *)(ibp->b_data))[loc] = 0;
-			else if ((dblk == blkstofrags(fs, blkno) &&
+			else if ((dblk == ffs_blkstofrags(fs, blkno) &&
 			     ffs_snapblkfree(fs, ITODEVVP(ip), dblk,
 			     fs->fs_bsize, ip->i_number, vp->v_type, NULL))) {
 				ip->i_din2->di_blocks -= btodb(fs->fs_bsize);
@@ -1753,7 +1753,7 @@ ffs_snapblkfree(fs, devvp, bno, size, inum, vtype, wkhd)
 	int indiroff = 0, error = 0, claimedblk = 0;
 	struct snapdata *sn;
 
-	lbn = fragstoblks(fs, bno);
+	lbn = ffs_fragstoblks(fs, bno);
 retry:
 	VI_LOCK(devvp);
 	sn = devvp->v_rdev->si_snapdata;
@@ -1775,7 +1775,7 @@ retry:
 			blkno = DIP(ip, i_db[lbn]);
 		} else {
 			td->td_pflags |= TDP_COWINPROGRESS;
-			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
+			error = UFS_BALLOC(vp, ffs_lblktosize(fs, (off_t)lbn),
 			    fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
 			td->td_pflags &= ~TDP_COWINPROGRESS;
 			if (error)
@@ -1874,7 +1874,7 @@ retry:
 		 * the snapshot inode.
 		 */
 		td->td_pflags |= TDP_COWINPROGRESS;
-		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
+		error = UFS_BALLOC(vp, ffs_lblktosize(fs, (off_t)lbn),
 		    fs->fs_bsize, KERNCRED, 0, &cbp);
 		td->td_pflags &= ~TDP_COWINPROGRESS;
 		if (error)
@@ -1987,7 +1987,7 @@ ffs_snapshot_mount(mp)
 		}
 		ip = VTOI(vp);
 		if (!IS_SNAPSHOT(ip) || ip->i_size ==
-		    lblktosize(fs, howmany(fs->fs_size, fs->fs_frag))) {
+		    ffs_lblktosize(fs, howmany(fs->fs_size, fs->fs_frag))) {
 			if (!IS_SNAPSHOT(ip)) {
 				reason = "non-snapshot";
 			} else {
@@ -2049,7 +2049,7 @@ ffs_snapshot_mount(mp)
 	aiov.iov_len = sizeof(snaplistsize);
 	auio.uio_resid = aiov.iov_len;
 	auio.uio_offset =
-	    lblktosize(fs, howmany(fs->fs_size, fs->fs_frag));
+	    ffs_lblktosize(fs, howmany(fs->fs_size, fs->fs_frag));
 	auio.uio_segflg = UIO_SYSSPACE;
 	auio.uio_rw = UIO_READ;
 	auio.uio_td = td;
@@ -2137,7 +2137,7 @@ ffs_bp_snapblk(devvp, bp)
 	if (sn == NULL || TAILQ_FIRST(&sn->sn_head) == NULL)
 		return (0);
 	fs = ITOFS(TAILQ_FIRST(&sn->sn_head));
-	lbn = fragstoblks(fs, dbtofsb(fs, bp->b_blkno));
+	lbn = ffs_fragstoblks(fs, dbtofsb(fs, bp->b_blkno));
 	snapblklist = sn->sn_blklist;
 	upper = sn->sn_listsize - 1;
 	lower = 1;
@@ -2264,7 +2264,7 @@ ffs_copyonwrite(devvp, bp)
 	}
 	ip = TAILQ_FIRST(&sn->sn_head);
 	fs = ITOFS(ip);
-	lbn = fragstoblks(fs, dbtofsb(fs, bp->b_blkno));
+	lbn = ffs_fragstoblks(fs, dbtofsb(fs, bp->b_blkno));
 	snapblklist = sn->sn_blklist;
 	upper = sn->sn_listsize - 1;
 	lower = 1;
@@ -2331,7 +2331,7 @@ ffs_copyonwrite(devvp, bp)
 			blkno = DIP(ip, i_db[lbn]);
 		} else {
 			td->td_pflags |= TDP_COWINPROGRESS | TDP_NORUNNINGBUF;
-			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
+			error = UFS_BALLOC(vp, ffs_lblktosize(fs, (off_t)lbn),
 			   fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
 			td->td_pflags &= ~TDP_COWINPROGRESS;
 			if (error)
@@ -2360,7 +2360,7 @@ ffs_copyonwrite(devvp, bp)
 		 * with another process to allocate a block.
 		 */
 		td->td_pflags |= TDP_COWINPROGRESS | TDP_NORUNNINGBUF;
-		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
+		error = UFS_BALLOC(vp, ffs_lblktosize(fs, (off_t)lbn),
 		    fs->fs_bsize, KERNCRED, 0, &cbp);
 		td->td_pflags &= ~TDP_COWINPROGRESS;
 		if (error)
@@ -2500,7 +2500,7 @@ readblock(vp, bp, lbn)
 
 	bip = g_alloc_bio();
 	bip->bio_cmd = BIO_READ;
-	bip->bio_offset = dbtob(fsbtodb(fs, blkstofrags(fs, lbn)));
+	bip->bio_offset = dbtob(fsbtodb(fs, ffs_blkstofrags(fs, lbn)));
 	bip->bio_data = bp->b_data;
 	bip->bio_length = bp->b_bcount;
 	bip->bio_done = NULL;

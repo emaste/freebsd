@@ -239,7 +239,7 @@ ffs_truncate(vp, length, flags, cred)
 	extblocks = 0;
 	datablocks = DIP(ip, i_blocks);
 	if (fs->fs_magic == FS_UFS2_MAGIC && ip->i_din2->di_extsize > 0) {
-		extblocks = btodb(fragroundup(fs, ip->i_din2->di_extsize));
+		extblocks = btodb(ffs_fragroundup(fs, ip->i_din2->di_extsize));
 		datablocks -= extblocks;
 	}
 	if ((flags & IO_EXT) && extblocks > 0) {
@@ -257,7 +257,7 @@ ffs_truncate(vp, length, flags, cred)
 #endif
 			vinvalbuf(vp, V_ALT, 0, 0);
 			vn_pages_remove(vp,
-			    OFF_TO_IDX(lblktosize(fs, -extblocks)), 0);
+			    OFF_TO_IDX(ffs_lblktosize(fs, -extblocks)), 0);
 			osize = ip->i_din2->di_extsize;
 			ip->i_din2->di_blocks -= extblocks;
 			ip->i_din2->di_extsize = 0;
@@ -272,7 +272,7 @@ ffs_truncate(vp, length, flags, cred)
 				if (oldblks[i] == 0)
 					continue;
 				ffs_blkfree(ump, fs, ITODEVVP(ip), oldblks[i],
-				    sblksize(fs, osize, i), ip->i_number,
+				    ffs_sblksize(fs, osize, i), ip->i_number,
 				    vp->v_type, NULL);
 			}
 		}
@@ -336,13 +336,13 @@ ffs_truncate(vp, length, flags, cred)
 	 * Lookup block number for a given offset. Zero length files
 	 * have no blocks, so return a blkno of -1.
 	 */
-	lbn = lblkno(fs, length - 1);
+	lbn = ffs_lblkno(fs, length - 1);
 	if (length == 0) {
 		blkno = -1;
 	} else if (lbn < UFS_NDADDR) {
 		blkno = DIP(ip, i_db[lbn]);
 	} else {
-		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn), fs->fs_bsize,
+		error = UFS_BALLOC(vp, ffs_lblktosize(fs, (off_t)lbn), fs->fs_bsize,
 		    cred, BA_METAONLY, &bp);
 		if (error)
 			return (error);
@@ -411,12 +411,12 @@ ffs_truncate(vp, length, flags, cred)
 	 * subsequent file growth. Directories however are not
 	 * zero'ed as they should grow back initialized to empty.
 	 */
-	offset = blkoff(fs, length);
+	offset = ffs_blkoff(fs, length);
 	if (blkno != 0 && offset == 0) {
 		ip->i_size = length;
 		DIP_SET(ip, i_size, length);
 	} else {
-		lbn = lblkno(fs, length);
+		lbn = ffs_lblkno(fs, length);
 		flags |= BA_CLRBUF;
 		error = UFS_BALLOC(vp, length - 1, 1, cred, flags, &bp);
 		if (error)
@@ -430,12 +430,12 @@ ffs_truncate(vp, length, flags, cred)
 		 * when we create the fragment below.
 		 */
 		if (DOINGSOFTDEP(vp) && lbn < UFS_NDADDR &&
-		    fragroundup(fs, blkoff(fs, length)) < fs->fs_bsize &&
+		    ffs_fragroundup(fs, ffs_blkoff(fs, length)) < fs->fs_bsize &&
 		    (error = ffs_syncvnode(vp, MNT_WAIT, 0)) != 0)
 			return (error);
 		ip->i_size = length;
 		DIP_SET(ip, i_size, length);
-		size = blksize(fs, ip, lbn);
+		size = ffs_blksize(fs, ip, lbn);
 		if (vp->v_type != VDIR && offset != 0)
 			bzero((char *)bp->b_data + offset,
 			    (u_int)(size - offset));
@@ -456,7 +456,7 @@ ffs_truncate(vp, length, flags, cred)
 	 * which we want to keep.  Lastblock is -1 when
 	 * the file is truncated to 0.
 	 */
-	lastblock = lblkno(fs, length + fs->fs_bsize - 1) - 1;
+	lastblock = ffs_lblkno(fs, length + fs->fs_bsize - 1) - 1;
 	lastiblock[SINGLE] = lastblock - UFS_NDADDR;
 	lastiblock[DOUBLE] = lastiblock[SINGLE] - NINDIR(fs);
 	lastiblock[TRIPLE] = lastiblock[DOUBLE] - NINDIR(fs) * NINDIR(fs);
@@ -539,7 +539,7 @@ ffs_truncate(vp, length, flags, cred)
 		if (bn == 0)
 			continue;
 		DIP_SET(ip, i_db[i], 0);
-		bsize = blksize(fs, ip, i);
+		bsize = ffs_blksize(fs, ip, i);
 		ffs_blkfree(ump, fs, ump->um_devvp, bn, bsize, ip->i_number,
 		    vp->v_type, NULL);
 		blocksreleased += btodb(bsize);
@@ -559,10 +559,10 @@ ffs_truncate(vp, length, flags, cred)
 		 * Calculate amount of space we're giving
 		 * back as old block size minus new block size.
 		 */
-		oldspace = blksize(fs, ip, lastblock);
+		oldspace = ffs_blksize(fs, ip, lastblock);
 		ip->i_size = length;
 		DIP_SET(ip, i_size, length);
-		newspace = blksize(fs, ip, lastblock);
+		newspace = ffs_blksize(fs, ip, lastblock);
 		if (newspace == 0)
 			panic("ffs_truncate: newspace");
 		if (oldspace - newspace > 0) {
@@ -571,7 +571,7 @@ ffs_truncate(vp, length, flags, cred)
 			 * the old block # plus the number of frags
 			 * required for the storage we're keeping.
 			 */
-			bn += numfrags(fs, newspace);
+			bn += ffs_numfrags(fs, newspace);
 			ffs_blkfree(ump, fs, ump->um_devvp, bn,
 			   oldspace - newspace, ip->i_number, vp->v_type, NULL);
 			blocksreleased += btodb(oldspace - newspace);

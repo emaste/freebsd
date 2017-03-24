@@ -180,9 +180,9 @@ static int virtualblocks(struct fs *super, union dinode *dp)
 
 #else	/* COMPAT */
 
-	if (lblkno(super,sz) >= UFS_NDADDR) {
-		nblk = blkroundup(super,sz);
-		sz = lblkno(super,nblk);
+	if (ffs_lblkno(super,sz) >= UFS_NDADDR) {
+		nblk = ffs_blkroundup(super,sz);
+		sz = ffs_lblkno(super,nblk);
 		sz = (sz - UFS_NDADDR + NINDIR(super) - 1) / NINDIR(super);
 		while (sz > 0) {
 			nblk += sz * super->fs_bsize;
@@ -190,7 +190,7 @@ static int virtualblocks(struct fs *super, union dinode *dp)
 			sz = (sz - 1 + NINDIR(super) - 1) / NINDIR(super);
 		}
 	} else
-		nblk = fragroundup(super,sz);
+		nblk = ffs_fragroundup(super,sz);
 
 	return nblk / 512;
 #endif	/* COMPAT */

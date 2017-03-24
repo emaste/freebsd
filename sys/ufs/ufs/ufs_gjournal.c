@@ -74,7 +74,7 @@ ufs_gjournal_modref(struct vnode *vp, int count)
 	if (devvp->v_type == VREG) {
 		/* devvp is a snapshot */
 		dev = VFSTOUFS(devvp->v_mount)->um_devvp->v_rdev;
-		cgbno = fragstoblks(fs, cgtod(fs, cg));
+		cgbno = ffs_fragstoblks(fs, cgtod(fs, cg));
 	} else if (devvp->v_type == VCHR) {
 		/* devvp is a normal disk device */
 		dev = devvp->v_rdev;

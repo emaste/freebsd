@@ -71,8 +71,8 @@ ffs_blkatoff(struct vnode *vp, off_t offset, char **res, struct buf **bpp)
 
 	ip = VTOI(vp);
 	fs = ITOFS(ip);
-	lbn = lblkno(fs, offset);
-	bsize = blksize(fs, ip, lbn);
+	lbn = ffs_lblkno(fs, offset);
+	bsize = ffs_blksize(fs, ip, lbn);
 
 	*bpp = NULL;
 	error = bread(vp, lbn, bsize, NOCRED, &bp);
@@ -81,7 +81,7 @@ ffs_blkatoff(struct vnode *vp, off_t offset, char **res, struct buf **bpp)
 		return (error);
 	}
 	if (res)
-		*res = (char *)bp->b_data + blkoff(fs, offset);
+		*res = (char *)bp->b_data + ffs_blkoff(fs, offset);
 	*bpp = bp;
 	return (0);
 }

@@ -103,7 +103,7 @@ pass5(void)
 						pwarn("%sING CLUSTER MAPS\n",
 						    doit);
 					fs->fs_cgsize =
-					    fragroundup(fs, CGSIZE(fs));
+					    ffs_fragroundup(fs, CGSIZE(fs));
 					rewritecg = 1;
 					sbdirty();
 				}
@@ -139,7 +139,7 @@ pass5(void)
 		newcg->cg_clusteroff = newcg->cg_clustersumoff +
 		    (fs->fs_contigsumsize + 1) * sizeof(u_int32_t);
 		newcg->cg_nextfreeoff = newcg->cg_clusteroff +
-		    howmany(fragstoblks(fs, fs->fs_fpg), CHAR_BIT);
+		    howmany(ffs_fragstoblks(fs, fs->fs_fpg), CHAR_BIT);
 	}
 	newcg->cg_magic = CG_MAGIC;
 	mapsize = newcg->cg_nextfreeoff - newcg->cg_iusedoff;
@@ -147,7 +147,7 @@ pass5(void)
 	for (i = 0; i < 3; i++)
 		idesc[i].id_type = ADDR;
 	memset(&cstotal, 0, sizeof(struct csum_total));
-	dmax = blknum(fs, fs->fs_size + fs->fs_frag - 1);
+	dmax = ffs_blknum(fs, fs->fs_size + fs->fs_frag - 1);
 	for (d = fs->fs_size; d < dmax; d++)
 		setbmap(d);
 	for (c = 0; c < fs->fs_ncg; c++) {
@@ -589,8 +589,8 @@ clear_blocks(ufs2_daddr_t start, ufs2_daddr_t end)
 		printf("Zero frags %jd to %jd\n", start, end);
 	if (Zflag)
 		blzero(fswritefd, fsbtodb(&sblock, start),
-		    lfragtosize(&sblock, end - start + 1));
+		    ffs_lfragtosize(&sblock, end - start + 1));
 	if (Eflag)
 		blerase(fswritefd, fsbtodb(&sblock, start),
-		    lfragtosize(&sblock, end - start + 1));
+		    ffs_lfragtosize(&sblock, end - start + 1));
 }

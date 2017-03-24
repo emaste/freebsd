@@ -554,7 +554,7 @@ expanddir(union dinode *dp, char *name)
 	struct bufarea *bp;
 	char *cp, firstblk[DIRBLKSIZ];
 
-	lastbn = lblkno(&sblock, DIP(dp, di_size));
+	lastbn = ffs_lblkno(&sblock, DIP(dp, di_size));
 	if (lastbn >= UFS_NDADDR - 1 || DIP(dp, di_db[lastbn]) == 0 ||
 	    DIP(dp, di_size) == 0)
 		return (0);
@@ -565,7 +565,7 @@ expanddir(union dinode *dp, char *name)
 	DIP_SET(dp, di_size, DIP(dp, di_size) + sblock.fs_bsize);
 	DIP_SET(dp, di_blocks, DIP(dp, di_blocks) + btodb(sblock.fs_bsize));
 	bp = getdirblk(DIP(dp, di_db[lastbn + 1]),
-		sblksize(&sblock, DIP(dp, di_size), lastbn + 1));
+		ffs_sblksize(&sblock, DIP(dp, di_size), lastbn + 1));
 	if (bp->b_errs)
 		goto bad;
 	memmove(firstblk, bp->b_un.b_buf, DIRBLKSIZ);
@@ -579,7 +579,7 @@ expanddir(union dinode *dp, char *name)
 		memmove(cp, &emptydir, sizeof emptydir);
 	dirty(bp);
 	bp = getdirblk(DIP(dp, di_db[lastbn + 1]),
-		sblksize(&sblock, DIP(dp, di_size), lastbn + 1));
+		ffs_sblksize(&sblock, DIP(dp, di_size), lastbn + 1));
 	if (bp->b_errs)
 		goto bad;
 	memmove(bp->b_un.b_buf, &emptydir, sizeof emptydir);

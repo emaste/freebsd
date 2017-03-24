@@ -167,7 +167,7 @@ ffs_alloc(ip, lbn, bpref, size, flags, cred, bnp)
 	fs = ump->um_fs;
 	mtx_assert(UFS_MTX(ump), MA_OWNED);
 #ifdef INVARIANTS
-	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0) {
+	if ((u_int)size > fs->fs_bsize || ffs_fragoff(fs, size) != 0) {
 		printf("dev = %s, bsize = %ld, size = %d, fs = %s\n",
 		    devtoname(ump->um_dev), (long)fs->fs_bsize, size,
 		    fs->fs_fsmnt);
@@ -188,7 +188,7 @@ retry:
 	if (size == fs->fs_bsize && fs->fs_cstotal.cs_nbfree == 0)
 		goto nospace;
 	if (priv_check_cred(cred, PRIV_VFS_BLOCKRESERVE, 0) &&
-	    freespace(fs, fs->fs_minfree) - numfrags(fs, size) < 0)
+	    freespace(fs, fs->fs_minfree) - ffs_numfrags(fs, size) < 0)
 		goto nospace;
 	if (bpref >= fs->fs_size)
 		bpref = 0;
@@ -269,8 +269,8 @@ ffs_realloccg(ip, lbprev, bprev, bpref, osize, nsize, flags, cred, bpp)
 #ifdef INVARIANTS
 	if (vp->v_mount->mnt_kern_flag & MNTK_SUSPENDED)
 		panic("ffs_realloccg: allocation on suspended filesystem");
-	if ((u_int)osize > fs->fs_bsize || fragoff(fs, osize) != 0 ||
-	    (u_int)nsize > fs->fs_bsize || fragoff(fs, nsize) != 0) {
+	if ((u_int)osize > fs->fs_bsize || ffs_fragoff(fs, osize) != 0 ||
+	    (u_int)nsize > fs->fs_bsize || ffs_fragoff(fs, nsize) != 0) {
 		printf(
 		"dev = %s, bsize = %ld, osize = %d, nsize = %d, fs = %s\n",
 		    devtoname(ump->um_dev), (long)fs->fs_bsize, osize,
@@ -283,7 +283,7 @@ ffs_realloccg(ip, lbprev, bprev, bpref, osize, nsize, flags, cred, bpp)
 	reclaimed = 0;
 retry:
 	if (priv_check_cred(cred, PRIV_VFS_BLOCKRESERVE, 0) &&
-	    freespace(fs, fs->fs_minfree) -  numfrags(fs, nsize - osize) < 0) {
+	    freespace(fs, fs->fs_minfree) -  ffs_numfrags(fs, nsize - osize) < 0) {
 		goto nospace;
 	}
 	if (bprev == 0) {
@@ -1593,11 +1593,11 @@ ffs_fragextend(ip, cg, bprev, osize, nsize)
 
 	ump = ITOUMP(ip);
 	fs = ump->um_fs;
-	if (fs->fs_cs(fs, cg).cs_nffree < numfrags(fs, nsize - osize))
+	if (fs->fs_cs(fs, cg).cs_nffree < ffs_numfrags(fs, nsize - osize))
 		return (0);
-	frags = numfrags(fs, nsize);
-	bbase = fragnum(fs, bprev);
-	if (bbase > fragnum(fs, (bprev + frags - 1))) {
+	frags = ffs_numfrags(fs, nsize);
+	bbase = ffs_fragnum(fs, bprev);
+	if (bbase > ffs_fragnum(fs, (bprev + frags - 1))) {
 		/* cannot extend across a block boundary */
 		return (0);
 	}
@@ -1613,7 +1613,7 @@ ffs_fragextend(ip, cg, bprev, osize, nsize)
 	cgp->cg_old_time = cgp->cg_time = time_second;
 	bno = dtogd(fs, bprev);
 	blksfree = cg_blksfree(cgp);
-	for (i = numfrags(fs, osize); i < frags; i++)
+	for (i = ffs_numfrags(fs, osize); i < frags; i++)
 		if (isclr(blksfree, bno + i))
 			goto fail;
 	/*
@@ -1625,10 +1625,10 @@ ffs_fragextend(ip, cg, bprev, osize, nsize)
 	for (i = frags; i < fs->fs_frag - bbase; i++)
 		if (isclr(blksfree, bno + i))
 			break;
-	cgp->cg_frsum[i - numfrags(fs, osize)]--;
+	cgp->cg_frsum[i - ffs_numfrags(fs, osize)]--;
 	if (i != frags)
 		cgp->cg_frsum[i - frags]++;
-	for (i = numfrags(fs, osize), nffree = 0; i < frags; i++) {
+	for (i = ffs_numfrags(fs, osize), nffree = 0; i < frags; i++) {
 		clrbit(blksfree, bno + i);
 		cgp->cg_cs.cs_nffree--;
 		nffree++;
@@ -1641,7 +1641,7 @@ ffs_fragextend(ip, cg, bprev, osize, nsize)
 	UFS_UNLOCK(ump);
 	if (DOINGSOFTDEP(ITOV(ip)))
 		softdep_setup_blkmapdep(bp, UFSTOVFS(ump), bprev,
-		    frags, numfrags(fs, osize));
+		    frags, ffs_numfrags(fs, osize));
 	bdwrite(bp);
 	return (bprev);
 
@@ -1704,7 +1704,7 @@ ffs_alloccg(ip, cg, bpref, size, rsize)
 	 * it down to a smaller size if necessary
 	 */
 	blksfree = cg_blksfree(cgp);
-	frags = numfrags(fs, size);
+	frags = ffs_numfrags(fs, size);
 	for (allocsiz = frags; allocsiz < fs->fs_frag; allocsiz++)
 		if (cgp->cg_frsum[allocsiz] != 0)
 			break;
@@ -1794,8 +1794,8 @@ ffs_alloccgblk(ip, bp, bpref, size)
 	/*
 	 * if the requested block is available, use it
 	 */
-	bno = dtogd(fs, blknum(fs, bpref));
-	if (ffs_isblock(fs, blksfree, fragstoblks(fs, bno)))
+	bno = dtogd(fs, ffs_blknum(fs, bpref));
+	if (ffs_isblock(fs, blksfree, ffs_fragstoblks(fs, bno)))
 		goto gotit;
 	/*
 	 * Take the next available block in this cylinder group.
@@ -1807,7 +1807,7 @@ ffs_alloccgblk(ip, bp, bpref, size)
 	if (bno >= dtogd(fs, cgdata(fs, cgp->cg_cgx)))
 		cgp->cg_rotor = bno;
 gotit:
-	blkno = fragstoblks(fs, bno);
+	blkno = ffs_fragstoblks(fs, bno);
 	ffs_clrblock(fs, blksfree, (long)blkno);
 	ffs_clusteracct(fs, cgp, blkno, -1);
 	cgp->cg_cs.cs_nbfree--;
@@ -1818,7 +1818,7 @@ gotit:
 	/*
 	 * If the caller didn't want the whole block free the frags here.
 	 */
-	size = numfrags(fs, size);
+	size = ffs_numfrags(fs, size);
 	if (size != fs->fs_frag) {
 		bno = dtogd(fs, blkno);
 		for (i = size; i < fs->fs_frag; i++)
@@ -1913,8 +1913,8 @@ ffs_clusteralloc(ip, cg, bpref, len)
 	if (dtog(fs, bpref) != cg)
 		bpref = cgdata(fs, cg);
 	else
-		bpref = blknum(fs, bpref);
-	bpref = fragstoblks(fs, dtogd(fs, bpref));
+		bpref = ffs_blknum(fs, bpref);
+	bpref = ffs_fragstoblks(fs, dtogd(fs, bpref));
 	mapp = &cg_clustersfree(cgp)[bpref / NBBY];
 	map = *mapp++;
 	bit = 1 << (bpref % NBBY);
@@ -1942,10 +1942,10 @@ ffs_clusteralloc(ip, cg, bpref, len)
 	for (i = 1; i <= len; i++)
 		if (!ffs_isblock(fs, blksfree, got - run + i))
 			panic("ffs_clusteralloc: map mismatch");
-	bno = cgbase(fs, cg) + blkstofrags(fs, got - run + 1);
+	bno = cgbase(fs, cg) + ffs_blkstofrags(fs, got - run + 1);
 	if (dtog(fs, bno) != cg)
 		panic("ffs_clusteralloc: allocated out of group");
-	len = blkstofrags(fs, len);
+	len = ffs_blkstofrags(fs, len);
 	UFS_LOCK(ump);
 	for (i = 0; i < len; i += fs->fs_frag)
 		if (ffs_alloccgblk(ip, bp, bno + i, fs->fs_bsize) != bno + i)
@@ -2046,7 +2046,7 @@ gotit:
 	 * Check to see if we need to initialize more inodes.
 	 */
 	if (fs->fs_magic == FS_UFS2_MAGIC &&
-	    ipref + INOPB(fs) > cgp->cg_initediblk &&
+	    ipref + FFS_INOPB(fs) > cgp->cg_initediblk &&
 	    cgp->cg_initediblk < cgp->cg_niblk) {
 		old_initediblk = cgp->cg_initediblk;
 
@@ -2081,7 +2081,7 @@ gotit:
 		}
 		bzero(ibp->b_data, (int)fs->fs_bsize);
 		dp2 = (struct ufs2_dinode *)(ibp->b_data);
-		for (i = 0; i < INOPB(fs); i++) {
+		for (i = 0; i < FFS_INOPB(fs); i++) {
 			while (dp2->di_gen == 0)
 				dp2->di_gen = arc4random();
 			dp2++;
@@ -2114,7 +2114,7 @@ gotit:
 		}
 		cgp = (struct cg *)bp->b_data;
 		if (cgp->cg_initediblk == old_initediblk)
-			cgp->cg_initediblk += INOPB(fs);
+			cgp->cg_initediblk += FFS_INOPB(fs);
 		goto restart;
 	}
 	cgp->cg_old_time = cgp->cg_time = time_second;
@@ -2170,7 +2170,7 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 		/* devvp is a snapshot */
 		MPASS(devvp->v_mount->mnt_data == ump);
 		dev = ump->um_devvp->v_rdev;
-		cgblkno = fragstoblks(fs, cgtod(fs, cg));
+		cgblkno = ffs_fragstoblks(fs, cgtod(fs, cg));
 	} else if (devvp->v_type == VCHR) {
 		/* devvp is a normal disk device */
 		dev = devvp->v_rdev;
@@ -2179,8 +2179,8 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 	} else
 		return;
 #ifdef INVARIANTS
-	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0 ||
-	    fragnum(fs, bno) + numfrags(fs, size) > fs->fs_frag) {
+	if ((u_int)size > fs->fs_bsize || ffs_fragoff(fs, size) != 0 ||
+	    ffs_fragnum(fs, bno) + ffs_numfrags(fs, size) > fs->fs_frag) {
 		printf("dev=%s, bno = %jd, bsize = %ld, size = %ld, fs = %s\n",
 		    devtoname(dev), (intmax_t)bno, (long)fs->fs_bsize,
 		    size, fs->fs_fsmnt);
@@ -2208,7 +2208,7 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 	blksfree = cg_blksfree(cgp);
 	UFS_LOCK(ump);
 	if (size == fs->fs_bsize) {
-		fragno = fragstoblks(fs, cgbno);
+		fragno = ffs_fragstoblks(fs, cgbno);
 		if (!ffs_isfreeblock(fs, blksfree, fragno)) {
 			if (devvp->v_type == VREG) {
 				UFS_UNLOCK(ump);
@@ -2226,7 +2226,7 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 		fs->fs_cstotal.cs_nbfree++;
 		fs->fs_cs(fs, cg).cs_nbfree++;
 	} else {
-		bbase = cgbno - fragnum(fs, cgbno);
+		bbase = cgbno - ffs_fragnum(fs, cgbno);
 		/*
 		 * decrement the counts associated with the old frags
 		 */
@@ -2235,7 +2235,7 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 		/*
 		 * deallocate the fragment
 		 */
-		frags = numfrags(fs, size);
+		frags = ffs_numfrags(fs, size);
 		for (i = 0; i < frags; i++) {
 			if (isset(blksfree, cgbno + i)) {
 				printf("dev = %s, block = %jd, fs = %s\n",
@@ -2256,7 +2256,7 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 		/*
 		 * if a complete block has been reassembled, account for it
 		 */
-		fragno = fragstoblks(fs, bbase);
+		fragno = ffs_fragstoblks(fs, bbase);
 		if (ffs_isblock(fs, blksfree, fragno)) {
 			cgp->cg_cs.cs_nffree -= fs->fs_frag;
 			fs->fs_cstotal.cs_nffree -= fs->fs_frag;
@@ -2273,7 +2273,7 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 	mp = UFSTOVFS(ump);
 	if (MOUNTEDSOFTDEP(mp) && devvp->v_type == VCHR)
 		softdep_setup_blkfree(UFSTOVFS(ump), bp, bno,
-		    numfrags(fs, size), dephd);
+		    ffs_numfrags(fs, size), dephd);
 	bdwrite(bp);
 }
 
@@ -2401,7 +2401,7 @@ ffs_checkblk(ip, bno, size)
 	u_int8_t *blksfree;
 
 	fs = ITOFS(ip);
-	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0) {
+	if ((u_int)size > fs->fs_bsize || ffs_fragoff(fs, size) != 0) {
 		printf("bsize = %ld, size = %ld, fs = %s\n",
 		    (long)fs->fs_bsize, size, fs->fs_fsmnt);
 		panic("ffs_checkblk: bad size");
@@ -2419,9 +2419,9 @@ ffs_checkblk(ip, bno, size)
 	blksfree = cg_blksfree(cgp);
 	cgbno = dtogd(fs, bno);
 	if (size == fs->fs_bsize) {
-		free = ffs_isblock(fs, blksfree, fragstoblks(fs, cgbno));
+		free = ffs_isblock(fs, blksfree, ffs_fragstoblks(fs, cgbno));
 	} else {
-		frags = numfrags(fs, size);
+		frags = ffs_numfrags(fs, size);
 		for (free = 0, i = 0; i < frags; i++)
 			if (isset(blksfree, cgbno + i))
 				free++;
@@ -2480,7 +2480,7 @@ ffs_freefile(ump, fs, devvp, ino, mode, wkhd)
 		/* devvp is a snapshot */
 		MPASS(devvp->v_mount->mnt_data == ump);
 		dev = ump->um_devvp->v_rdev;
-		cgbno = fragstoblks(fs, cgtod(fs, cg));
+		cgbno = ffs_fragstoblks(fs, cgtod(fs, cg));
 	} else if (devvp->v_type == VCHR) {
 		/* devvp is a normal disk device */
 		dev = devvp->v_rdev;
@@ -2552,7 +2552,7 @@ ffs_checkfreefile(fs, devvp, ino)
 	cg = ino_to_cg(fs, ino);
 	if (devvp->v_type == VREG) {
 		/* devvp is a snapshot */
-		cgbno = fragstoblks(fs, cgtod(fs, cg));
+		cgbno = ffs_fragstoblks(fs, cgtod(fs, cg));
 	} else if (devvp->v_type == VCHR) {
 		/* devvp is a normal disk device */
 		cgbno = fsbtodb(fs, cgtod(fs, cg));
@@ -3203,12 +3203,12 @@ buffered_write(fp, uio, active_cred, flags, td)
 	 * a fragment boundary, and be a multiple of fragments in length.
 	 */
 	if (uio->uio_resid > fs->fs_bsize - (uio->uio_offset % fs->fs_bsize) ||
-	    fragoff(fs, uio->uio_offset) != 0 ||
-	    fragoff(fs, uio->uio_resid) != 0) {
+	    ffs_fragoff(fs, uio->uio_offset) != 0 ||
+	    ffs_fragoff(fs, uio->uio_resid) != 0) {
 		error = EINVAL;
 		goto out;
 	}
-	lbn = numfrags(fs, uio->uio_offset);
+	lbn = ffs_numfrags(fs, uio->uio_offset);
 	bp = getblk(devvp, lbn, uio->uio_resid, 0, 0, 0);
 	bp->b_flags |= B_RELBUF;
 	if ((error = uiomove((char *)bp->b_data, uio->uio_resid, uio)) != 0) {

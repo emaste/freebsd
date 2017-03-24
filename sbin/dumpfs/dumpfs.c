@@ -416,8 +416,8 @@ marshal(const char *name)
 	printf("-f %d ", fs->fs_fsize);
 	printf("-g %d ", fs->fs_avgfilesize);
 	printf("-h %d ", fs->fs_avgfpdir);
-	printf("-i %jd ", fragroundup(fs, lblktosize(fs, fragstoblks(fs,
-	    fs->fs_fpg)) / fs->fs_ipg));
+	printf("-i %jd ", ffs_fragroundup(fs, ffs_lblktosize(fs,
+	    ffs_fragstoblks(fs, fs->fs_fpg)) / fs->fs_ipg));
 	if (fs->fs_flags & FS_SUJ)
 		printf("-j ");
 	if (fs->fs_flags & FS_GJOURNAL)

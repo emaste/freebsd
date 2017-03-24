@@ -81,9 +81,9 @@ ckinode(union dinode *dp, struct inodesc *idesc)
 	for (i = 0; i < UFS_NDADDR; i++) {
 		idesc->id_lbn++;
 		if (--ndb == 0 &&
-		    (offset = blkoff(&sblock, DIP(&dino, di_size))) != 0)
+		    (offset = ffs_blkoff(&sblock, DIP(&dino, di_size))) != 0)
 			idesc->id_numfrags =
-				numfrags(&sblock, fragroundup(&sblock, offset));
+				ffs_numfrags(&sblock, ffs_fragroundup(&sblock, offset));
 		else
 			idesc->id_numfrags = sblock.fs_frag;
 		if (DIP(&dino, di_db[i]) == 0) {
@@ -244,10 +244,10 @@ chkrange(ufs2_daddr_t blk, int cnt)
 	    cnt - 1 > maxfsblock - blk)
 		return (1);
 	if (cnt > sblock.fs_frag ||
-	    fragnum(&sblock, blk) + cnt > sblock.fs_frag) {
+	    ffs_fragnum(&sblock, blk) + cnt > sblock.fs_frag) {
 		if (debug)
 			printf("bad size: blk %ld, offset %i, size %d\n",
-			    (long)blk, (int)fragnum(&sblock, blk), cnt);
+			    (long)blk, (int)ffs_fragnum(&sblock, blk), cnt);
 		return (1);
 	}
 	c = dtog(&sblock, blk);
@@ -288,17 +288,17 @@ ginode(ino_t inumber)
 		errx(EEXIT, "bad inode number %ju to ginode",
 		    (uintmax_t)inumber);
 	if (startinum == 0 ||
-	    inumber < startinum || inumber >= startinum + INOPB(&sblock)) {
+	    inumber < startinum || inumber >= startinum + FFS_INOPB(&sblock)) {
 		iblk = ino_to_fsba(&sblock, inumber);
 		if (pbp != NULL)
 			pbp->b_flags &= ~B_INUSE;
 		pbp = getdatablk(iblk, sblock.fs_bsize, BT_INODES);
-		startinum = rounddown(inumber, INOPB(&sblock));
+		startinum = rounddown(inumber, FFS_INOPB(&sblock));
 	}
 	if (sblock.fs_magic == FS_UFS1_MAGIC)
 		return ((union dinode *)
-		    &pbp->b_un.b_dinode1[inumber % INOPB(&sblock)]);
-	return ((union dinode *)&pbp->b_un.b_dinode2[inumber % INOPB(&sblock)]);
+		    &pbp->b_un.b_dinode1[inumber % FFS_INOPB(&sblock)]);
+	return ((union dinode *)&pbp->b_un.b_dinode2[inumber % FFS_INOPB(&sblock)]);
 }
 
 /*
@@ -409,7 +409,7 @@ setinodebuf(ino_t inum)
 	readcount = 0;
 	if (inobuf.b_un.b_buf != NULL)
 		return;
-	inobufsize = blkroundup(&sblock, INOBUFSIZE);
+	inobufsize = ffs_blkroundup(&sblock, INOBUFSIZE);
 	fullcnt = inobufsize / ((sblock.fs_magic == FS_UFS1_MAGIC) ?
 	    sizeof(struct ufs1_dinode) : sizeof(struct ufs2_dinode));
 	readpercg = sblock.fs_ipg / fullcnt;

@@ -322,7 +322,7 @@ blk_lookup(ufs2_daddr_t blk, int creat)
 	sc = cg_lookup(dtog(fs, blk));
 	if (sc->sc_lastblk && sc->sc_lastblk->sb_blk == blk)
 		return (sc->sc_lastblk);
-	hd = &sc->sc_blkhash[SUJ_HASH(fragstoblks(fs, blk))];
+	hd = &sc->sc_blkhash[SUJ_HASH(ffs_fragstoblks(fs, blk))];
 	LIST_FOREACH(sblk, hd, sb_next)
 		if (sblk->sb_blk == blk)
 			return (sblk);
@@ -343,7 +343,7 @@ dblk_lookup(ufs2_daddr_t blk)
 	struct data_blk *dblk;
 	struct dblkhd *hd;
 
-	hd = &dbhash[SUJ_HASH(fragstoblks(fs, blk))];
+	hd = &dbhash[SUJ_HASH(ffs_fragstoblks(fs, blk))];
 	if (lastblk && lastblk->db_blk == blk)
 		return (lastblk);
 	LIST_FOREACH(dblk, hd, db_next)
@@ -421,7 +421,7 @@ ino_read(ino_t ino)
 	iblk = sc->sc_lastiblk;
 	if (iblk && iblk->ib_blk == blk)
 		goto found;
-	hd = &sc->sc_iblkhash[SUJ_HASH(fragstoblks(fs, blk))];
+	hd = &sc->sc_iblkhash[SUJ_HASH(ffs_fragstoblks(fs, blk))];
 	LIST_FOREACH(iblk, hd, ib_next)
 		if (iblk->ib_blk == blk)
 			goto found;
@@ -459,7 +459,7 @@ ino_dirty(ino_t ino)
 		iblk->ib_dirty = 1;
 		return;
 	}
-	hd = &sc->sc_iblkhash[SUJ_HASH(fragstoblks(fs, blk))];
+	hd = &sc->sc_iblkhash[SUJ_HASH(ffs_fragstoblks(fs, blk))];
 	LIST_FOREACH(iblk, hd, ib_next) {
 		if (iblk->ib_blk == blk) {
 			iblk->ib_dirty = 1;
@@ -544,7 +544,7 @@ blk_freemask(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t lbn, int frags)
 	 * the block has already been freed and re-used for another purpose.
 	 */
 	mask = 0;
-	sblk = blk_lookup(blknum(fs, blk), 0);
+	sblk = blk_lookup(ffs_blknum(fs, blk), 0);
 	if (sblk == NULL)
 		return (0);
 	off = blk - sblk->sb_blk;
@@ -662,7 +662,7 @@ blk_free(ufs2_daddr_t bno, int mask, int frags)
 	 * resolve the cg summary later.
 	 */
 	if (frags == fs->fs_frag && mask == 0) {
-		fragno = fragstoblks(fs, cgbno);
+		fragno = ffs_fragstoblks(fs, cgbno);
 		ffs_setblock(fs, blksfree, fragno);
 		freeblocks++;
 	} else {
@@ -760,9 +760,9 @@ ino_blkatoff(union dinode *ip, ino_t ino, ufs_lbn_t lbn, int *frags)
 	 */
 	if (lbn < 0 && lbn >= -UFS_NXADDR) {
 		lbn = -1 - lbn;
-		if (lbn > lblkno(fs, ip->dp2.di_extsize - 1))
+		if (lbn > ffs_lblkno(fs, ip->dp2.di_extsize - 1))
 			return (0);
-		*frags = numfrags(fs, sblksize(fs, ip->dp2.di_extsize, lbn));
+		*frags = ffs_numfrags(fs, ffs_sblksize(fs, ip->dp2.di_extsize, lbn));
 		return (ip->dp2.di_extb[lbn]);
 	}
 	/*
@@ -772,7 +772,7 @@ ino_blkatoff(union dinode *ip, ino_t ino, ufs_lbn_t lbn, int *frags)
 	    DIP(ip, di_size) < fs->fs_maxsymlinklen)
 		return (0);
 	if (lbn >= 0 && lbn < UFS_NDADDR) {
-		*frags = numfrags(fs, sblksize(fs, DIP(ip, di_size), lbn));
+		*frags = ffs_numfrags(fs, ffs_sblksize(fs, DIP(ip, di_size), lbn));
 		return (DIP(ip, di_db[lbn]));
 	}
 	*frags = fs->fs_frag;
@@ -835,11 +835,11 @@ ino_clrat(ino_t parent, off_t diroff, ino_t child)
 		printf("Clearing inode %ju from parent %ju at offset %jd\n",
 		    (uintmax_t)child, (uintmax_t)parent, diroff);
 
-	lbn = lblkno(fs, diroff);
-	doff = blkoff(fs, diroff);
+	lbn = ffs_lblkno(fs, diroff);
+	doff = ffs_blkoff(fs, diroff);
 	dip = ino_read(parent);
 	blk = ino_blkatoff(dip, parent, lbn, &frags);
-	blksize = sblksize(fs, DIP(dip, di_size), lbn);
+	blksize = ffs_sblksize(fs, DIP(dip, di_size), lbn);
 	block = dblk_read(blk, blksize);
 	dp = (struct direct *)&block[doff];
 	if (dp->d_ino != child)
@@ -888,9 +888,9 @@ ino_isat(ino_t parent, off_t diroff, ino_t child, int *mode, int *isdot)
 		}
 		return (0);
 	}
-	lbn = lblkno(fs, diroff);
-	doff = blkoff(fs, diroff);
-	blksize = sblksize(fs, DIP(dip, di_size), lbn);
+	lbn = ffs_lblkno(fs, diroff);
+	doff = ffs_blkoff(fs, diroff);
+	blksize = ffs_sblksize(fs, DIP(dip, di_size), lbn);
 	if (diroff + DIRECTSIZ(1) > DIP(dip, di_size) || doff >= blksize) {
 		if (debug)
 			printf("ino %ju absent from %ju due to offset %jd"
@@ -1040,8 +1040,8 @@ ino_visit(union dinode *ip, ino_t ino, ino_visitor visitor, int flags)
 		for (i = 0; i < UFS_NXADDR; i++) {
 			if (ip->dp2.di_extb[i] == 0)
 				continue;
-			frags = sblksize(fs, ip->dp2.di_extsize, i);
-			frags = numfrags(fs, frags);
+			frags = ffs_sblksize(fs, ip->dp2.di_extsize, i);
+			frags = ffs_numfrags(fs, frags);
 			fragcnt += frags;
 			visitor(ino, -1 - i, ip->dp2.di_extb[i], frags);
 		}
@@ -1053,8 +1053,8 @@ ino_visit(union dinode *ip, ino_t ino, ino_visitor visitor, int flags)
 	for (i = 0; i < UFS_NDADDR; i++) {
 		if (DIP(ip, di_db[i]) == 0)
 			continue;
-		frags = sblksize(fs, size, i);
-		frags = numfrags(fs, frags);
+		frags = ffs_sblksize(fs, size, i);
+		frags = ffs_numfrags(fs, frags);
 		fragcnt += frags;
 		visitor(ino, i, DIP(ip, di_db[i]), frags);
 	}
@@ -1125,7 +1125,7 @@ ino_adjblks(struct suj_ino *sino)
 	 */
 	if (visitlbn >= UFS_NDADDR) {
 		isize = DIP(ip, di_size);
-		size = lblktosize(fs, visitlbn + 1);
+		size = ffs_lblktosize(fs, visitlbn + 1);
 		if (isize > size)
 			isize = size;
 		/* Always truncate to free any unpopulated indirects. */
@@ -1248,7 +1248,7 @@ ino_free_children(ino_t ino, ufs_lbn_t lbn, ufs2_daddr_t blk, int frags)
 		skipparent = sino->si_skipparent;
 	else
 		skipparent = 0;
-	size = lfragtosize(fs, frags);
+	size = ffs_lfragtosize(fs, frags);
 	block = dblk_read(blk, size);
 	dp = (struct direct *)&block[0];
 	for (dpoff = 0; dpoff < size && dp->d_reclen; dpoff += dp->d_reclen) {
@@ -1264,7 +1264,7 @@ ino_free_children(ino_t ino, ufs_lbn_t lbn, ufs2_daddr_t blk, int frags)
 		if (debug)
 			printf("Directory %ju removing ino %ju name %s\n",
 			    (uintmax_t)ino, (uintmax_t)dp->d_ino, dp->d_name);
-		diroff = lblktosize(fs, lbn) + dpoff;
+		diroff = ffs_lblktosize(fs, lbn) + dpoff;
 		ino_remref(ino, dp->d_ino, diroff, isdotdot);
 	}
 }
@@ -1539,12 +1539,12 @@ ino_trunc(ino_t ino, off_t size)
 	/* Don't extend. */
 	if (size > cursize)
 		size = cursize;
-	lastlbn = lblkno(fs, blkroundup(fs, size));
+	lastlbn = ffs_lblkno(fs, ffs_blkroundup(fs, size));
 	for (i = lastlbn; i < UFS_NDADDR; i++) {
 		if (DIP(ip, di_db[i]) == 0)
 			continue;
-		frags = sblksize(fs, cursize, i);
-		frags = numfrags(fs, frags);
+		frags = ffs_sblksize(fs, cursize, i);
+		frags = ffs_numfrags(fs, frags);
 		blk_free(DIP(ip, di_db[i]), 0, frags);
 		DIP_SET(ip, di_db[i], 0);
 	}
@@ -1577,8 +1577,8 @@ ino_trunc(ino_t ino, off_t size)
 	 */
 	visitlbn = 0;
 	totalfrags = ino_visit(ip, ino, null_visit, VISIT_INDIR | VISIT_EXT);
-	if (size > lblktosize(fs, visitlbn + 1))
-		size = lblktosize(fs, visitlbn + 1);
+	if (size > ffs_lblktosize(fs, visitlbn + 1))
+		size = ffs_lblktosize(fs, visitlbn + 1);
 	/*
 	 * If we're truncating direct blocks we have to adjust frags
 	 * accordingly.
@@ -1590,11 +1590,11 @@ ino_trunc(ino_t ino, off_t size)
 		if (bn == 0)
 			err_suj("Bad blk at ino %ju lbn %jd\n",
 			    (uintmax_t)ino, visitlbn);
-		oldspace = sblksize(fs, cursize, visitlbn);
-		newspace = sblksize(fs, size, visitlbn);
+		oldspace = ffs_sblksize(fs, cursize, visitlbn);
+		newspace = ffs_sblksize(fs, size, visitlbn);
 		if (oldspace != newspace) {
-			bn += numfrags(fs, newspace);
-			frags = numfrags(fs, oldspace - newspace);
+			bn += ffs_numfrags(fs, newspace);
+			frags = ffs_numfrags(fs, oldspace - newspace);
 			blk_free(bn, 0, frags);
 			totalfrags -= frags;
 		}
@@ -1606,7 +1606,7 @@ ino_trunc(ino_t ino, off_t size)
 	 * to zero it here.  Otherwise the file could extend into
 	 * uninitialized space later.
 	 */
-	off = blkoff(fs, size);
+	off = ffs_blkoff(fs, size);
 	if (off && DIP(ip, di_mode) != IFDIR) {
 		uint8_t *buf;
 		long clrsize;
@@ -1863,7 +1863,7 @@ cg_write(struct suj_cg *sc)
 	cgp->cg_cs.cs_nbfree = 0;
 	cgp->cg_cs.cs_nffree = 0;
 	bzero(&cgp->cg_frsum, sizeof(cgp->cg_frsum));
-	maxbno = fragstoblks(fs, fs->fs_fpg);
+	maxbno = ffs_fragstoblks(fs, fs->fs_fpg);
 	if (fs->fs_contigsumsize > 0) {
 		for (i = 1; i <= fs->fs_contigsumsize; i++)
 			cg_clustersum(cgp)[i] = 0;
@@ -1878,7 +1878,7 @@ cg_write(struct suj_cg *sc)
 			cgp->cg_cs.cs_nbfree++;
 			continue;
 		}
-		fragno = blkstofrags(fs, cgbno);
+		fragno = ffs_blkstofrags(fs, cgbno);
 		blk = blkmap(fs, blksfree, fragno);
 		ffs_fragacct(fs, blk, cgp->cg_frsum, 1);
 		for (i = 0; i < fs->fs_frag; i++)
@@ -2195,8 +2195,8 @@ blk_build(struct jblkrec *blkrec)
 		    blkrec->jb_frags, blkrec->jb_oldfrags,
 		    (uintmax_t)blkrec->jb_ino, (uintmax_t)blkrec->jb_lbn);
 
-	blk = blknum(fs, blkrec->jb_blkno);
-	frag = fragnum(fs, blkrec->jb_blkno);
+	blk = ffs_blknum(fs, blkrec->jb_blkno);
+	frag = ffs_fragnum(fs, blkrec->jb_blkno);
 	sblk = blk_lookup(blk, 1);
 	/*
 	 * Rewrite the record using oldfrags to indicate the offset into
@@ -2653,7 +2653,7 @@ suj_find(ino_t ino, ufs_lbn_t lbn, ufs2_daddr_t blk, int frags)
 
 	if (sujino)
 		return;
-	bytes = lfragtosize(fs, frags);
+	bytes = ffs_lfragtosize(fs, frags);
 	if (bread(disk, fsbtodb(fs, blk), block, bytes) <= 0)
 		err_suj("Failed to read UFS_ROOTINO directory block %jd\n",
 		    blk);
@@ -2733,7 +2733,7 @@ suj_check(const char *filesys)
 	    DIP(jip, di_size), (uintmax_t)sujino);
 	suj_jblocks = jblocks_create();
 	blocks = ino_visit(jip, sujino, suj_add_block, 0);
-	if (blocks != numfrags(fs, DIP(jip, di_size))) {
+	if (blocks != ffs_numfrags(fs, DIP(jip, di_size))) {
 		printf("Sparse journal inode %ju.\n", (uintmax_t)sujino);
 		return (-1);
 	}

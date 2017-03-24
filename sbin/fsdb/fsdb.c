@@ -493,7 +493,7 @@ CMDFUNCSTART(findblk)
 	     * Check if the block we are looking for is just an inode block.
 	     *
 	     * ino_to_fsba() - get block containing inode from its number.
-	     * INOPB() - get a number of inodes in one disk block.
+	     * FFS_INOPB() - get a number of inodes in one disk block.
 	     */
 	    if (is_ufs2 ?
 		compare_blk64(wantedblk64, ino_to_fsba(&sblock, inum)) :
@@ -501,8 +501,8 @@ CMDFUNCSTART(findblk)
 		printf("block %llu: inode block (%ju-%ju)\n",
 		    (unsigned long long)fsbtodb(&sblock,
 			ino_to_fsba(&sblock, inum)),
-		    (uintmax_t)(inum / INOPB(&sblock)) * INOPB(&sblock),
-		    (uintmax_t)(inum / INOPB(&sblock) + 1) * INOPB(&sblock));
+		    (uintmax_t)(inum / FFS_INOPB(&sblock)) * FFS_INOPB(&sblock),
+		    (uintmax_t)(inum / FFS_INOPB(&sblock) + 1) * FFS_INOPB(&sblock));
 		findblk_numtofind--;
 		if (findblk_numtofind == 0)
 		    goto end;

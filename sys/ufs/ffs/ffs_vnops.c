@@ -248,7 +248,7 @@ ffs_syncvnode(struct vnode *vp, int waitfor, int flags)
 	error = 0;
 	passes = 0;
 	wait = false;	/* Always do an async pass first. */
-	lbn = lblkno(ITOFS(ip), (ip->i_size + ITOFS(ip)->fs_bsize - 1));
+	lbn = ffs_lblkno(ITOFS(ip), (ip->i_size + ITOFS(ip)->fs_bsize - 1));
 	BO_LOCK(bo);
 loop:
 	TAILQ_FOREACH(bp, &bo->bo_dirty.bv_hd, b_bobufs)
@@ -530,7 +530,7 @@ ffs_read(ap)
 	for (error = 0, bp = NULL; uio->uio_resid > 0; bp = NULL) {
 		if ((bytesinfile = ip->i_size - uio->uio_offset) <= 0)
 			break;
-		lbn = lblkno(fs, uio->uio_offset);
+		lbn = ffs_lblkno(fs, uio->uio_offset);
 		nextlbn = lbn + 1;
 
 		/*
@@ -539,8 +539,8 @@ ffs_read(ap)
 		 * the block type ( fragment or full block,
 		 * depending ).
 		 */
-		size = blksize(fs, ip, lbn);
-		blkoffset = blkoff(fs, uio->uio_offset);
+		size = ffs_blksize(fs, ip, lbn);
+		blkoffset = ffs_blkoff(fs, uio->uio_offset);
 
 		/*
 		 * The amount we want to transfer in this iteration is
@@ -559,7 +559,7 @@ ffs_read(ap)
 		if (bytesinfile < xfersize)
 			xfersize = bytesinfile;
 
-		if (lblktosize(fs, nextlbn) >= ip->i_size) {
+		if (ffs_lblktosize(fs, nextlbn) >= ip->i_size) {
 			/*
 			 * Don't do readahead if this is the end of the file.
 			 */
@@ -585,7 +585,7 @@ ffs_read(ap)
 			 * arguments point to arrays of the size specified in
 			 * the 6th argument.
 			 */
-			u_int nextsize = blksize(fs, ip, nextlbn);
+			u_int nextsize = ffs_blksize(fs, ip, nextlbn);
 			error = breadn_flags(vp, lbn, size, &nextlbn,
 			    &nextsize, 1, NOCRED, GB_UNMAPPED, &bp);
 		} else {
@@ -732,8 +732,8 @@ ffs_write(ap)
 	flags |= BA_UNMAPPED;
 
 	for (error = 0; uio->uio_resid > 0;) {
-		lbn = lblkno(fs, uio->uio_offset);
-		blkoffset = blkoff(fs, uio->uio_offset);
+		lbn = ffs_lblkno(fs, uio->uio_offset);
+		blkoffset = ffs_blkoff(fs, uio->uio_offset);
 		xfersize = fs->fs_bsize - blkoffset;
 		if (uio->uio_resid < xfersize)
 			xfersize = uio->uio_resid;
@@ -763,7 +763,7 @@ ffs_write(ap)
 			DIP_SET(ip, i_size, ip->i_size);
 		}
 
-		size = blksize(fs, ip, lbn) - bp->b_resid;
+		size = ffs_blksize(fs, ip, lbn) - bp->b_resid;
 		if (size < xfersize)
 			xfersize = size;
 
@@ -888,7 +888,7 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 	for (error = 0, bp = NULL; uio->uio_resid > 0; bp = NULL) {
 		if ((bytesinfile = dp->di_extsize - uio->uio_offset) <= 0)
 			break;
-		lbn = lblkno(fs, uio->uio_offset);
+		lbn = ffs_lblkno(fs, uio->uio_offset);
 		nextlbn = lbn + 1;
 
 		/*
@@ -897,8 +897,8 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 		 * the block type ( fragment or full block,
 		 * depending ).
 		 */
-		size = sblksize(fs, dp->di_extsize, lbn);
-		blkoffset = blkoff(fs, uio->uio_offset);
+		size = ffs_sblksize(fs, dp->di_extsize, lbn);
+		blkoffset = ffs_blkoff(fs, uio->uio_offset);
 
 		/*
 		 * The amount we want to transfer in this iteration is
@@ -917,7 +917,7 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 		if (bytesinfile < xfersize)
 			xfersize = bytesinfile;
 
-		if (lblktosize(fs, nextlbn) >= dp->di_extsize) {
+		if (ffs_lblktosize(fs, nextlbn) >= dp->di_extsize) {
 			/*
 			 * Don't do readahead if this is the end of the info.
 			 */
@@ -930,7 +930,7 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 			 * arguments point to arrays of the size specified in
 			 * the 6th argument.
 			 */
-			u_int nextsize = sblksize(fs, dp->di_extsize, nextlbn);
+			u_int nextsize = ffs_sblksize(fs, dp->di_extsize, nextlbn);
 
 			nextlbn = -1 - nextlbn;
 			error = breadn(vp, -1 - lbn,
@@ -1013,8 +1013,8 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 		flags |= IO_SYNC;
 
 	for (error = 0; uio->uio_resid > 0;) {
-		lbn = lblkno(fs, uio->uio_offset);
-		blkoffset = blkoff(fs, uio->uio_offset);
+		lbn = ffs_lblkno(fs, uio->uio_offset);
+		blkoffset = ffs_blkoff(fs, uio->uio_offset);
 		xfersize = fs->fs_bsize - blkoffset;
 		if (uio->uio_resid < xfersize)
 			xfersize = uio->uio_resid;
@@ -1044,7 +1044,7 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 		if (uio->uio_offset + xfersize > dp->di_extsize)
 			dp->di_extsize = uio->uio_offset + xfersize;
 
-		size = sblksize(fs, dp->di_extsize, lbn) - bp->b_resid;
+		size = ffs_sblksize(fs, dp->di_extsize, lbn) - bp->b_resid;
 		if (size < xfersize)
 			xfersize = size;
 
@@ -1585,7 +1585,7 @@ vop_setextattr {
 		return (EROFS);
 
 	ealen = ap->a_uio->uio_resid;
-	if (ealen < 0 || ealen > lblktosize(fs, UFS_NXADDR))
+	if (ealen < 0 || ealen > ffs_lblktosize(fs, UFS_NXADDR))
 		return (EINVAL);
 
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
@@ -1636,7 +1636,7 @@ vop_setextattr {
 			easize += (ealength - ul);
 		}
 	}
-	if (easize > lblktosize(fs, UFS_NXADDR)) {
+	if (easize > ffs_lblktosize(fs, UFS_NXADDR)) {
 		free(eae, M_TEMP);
 		ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
 		if (ip->i_ea_area != NULL && ip->i_ea_error == 0)
@@ -1699,14 +1699,14 @@ static daddr_t
 ffs_gbp_getblkno(struct vnode *vp, vm_ooffset_t off)
 {
 
-	return (lblkno(VFSTOUFS(vp->v_mount)->um_fs, off));
+	return (ffs_lblkno(VFSTOUFS(vp->v_mount)->um_fs, off));
 }
 
 static int
 ffs_gbp_getblksz(struct vnode *vp, daddr_t lbn)
 {
 
-	return (blksize(VFSTOUFS(vp->v_mount)->um_fs, VTOI(vp), lbn));
+	return (ffs_blksize(VFSTOUFS(vp->v_mount)->um_fs, VTOI(vp), lbn));
 }
 
 static int

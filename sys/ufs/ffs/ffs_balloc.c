@@ -114,8 +114,8 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	dp = ip->i_din1;
 	fs = ITOFS(ip);
 	ump = ITOUMP(ip);
-	lbn = lblkno(fs, startoffset);
-	size = blkoff(fs, startoffset) + size;
+	lbn = ffs_lblkno(fs, startoffset);
+	size = ffs_blkoff(fs, startoffset) + size;
 	reclaimed = 0;
 	if (size > fs->fs_bsize)
 		panic("ffs_balloc_ufs1: blk too big");
@@ -133,10 +133,10 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	 * and the file is currently composed of a fragment
 	 * this fragment has to be extended to be a full block.
 	 */
-	lastlbn = lblkno(fs, ip->i_size);
+	lastlbn = ffs_lblkno(fs, ip->i_size);
 	if (lastlbn < UFS_NDADDR && lastlbn < lbn) {
 		nb = lastlbn;
-		osize = blksize(fs, ip, nb);
+		osize = ffs_blksize(fs, ip, nb);
 		if (osize < fs->fs_bsize && osize > 0) {
 			UFS_LOCK(ump);
 			error = ffs_realloccg(ip, nb, dp->di_db[nb],
@@ -149,7 +149,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 				softdep_setup_allocdirect(ip, nb,
 				    dbtofsb(fs, bp->b_blkno), dp->di_db[nb],
 				    fs->fs_bsize, osize, bp);
-			ip->i_size = smalllblktosize(fs, nb + 1);
+			ip->i_size = ffs_smalllblktosize(fs, nb + 1);
 			dp->di_size = ip->i_size;
 			dp->di_db[nb] = dbtofsb(fs, bp->b_blkno);
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
@@ -168,7 +168,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		if (flags & BA_METAONLY)
 			panic("ffs_balloc_ufs1: BA_METAONLY for direct block");
 		nb = dp->di_db[lbn];
-		if (nb != 0 && ip->i_size >= smalllblktosize(fs, lbn + 1)) {
+		if (nb != 0 && ip->i_size >= ffs_smalllblktosize(fs, lbn + 1)) {
 			error = bread(vp, lbn, fs->fs_bsize, NOCRED, &bp);
 			if (error) {
 				brelse(bp);
@@ -182,8 +182,8 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 			/*
 			 * Consider need to reallocate a fragment.
 			 */
-			osize = fragroundup(fs, blkoff(fs, ip->i_size));
-			nsize = fragroundup(fs, size);
+			osize = ffs_fragroundup(fs, ffs_blkoff(fs, ip->i_size));
+			nsize = ffs_fragroundup(fs, size);
 			if (nsize <= osize) {
 				error = bread(vp, lbn, osize, NOCRED, &bp);
 				if (error) {
@@ -205,8 +205,8 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 					    nsize, osize, bp);
 			}
 		} else {
-			if (ip->i_size < smalllblktosize(fs, lbn + 1))
-				nsize = fragroundup(fs, size);
+			if (ip->i_size < ffs_smalllblktosize(fs, lbn + 1))
+				nsize = ffs_fragroundup(fs, size);
 			else
 				nsize = fs->fs_bsize;
 			UFS_LOCK(ump);
@@ -588,8 +588,8 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	dp = ip->i_din2;
 	fs = ITOFS(ip);
 	ump = ITOUMP(ip);
-	lbn = lblkno(fs, startoffset);
-	size = blkoff(fs, startoffset) + size;
+	lbn = ffs_lblkno(fs, startoffset);
+	size = ffs_blkoff(fs, startoffset) + size;
 	reclaimed = 0;
 	if (size > fs->fs_bsize)
 		panic("ffs_balloc_ufs2: blk too big");
@@ -612,10 +612,10 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		 * and the data is currently composed of a fragment
 		 * this fragment has to be extended to be a full block.
 		 */
-		lastlbn = lblkno(fs, dp->di_extsize);
+		lastlbn = ffs_lblkno(fs, dp->di_extsize);
 		if (lastlbn < lbn) {
 			nb = lastlbn;
-			osize = sblksize(fs, dp->di_extsize, nb);
+			osize = ffs_sblksize(fs, dp->di_extsize, nb);
 			if (osize < fs->fs_bsize && osize > 0) {
 				UFS_LOCK(ump);
 				error = ffs_realloccg(ip, -1 - nb,
@@ -630,7 +630,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 					    dbtofsb(fs, bp->b_blkno),
 					    dp->di_extb[nb],
 					    fs->fs_bsize, osize, bp);
-				dp->di_extsize = smalllblktosize(fs, nb + 1);
+				dp->di_extsize = ffs_smalllblktosize(fs, nb + 1);
 				dp->di_extb[nb] = dbtofsb(fs, bp->b_blkno);
 				bp->b_xflags |= BX_ALTDATA;
 				ip->i_flag |= IN_CHANGE;
@@ -646,7 +646,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		if (flags & BA_METAONLY)
 			panic("ffs_balloc_ufs2: BA_METAONLY for ext block");
 		nb = dp->di_extb[lbn];
-		if (nb != 0 && dp->di_extsize >= smalllblktosize(fs, lbn + 1)) {
+		if (nb != 0 && dp->di_extsize >= ffs_smalllblktosize(fs, lbn + 1)) {
 			error = bread_gb(vp, -1 - lbn, fs->fs_bsize, NOCRED,
 			    gbflags, &bp);
 			if (error) {
@@ -662,8 +662,8 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 			/*
 			 * Consider need to reallocate a fragment.
 			 */
-			osize = fragroundup(fs, blkoff(fs, dp->di_extsize));
-			nsize = fragroundup(fs, size);
+			osize = ffs_fragroundup(fs, ffs_blkoff(fs, dp->di_extsize));
+			nsize = ffs_fragroundup(fs, size);
 			if (nsize <= osize) {
 				error = bread_gb(vp, -1 - lbn, osize, NOCRED,
 				    gbflags, &bp);
@@ -689,8 +689,8 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 					    nsize, osize, bp);
 			}
 		} else {
-			if (dp->di_extsize < smalllblktosize(fs, lbn + 1))
-				nsize = fragroundup(fs, size);
+			if (dp->di_extsize < ffs_smalllblktosize(fs, lbn + 1))
+				nsize = ffs_fragroundup(fs, size);
 			else
 				nsize = fs->fs_bsize;
 			UFS_LOCK(ump);
@@ -718,10 +718,10 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	 * and the file is currently composed of a fragment
 	 * this fragment has to be extended to be a full block.
 	 */
-	lastlbn = lblkno(fs, ip->i_size);
+	lastlbn = ffs_lblkno(fs, ip->i_size);
 	if (lastlbn < UFS_NDADDR && lastlbn < lbn) {
 		nb = lastlbn;
-		osize = blksize(fs, ip, nb);
+		osize = ffs_blksize(fs, ip, nb);
 		if (osize < fs->fs_bsize && osize > 0) {
 			UFS_LOCK(ump);
 			error = ffs_realloccg(ip, nb, dp->di_db[nb],
@@ -735,7 +735,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				    dbtofsb(fs, bp->b_blkno),
 				    dp->di_db[nb],
 				    fs->fs_bsize, osize, bp);
-			ip->i_size = smalllblktosize(fs, nb + 1);
+			ip->i_size = ffs_smalllblktosize(fs, nb + 1);
 			dp->di_size = ip->i_size;
 			dp->di_db[nb] = dbtofsb(fs, bp->b_blkno);
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
@@ -752,7 +752,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		if (flags & BA_METAONLY)
 			panic("ffs_balloc_ufs2: BA_METAONLY for direct block");
 		nb = dp->di_db[lbn];
-		if (nb != 0 && ip->i_size >= smalllblktosize(fs, lbn + 1)) {
+		if (nb != 0 && ip->i_size >= ffs_smalllblktosize(fs, lbn + 1)) {
 			error = bread_gb(vp, lbn, fs->fs_bsize, NOCRED,
 			    gbflags, &bp);
 			if (error) {
@@ -767,8 +767,8 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 			/*
 			 * Consider need to reallocate a fragment.
 			 */
-			osize = fragroundup(fs, blkoff(fs, ip->i_size));
-			nsize = fragroundup(fs, size);
+			osize = ffs_fragroundup(fs, ffs_blkoff(fs, ip->i_size));
+			nsize = ffs_fragroundup(fs, size);
 			if (nsize <= osize) {
 				error = bread_gb(vp, lbn, osize, NOCRED,
 				    gbflags, &bp);
@@ -791,8 +791,8 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 					    nsize, osize, bp);
 			}
 		} else {
-			if (ip->i_size < smalllblktosize(fs, lbn + 1))
-				nsize = fragroundup(fs, size);
+			if (ip->i_size < ffs_smalllblktosize(fs, lbn + 1))
+				nsize = ffs_fragroundup(fs, size);
 			else
 				nsize = fs->fs_bsize;
 			UFS_LOCK(ump);

@@ -286,8 +286,9 @@ mapdirs(ino_t maxino, long *tapesize)
 		for (ret = 0, i = 0; filesize > 0 && i < UFS_NDADDR; i++) {
 			if (DIP(&di, di_db[i]) != 0)
 				ret |= searchdir(ino, DIP(&di, di_db[i]),
-				    (long)sblksize(sblock, DIP(&di, di_size),
-				    i), filesize, tapesize, nodump, maxino);
+				    (long)ffs_sblksize(sblock,
+				    DIP(&di, di_size), i), filesize, tapesize,
+				    nodump, maxino);
 			if (ret & HASDUMPEDFILE)
 				filesize = 0;
 			else
@@ -673,10 +674,10 @@ ufs2_blksout(union dinode *dp, ufs2_daddr_t *blkp, int frags, ino_t ino,
 	blks = howmany(frags * sblock->fs_fsize, TP_BSIZE);
 	if (last) {
 		if (writingextdata)
-			resid = howmany(fragoff(sblock, spcl.c_extsize),
+			resid = howmany(ffs_fragoff(sblock, spcl.c_extsize),
 			    TP_BSIZE);
 		else
-			resid = howmany(fragoff(sblock, dp->dp2.di_size),
+			resid = howmany(ffs_fragoff(sblock, dp->dp2.di_size),
 			    TP_BSIZE);
 		if (resid > 0)
 			blks -= howmany(sblock->fs_fsize, TP_BSIZE) - resid;
@@ -883,8 +884,8 @@ getino(ino_t inum, int *modep)
 		goto gotit;
 	bread(fsbtodb(sblock, ino_to_fsba(sblock, inum)), inoblock,
 	    (int)sblock->fs_bsize);
-	minino = inum - (inum % INOPB(sblock));
-	maxino = minino + INOPB(sblock);
+	minino = inum - (inum % FFS_INOPB(sblock));
+	maxino = minino + FFS_INOPB(sblock);
 gotit:
 	if (sblock->fs_magic == FS_UFS1_MAGIC) {
 		dp1 = &((struct ufs1_dinode *)inoblock)[inum - minino];

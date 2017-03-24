@@ -96,7 +96,7 @@ ffs_alloc(struct inode *ip, daddr_t lbn __unused, daddr_t bpref, int size,
 	int cg;
 	
 	*bnp = 0;
-	if (size > fs->fs_bsize || fragoff(fs, size) != 0) {
+	if (size > fs->fs_bsize || ffs_fragoff(fs, size) != 0) {
 		errx(1, "ffs_alloc: bad size: bsize %d size %d",
 		    fs->fs_bsize, size);
 	}
@@ -324,7 +324,7 @@ ffs_alloccg(struct inode *ip, int cg, daddr_t bpref, int size)
 	 * allocsiz is the size which will be allocated, hacking
 	 * it down to a smaller size if necessary
 	 */
-	frags = numfrags(fs, size);
+	frags = ffs_numfrags(fs, size);
 	for (allocsiz = frags; allocsiz < fs->fs_frag; allocsiz++)
 		if (cgp->cg_frsum[allocsiz] != 0)
 			break;
@@ -391,12 +391,12 @@ ffs_alloccgblk(struct inode *ip, struct buf *bp, daddr_t bpref)
 	if (bpref == 0 || (uint32_t)dtog(fs, bpref) != ufs_rw32(cgp->cg_cgx, needswap)) {
 		bpref = ufs_rw32(cgp->cg_rotor, needswap);
 	} else {
-		bpref = blknum(fs, bpref);
+		bpref = ffs_blknum(fs, bpref);
 		bno = dtogd(fs, bpref);
 		/*
 		 * if the requested block is available, use it
 		 */
-		if (ffs_isblock(fs, blksfree_swap, fragstoblks(fs, bno)))
+		if (ffs_isblock(fs, blksfree_swap, ffs_fragstoblks(fs, bno)))
 			goto gotit;
 	}
 	/*
@@ -407,7 +407,7 @@ ffs_alloccgblk(struct inode *ip, struct buf *bp, daddr_t bpref)
 		return (0);
 	cgp->cg_rotor = ufs_rw32(bno, needswap);
 gotit:
-	blkno = fragstoblks(fs, bno);
+	blkno = ffs_fragstoblks(fs, bno);
 	ffs_clrblock(fs, blksfree_swap, (long)blkno);
 	ffs_clusteracct(fs, cgp, blkno, -1);
 	ufs_add32(cgp->cg_cs.cs_nbfree, -1, needswap);
@@ -436,8 +436,8 @@ ffs_blkfree(struct inode *ip, daddr_t bno, long size)
 	const int needswap = UFS_FSNEEDSWAP(fs);
 	struct vnode vp = { ip->i_fd, ip->i_fs, NULL, 0 };
 
-	if (size > fs->fs_bsize || fragoff(fs, size) != 0 ||
-	    fragnum(fs, bno) + numfrags(fs, size) > fs->fs_frag) {
+	if (size > fs->fs_bsize || ffs_fragoff(fs, size) != 0 ||
+	    ffs_fragnum(fs, bno) + ffs_numfrags(fs, size) > fs->fs_frag) {
 		errx(1, "blkfree: bad size: bno %lld bsize %d size %ld",
 		    (long long)bno, fs->fs_bsize, size);
 	}
@@ -460,7 +460,7 @@ ffs_blkfree(struct inode *ip, daddr_t bno, long size)
 	}
 	cgbno = dtogd(fs, bno);
 	if (size == fs->fs_bsize) {
-		fragno = fragstoblks(fs, cgbno);
+		fragno = ffs_fragstoblks(fs, cgbno);
 		if (!ffs_isfreeblock(fs, cg_blksfree_swap(cgp, needswap), fragno)) {
 			errx(1, "blkfree: freeing free block %lld",
 			    (long long)bno);
@@ -471,7 +471,7 @@ ffs_blkfree(struct inode *ip, daddr_t bno, long size)
 		fs->fs_cstotal.cs_nbfree++;
 		fs->fs_cs(fs, cg).cs_nbfree++;
 	} else {
-		bbase = cgbno - fragnum(fs, cgbno);
+		bbase = cgbno - ffs_fragnum(fs, cgbno);
 		/*
 		 * decrement the counts associated with the old frags
 		 */
@@ -480,7 +480,7 @@ ffs_blkfree(struct inode *ip, daddr_t bno, long size)
 		/*
 		 * deallocate the fragment
 		 */
-		frags = numfrags(fs, size);
+		frags = ffs_numfrags(fs, size);
 		for (i = 0; i < frags; i++) {
 			if (isset(cg_blksfree_swap(cgp, needswap), cgbno + i)) {
 				errx(1, "blkfree: freeing free frag: block %lld",
@@ -499,7 +499,7 @@ ffs_blkfree(struct inode *ip, daddr_t bno, long size)
 		/*
 		 * if a complete block has been reassembled, account for it
 		 */
-		fragno = fragstoblks(fs, bbase);
+		fragno = ffs_fragstoblks(fs, bbase);
 		if (ffs_isblock(fs, cg_blksfree_swap(cgp, needswap), fragno)) {
 			ufs_add32(cgp->cg_cs.cs_nffree, -fs->fs_frag, needswap);
 			fs->fs_cstotal.cs_nffree -= fs->fs_frag;

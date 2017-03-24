@@ -299,9 +299,9 @@ printblocks(ino_t inum, union dinode *dp)
 	printf("%jd", (intmax_t)blkno);
     }
     if (ndb <= UFS_NDADDR) {
-	offset = blkoff(&sblock, DIP(dp, di_size));
+	offset = ffs_blkoff(&sblock, DIP(dp, di_size));
 	if (offset != 0) {
-	    nfrags = numfrags(&sblock, fragroundup(&sblock, offset));
+	    nfrags = ffs_numfrags(&sblock, ffs_fragroundup(&sblock, offset));
 	    printf(" (%d frag%s)", nfrags, nfrags > 1? "s": "");
 	}
     }

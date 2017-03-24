@@ -252,7 +252,7 @@ restart:
 	sblock.fs_qfmask = ~sblock.fs_fmask;
 	sblock.fs_bshift = ilog2(sblock.fs_bsize);
 	sblock.fs_fshift = ilog2(sblock.fs_fsize);
-	sblock.fs_frag = numfrags(&sblock, sblock.fs_bsize);
+	sblock.fs_frag = ffs_numfrags(&sblock, sblock.fs_bsize);
 	sblock.fs_fragshift = ilog2(sblock.fs_frag);
 	if (sblock.fs_frag > MAXFRAG) {
 		printf("fragment size %d is still too small (can't happen)\n",
@@ -330,7 +330,7 @@ restart:
 	 * can put into each cylinder group. If this is too big, we reduce
 	 * the density until it fits.
 	 */
-	maxinum = (((int64_t)(1)) << 32) - INOPB(&sblock);
+	maxinum = (((int64_t)(1)) << 32) - FFS_INOPB(&sblock);
 	minfragsperinode = 1 + fssize / maxinum;
 	if (density == 0) {
 		density = MAX(NFPI, minfragsperinode) * fsize;
@@ -342,7 +342,7 @@ restart:
 	}
 	origdensity = density;
 	for (;;) {
-		fragsperinode = MAX(numfrags(&sblock, density), 1);
+		fragsperinode = MAX(ffs_numfrags(&sblock, density), 1);
 		if (fragsperinode < minfragsperinode) {
 			bsize <<= 1;
 			fsize <<= 1;
@@ -350,22 +350,22 @@ restart:
 			     "of this size. Increasing blocksize to", bsize);
 			goto restart;
 		}
-		minfpg = fragsperinode * INOPB(&sblock);
+		minfpg = fragsperinode * FFS_INOPB(&sblock);
 		if (minfpg > sblock.fs_size)
 			minfpg = sblock.fs_size;
-		sblock.fs_ipg = INOPB(&sblock);
+		sblock.fs_ipg = FFS_INOPB(&sblock);
 		sblock.fs_fpg = roundup(sblock.fs_iblkno +
-		    sblock.fs_ipg / INOPF(&sblock), sblock.fs_frag);
+		    sblock.fs_ipg / FFS_INOPF(&sblock), sblock.fs_frag);
 		if (sblock.fs_fpg < minfpg)
 			sblock.fs_fpg = minfpg;
 		sblock.fs_ipg = roundup(howmany(sblock.fs_fpg, fragsperinode),
-		    INOPB(&sblock));
+		    FFS_INOPB(&sblock));
 		sblock.fs_fpg = roundup(sblock.fs_iblkno +
-		    sblock.fs_ipg / INOPF(&sblock), sblock.fs_frag);
+		    sblock.fs_ipg / FFS_INOPF(&sblock), sblock.fs_frag);
 		if (sblock.fs_fpg < minfpg)
 			sblock.fs_fpg = minfpg;
 		sblock.fs_ipg = roundup(howmany(sblock.fs_fpg, fragsperinode),
-		    INOPB(&sblock));
+		    FFS_INOPB(&sblock));
 		if (CGSIZE(&sblock) < (unsigned long)sblock.fs_bsize)
 			break;
 		density -= sblock.fs_fsize;
@@ -381,7 +381,7 @@ restart:
 	 */
 	for ( ; sblock.fs_fpg < maxblkspercg; sblock.fs_fpg += sblock.fs_frag) {
 		sblock.fs_ipg = roundup(howmany(sblock.fs_fpg, fragsperinode),
-		    INOPB(&sblock));
+		    FFS_INOPB(&sblock));
 		if (Oflag > 1 || (Oflag == 1 && sblock.fs_ipg <= 0x7fff)) {
 			if (sblock.fs_size / sblock.fs_fpg < MINCYLGRPS)
 				break;
@@ -392,7 +392,7 @@ restart:
 		}
 		sblock.fs_fpg -= sblock.fs_frag;
 		sblock.fs_ipg = roundup(howmany(sblock.fs_fpg, fragsperinode),
-		    INOPB(&sblock));
+		    FFS_INOPB(&sblock));
 		break;
 	}
 	/*
@@ -405,7 +405,7 @@ restart:
 	for (;;) {
 		sblock.fs_ncg = howmany(sblock.fs_size, sblock.fs_fpg);
 		lastminfpg = roundup(sblock.fs_iblkno +
-		    sblock.fs_ipg / INOPF(&sblock), sblock.fs_frag);
+		    sblock.fs_ipg / FFS_INOPF(&sblock), sblock.fs_frag);
 		if (sblock.fs_size < lastminfpg) {
 			printf("Filesystem size %jd < minimum size of %d\n",
 			    (intmax_t)sblock.fs_size, lastminfpg);
@@ -416,13 +416,13 @@ restart:
 			break;
 		sblock.fs_fpg -= sblock.fs_frag;
 		sblock.fs_ipg = roundup(howmany(sblock.fs_fpg, fragsperinode),
-		    INOPB(&sblock));
+		    FFS_INOPB(&sblock));
 	}
 	if (optimalfpg != sblock.fs_fpg)
 		printf("Reduced frags per cylinder group from %d to %d %s\n",
 		   optimalfpg, sblock.fs_fpg, "to enlarge last cyl group");
-	sblock.fs_cgsize = fragroundup(&sblock, CGSIZE(&sblock));
-	sblock.fs_dblkno = sblock.fs_iblkno + sblock.fs_ipg / INOPF(&sblock);
+	sblock.fs_cgsize = ffs_fragroundup(&sblock, CGSIZE(&sblock));
+	sblock.fs_dblkno = sblock.fs_iblkno + sblock.fs_ipg / FFS_INOPF(&sblock);
 	if (Oflag == 1) {
 		sblock.fs_old_spc = sblock.fs_fpg * sblock.fs_old_nspf;
 		sblock.fs_old_nsect = sblock.fs_old_spc;
@@ -434,19 +434,19 @@ restart:
 	 */
 	sblock.fs_csaddr = cgdmin(&sblock, 0);
 	sblock.fs_cssize =
-	    fragroundup(&sblock, sblock.fs_ncg * sizeof(struct csum));
+	    ffs_fragroundup(&sblock, sblock.fs_ncg * sizeof(struct csum));
 	fscs = (struct csum *)calloc(1, sblock.fs_cssize);
 	if (fscs == NULL)
 		errx(31, "calloc failed");
-	sblock.fs_sbsize = fragroundup(&sblock, sizeof(struct fs));
+	sblock.fs_sbsize = ffs_fragroundup(&sblock, sizeof(struct fs));
 	if (sblock.fs_sbsize > SBLOCKSIZE)
 		sblock.fs_sbsize = SBLOCKSIZE;
 	sblock.fs_minfree = minfree;
 	if (metaspace > 0 && metaspace < sblock.fs_fpg / 2)
-		sblock.fs_metaspace = blknum(&sblock, metaspace);
+		sblock.fs_metaspace = ffs_blknum(&sblock, metaspace);
 	else if (metaspace != -1)
 		/* reserve half of minfree for metadata blocks */
-		sblock.fs_metaspace = blknum(&sblock,
+		sblock.fs_metaspace = ffs_blknum(&sblock,
 		    (sblock.fs_fpg * minfree) / 200);
 	if (maxbpg == 0)
 		sblock.fs_maxbpg = MAXBLKPG(sblock.fs_bsize);
@@ -467,12 +467,12 @@ restart:
 	sblock.fs_dsize = sblock.fs_size - sblock.fs_sblkno -
 	    sblock.fs_ncg * (sblock.fs_dblkno - sblock.fs_sblkno);
 	sblock.fs_cstotal.cs_nbfree =
-	    fragstoblks(&sblock, sblock.fs_dsize) -
+	    ffs_fragstoblks(&sblock, sblock.fs_dsize) -
 	    howmany(csfrags, sblock.fs_frag);
 	sblock.fs_cstotal.cs_nffree =
-	    fragnum(&sblock, sblock.fs_size) +
-	    (fragnum(&sblock, csfrags) > 0 ?
-	     sblock.fs_frag - fragnum(&sblock, csfrags) : 0);
+	    ffs_fragnum(&sblock, sblock.fs_size) +
+	    (ffs_fragnum(&sblock, csfrags) > 0 ?
+	     sblock.fs_frag - ffs_fragnum(&sblock, csfrags) : 0);
 	sblock.fs_cstotal.cs_nifree =
 	    sblock.fs_ncg * sblock.fs_ipg - UFS_ROOTINO;
 	sblock.fs_cstotal.cs_ndir = 0;
@@ -613,7 +613,7 @@ restart:
 			    sblock.fs_bsize, (char *)&sblock);
 	}
 	for (i = 0; i < sblock.fs_cssize; i += sblock.fs_bsize)
-		wtfs(fsbtodb(&sblock, sblock.fs_csaddr + numfrags(&sblock, i)),
+		wtfs(fsbtodb(&sblock, sblock.fs_csaddr + ffs_numfrags(&sblock, i)),
 			MIN(sblock.fs_cssize - i, sblock.fs_bsize),
 			((char *)fscs) + i);
 	/*
@@ -660,7 +660,7 @@ initcg(int cylno, time_t utime)
 	acg.cg_magic = CG_MAGIC;
 	acg.cg_cgx = cylno;
 	acg.cg_niblk = sblock.fs_ipg;
-	acg.cg_initediblk = MIN(sblock.fs_ipg, 2 * INOPB(&sblock));
+	acg.cg_initediblk = MIN(sblock.fs_ipg, 2 * FFS_INOPB(&sblock));
 	acg.cg_ndblk = dmax - cbase;
 	if (sblock.fs_contigsumsize > 0)
 		acg.cg_nclusterblks = acg.cg_ndblk / sblock.fs_frag;
@@ -689,7 +689,7 @@ initcg(int cylno, time_t utime)
 		acg.cg_clusteroff = acg.cg_clustersumoff +
 		    (sblock.fs_contigsumsize + 1) * sizeof(u_int32_t);
 		acg.cg_nextfreeoff = acg.cg_clusteroff +
-		    howmany(fragstoblks(&sblock, sblock.fs_fpg), CHAR_BIT);
+		    howmany(ffs_fragstoblks(&sblock, sblock.fs_fpg), CHAR_BIT);
 	}
 	if (acg.cg_nextfreeoff > (unsigned)sblock.fs_cgsize) {
 		printf("Panic: cylinder group too big\n");
@@ -790,10 +790,10 @@ initcg(int cylno, time_t utime)
 	 */
 	if (Oflag == 1) {
 		for (i = 2 * sblock.fs_frag;
-		     i < sblock.fs_ipg / INOPF(&sblock);
+		     i < sblock.fs_ipg / FFS_INOPF(&sblock);
 		     i += sblock.fs_frag) {
 			dp1 = (struct ufs1_dinode *)(&iobuf[start]);
-			for (j = 0; j < INOPB(&sblock); j++) {
+			for (j = 0; j < FFS_INOPB(&sblock); j++) {
 				dp1->di_gen = newfs_random();
 				dp1++;
 			}
@@ -852,7 +852,7 @@ fsinit(time_t utime)
 		node.dp1.di_size = makedir(root_dir, entries);
 		node.dp1.di_db[0] = alloc(sblock.fs_fsize, node.dp1.di_mode);
 		node.dp1.di_blocks =
-		    btodb(fragroundup(&sblock, node.dp1.di_size));
+		    btodb(ffs_fragroundup(&sblock, node.dp1.di_size));
 		wtfs(fsbtodb(&sblock, node.dp1.di_db[0]), sblock.fs_fsize,
 		    iobuf);
 		iput(&node, UFS_ROOTINO);
@@ -867,7 +867,7 @@ fsinit(time_t utime)
 				node.dp1.di_db[0] =
 				    alloc(sblock.fs_fsize, node.dp1.di_mode);
 			node.dp1.di_blocks =
-			    btodb(fragroundup(&sblock, node.dp1.di_size));
+			    btodb(ffs_fragroundup(&sblock, node.dp1.di_size));
 				wtfs(fsbtodb(&sblock, node.dp1.di_db[0]),
 				    sblock.fs_fsize, iobuf);
 			iput(&node, UFS_ROOTINO + 1);
@@ -888,7 +888,7 @@ fsinit(time_t utime)
 		node.dp2.di_size = makedir(root_dir, entries);
 		node.dp2.di_db[0] = alloc(sblock.fs_fsize, node.dp2.di_mode);
 		node.dp2.di_blocks =
-		    btodb(fragroundup(&sblock, node.dp2.di_size));
+		    btodb(ffs_fragroundup(&sblock, node.dp2.di_size));
 		wtfs(fsbtodb(&sblock, node.dp2.di_db[0]), sblock.fs_fsize,
 		    iobuf);
 		iput(&node, UFS_ROOTINO);
@@ -903,7 +903,7 @@ fsinit(time_t utime)
 				node.dp2.di_db[0] =
 				    alloc(sblock.fs_fsize, node.dp2.di_mode);
 			node.dp2.di_blocks =
-			    btodb(fragroundup(&sblock, node.dp2.di_size));
+			    btodb(ffs_fragroundup(&sblock, node.dp2.di_size));
 				wtfs(fsbtodb(&sblock, node.dp2.di_db[0]), 
 				    sblock.fs_fsize, iobuf);
 			iput(&node, UFS_ROOTINO + 1);
@@ -959,7 +959,7 @@ alloc(int size, int mode)
 	printf("internal error: can't find block in cyl 0\n");
 	exit(40);
 goth:
-	blkno = fragstoblks(&sblock, d);
+	blkno = ffs_fragstoblks(&sblock, d);
 	clrblock(&sblock, cg_blksfree(&acg), blkno);
 	if (sblock.fs_contigsumsize > 0)
 		clrbit(cg_clustersfree(&acg), blkno);

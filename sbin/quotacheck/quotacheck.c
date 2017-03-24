@@ -645,7 +645,7 @@ setinodebuf(ino_t inum)
 	readcnt = 0;
 	if (inodebuf != NULL)
 		return;
-	inobufsize = blkroundup(&sblock, INOBUFSIZE);
+	inobufsize = ffs_blkroundup(&sblock, INOBUFSIZE);
 	fullcnt = inobufsize / ((sblock.fs_magic == FS_UFS1_MAGIC) ?
 	    sizeof(struct ufs1_dinode) : sizeof(struct ufs2_dinode));
 	readpercg = sblock.fs_ipg / fullcnt;

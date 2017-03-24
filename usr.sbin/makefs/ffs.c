@@ -1124,19 +1124,19 @@ ffs_write_inode(union dinode *dp, uint32_t ino, const fsinfo_t *fsopts)
 	 */
 	initediblk = ufs_rw32(cgp->cg_initediblk, fsopts->needswap);
 	if (ffs_opts->version == 2 &&
-	    (uint32_t)(cgino + INOPB(fs)) > initediblk &&
+	    (uint32_t)(cgino + FFS_INOPB(fs)) > initediblk &&
 	    initediblk < ufs_rw32(cgp->cg_niblk, fsopts->needswap)) {
 		memset(buf, 0, fs->fs_bsize);
 		dip = (struct ufs2_dinode *)(void *)buf;
 		/* XXX check (int) */
-		for (i = 0; i < (int)INOPB(fs); i++) {
+		for (i = 0; i < (int)FFS_INOPB(fs); i++) {
 			dip->di_gen = random();
 			dip++;
 		}
 		ffs_wtfs(fsbtodb(fs, ino_to_fsba(fs,
 				  cg * fs->fs_ipg + initediblk)),
 		    fs->fs_bsize, buf, fsopts);
-		initediblk += INOPB(fs);
+		initediblk += FFS_INOPB(fs);
 		cgp->cg_initediblk = ufs_rw32(initediblk, fsopts->needswap);
 	}
 

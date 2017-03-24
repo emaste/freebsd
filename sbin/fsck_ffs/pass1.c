@@ -186,14 +186,14 @@ pass1(void)
 		 * groups that formerly had many inodes but now have
 		 * fewer in use.
 		 */
-		mininos = roundup(inosused + INOPB(&sblock), INOPB(&sblock));
+		mininos = roundup(inosused + FFS_INOPB(&sblock), FFS_INOPB(&sblock));
 		if (inoopt && !preen && !rebuildcg &&
 		    sblock.fs_magic == FS_UFS2_MAGIC &&
-		    cgp->cg_initediblk > 2 * INOPB(&sblock) &&
+		    cgp->cg_initediblk > 2 * FFS_INOPB(&sblock) &&
 		    mininos < cgp->cg_initediblk) {
 			i = cgp->cg_initediblk;
-			if (mininos < 2 * INOPB(&sblock))
-				cgp->cg_initediblk = 2 * INOPB(&sblock);
+			if (mininos < 2 * FFS_INOPB(&sblock))
+				cgp->cg_initediblk = 2 * FFS_INOPB(&sblock);
 			else
 				cgp->cg_initediblk = mininos;
 			pwarn("CYLINDER GROUP %d: RESET FROM %ju TO %d %s\n",
@@ -209,7 +209,7 @@ pass1(void)
 			inosused = lastino - (c * sblock.fs_ipg);
 		if (rebuildcg && inosused > cgp->cg_initediblk &&
 		    sblock.fs_magic == FS_UFS2_MAGIC) {
-			cgp->cg_initediblk = roundup(inosused, INOPB(&sblock));
+			cgp->cg_initediblk = roundup(inosused, FFS_INOPB(&sblock));
 			pwarn("CYLINDER GROUP %d: FOUND %d VALID INODES\n", c,
 			    cgp->cg_initediblk);
 		}
@@ -381,9 +381,9 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 		ndb = howmany(dp->dp2.di_extsize, sblock.fs_bsize);
 		for (j = 0; j < UFS_NXADDR; j++) {
 			if (--ndb == 0 &&
-			    (offset = blkoff(&sblock, dp->dp2.di_extsize)) != 0)
-				idesc->id_numfrags = numfrags(&sblock,
-				    fragroundup(&sblock, offset));
+			    (offset = ffs_blkoff(&sblock, dp->dp2.di_extsize)) != 0)
+				idesc->id_numfrags = ffs_numfrags(&sblock,
+				    ffs_fragroundup(&sblock, offset));
 			else
 				idesc->id_numfrags = sblock.fs_frag;
 			if (dp->dp2.di_extb[j] == 0)
@@ -446,10 +446,10 @@ pass1check(struct inodesc *idesc)
 		if (blkno == BLK_NOCOPY)
 			return (KEEPON);
 		if (idesc->id_number == cursnapshot) {
-			if (blkno == blkstofrags(&sblock, idesc->id_lbn))
+			if (blkno == ffs_blkstofrags(&sblock, idesc->id_lbn))
 				return (KEEPON);
 			if (blkno == BLK_SNAP) {
-				blkno = blkstofrags(&sblock, idesc->id_lbn);
+				blkno = ffs_blkstofrags(&sblock, idesc->id_lbn);
 				idesc->id_entryno -= idesc->id_numfrags;
 			}
 		} else {

@@ -2785,7 +2785,7 @@ journal_mount(mp, fs, cred)
 		error = ENOSPC;
 		goto out;
 	}
-	bcount = lblkno(fs, ip->i_size);	/* Only use whole blocks. */
+	bcount = ffs_lblkno(fs, ip->i_size);	/* Only use whole blocks. */
 	jblocks = jblocks_create();
 	for (i = 0; i < bcount; i++) {
 		error = ufs_bmaparray(vp, i, &blkno, NULL, NULL, NULL);
@@ -5554,7 +5554,7 @@ newjfreefrag(freefrag, ip, blkno, size, lbn)
 	jfreefrag->fr_ino = ip->i_number;
 	jfreefrag->fr_lbn = lbn;
 	jfreefrag->fr_blkno = blkno;
-	jfreefrag->fr_frags = numfrags(fs, size);
+	jfreefrag->fr_frags = ffs_numfrags(fs, size);
 	jfreefrag->fr_freefrag = freefrag;
 
 	return (jfreefrag);
@@ -5578,7 +5578,7 @@ newfreefrag(ip, blkno, size, lbn)
 	    ip->i_number, blkno, size, lbn);
 	ump = ITOUMP(ip);
 	fs = ump->um_fs;
-	if (fragnum(fs, blkno) + numfrags(fs, size) > fs->fs_frag)
+	if (ffs_fragnum(fs, blkno) + ffs_numfrags(fs, size) > fs->fs_frag)
 		panic("newfreefrag: frag size");
 	freefrag = malloc(sizeof(struct freefrag),
 	    M_FREEFRAG, M_SOFTDEP_FLAGS);
@@ -6106,8 +6106,8 @@ setup_freedirect(freeblks, ip, i, needj)
 		return;
 	DIP_SET(ip, i_db[i], 0);
 	ump = ITOUMP(ip);
-	frags = sblksize(ump->um_fs, ip->i_size, i);
-	frags = numfrags(ump->um_fs, frags);
+	frags = ffs_sblksize(ump->um_fs, ip->i_size, i);
+	frags = ffs_numfrags(ump->um_fs, frags);
 	newfreework(ump, freeblks, NULL, i, blkno, frags, 0, needj);
 }
 
@@ -6127,8 +6127,8 @@ setup_freeext(freeblks, ip, i, needj)
 		return;
 	ip->i_din2->di_extb[i] = 0;
 	ump = ITOUMP(ip);
-	frags = sblksize(ump->um_fs, ip->i_din2->di_extsize, i);
-	frags = numfrags(ump->um_fs, frags);
+	frags = ffs_sblksize(ump->um_fs, ip->i_din2->di_extsize, i);
+	frags = ffs_numfrags(ump->um_fs, frags);
 	newfreework(ump, freeblks, NULL, -1 - i, blkno, frags, 0, needj);
 }
 
@@ -6434,7 +6434,7 @@ blkcount(fs, datablocks, length)
 		totblks = howmany(length, fs->fs_fsize);
 		goto out;
 	}
-        totblks = blkstofrags(fs, numblks);
+        totblks = ffs_blkstofrags(fs, numblks);
 	numblks -= UFS_NDADDR;
 	/*
 	 * Count all single, then double, then triple indirects required.
@@ -6442,7 +6442,7 @@ blkcount(fs, datablocks, length)
 	 * acknowledges one of each pointed to by the inode.
 	 */
 	for (;;) {
-		totblks += blkstofrags(fs, howmany(numblks, NINDIR(fs)));
+		totblks += ffs_blkstofrags(fs, howmany(numblks, NINDIR(fs)));
 		numblks -= NINDIR(fs);
 		if (numblks <= 0)
 			break;
@@ -6548,19 +6548,19 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 	 * if we're truncating the 0 bytes.  So it is the last lbn we want
 	 * to keep, not the first lbn we want to truncate.
 	 */
-	lastlbn = lblkno(fs, length + fs->fs_bsize - 1) - 1;
-	lastoff = blkoff(fs, length);
+	lastlbn = ffs_lblkno(fs, length + fs->fs_bsize - 1) - 1;
+	lastoff = ffs_blkoff(fs, length);
 	/*
 	 * Compute frags we are keeping in lastlbn.  0 means all.
 	 */
 	if (lastlbn >= 0 && lastlbn < UFS_NDADDR) {
-		frags = fragroundup(fs, lastoff);
+		frags = ffs_fragroundup(fs, lastoff);
 		/* adp offset of last valid allocdirect. */
 		iboff = lastlbn;
 	} else if (lastlbn > 0)
 		iboff = UFS_NDADDR;
 	if (fs->fs_magic == FS_UFS2_MAGIC)
-		extblocks = btodb(fragroundup(fs, ip->i_din2->di_extsize));
+		extblocks = btodb(ffs_fragroundup(fs, ip->i_din2->di_extsize));
 	/*
 	 * Handle normal data blocks and indirects.  This section saves
 	 * values used after the inode update to complete frag and indirect
@@ -6596,17 +6596,17 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 			ufs2_daddr_t blkno;
 			long oldfrags;
 
-			oldfrags = blksize(fs, ip, lastlbn);
+			oldfrags = ffs_blksize(fs, ip, lastlbn);
 			blkno = DIP(ip, i_db[lastlbn]);
 			if (blkno && oldfrags != frags) {
 				oldfrags -= frags;
-				oldfrags = numfrags(fs, oldfrags);
-				blkno += numfrags(fs, frags);
+				oldfrags = ffs_numfrags(fs, oldfrags);
+				blkno += ffs_numfrags(fs, frags);
 				newfreework(ump, freeblks, NULL, lastlbn,
 				    blkno, oldfrags, 0, needj);
 				if (needj)
 					adjust_newfreework(freeblks,
-					    numfrags(fs, frags));
+					    ffs_numfrags(fs, frags));
 			} else if (blkno == 0)
 				allocblock = 1;
 		}
@@ -6749,7 +6749,7 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 		/*
 		 * Zero the end of a truncated frag or block.
 		 */
-		size = sblksize(fs, length, lastlbn);
+		size = ffs_sblksize(fs, length, lastlbn);
 		error = bread(vp, lastlbn, size, cred, &bp);
 		if (error) {
 			softdep_error("softdep_journal_freeblks", error);
@@ -6876,7 +6876,7 @@ softdep_setup_freeblocks(ip, length, flags)
 	extblocks = 0;
 	datablocks = 0;
 	if (fs->fs_magic == FS_UFS2_MAGIC)
-		extblocks = btodb(fragroundup(fs, ip->i_din2->di_extsize));
+		extblocks = btodb(ffs_fragroundup(fs, ip->i_din2->di_extsize));
 	if ((flags & IO_NORMAL) != 0) {
 		for (i = 0; i < UFS_NDADDR; i++)
 			setup_freedirect(freeblks, ip, i, 0);
@@ -7002,7 +7002,7 @@ trunc_pages(ip, length, extblocks, flags)
 
 	vp = ITOV(ip);
 	fs = ITOFS(ip);
-	extend = OFF_TO_IDX(lblktosize(fs, -extblocks));
+	extend = OFF_TO_IDX(ffs_lblktosize(fs, -extblocks));
 	if ((flags & IO_EXT) != 0)
 		vn_pages_remove(vp, extend, 0);
 	if ((flags & IO_NORMAL) == 0)
@@ -7023,11 +7023,11 @@ trunc_pages(ip, length, extblocks, flags)
 	 * indirect lbns do not overlap with others so it is not important
 	 * to verify how many levels are required.
 	 */
-	lbn = lblkno(fs, length);
+	lbn = ffs_lblkno(fs, length);
 	if (lbn >= UFS_NDADDR) {
 		/* Calculate the virtual lbn of the triple indirect. */
 		lbn = -lbn - (UFS_NIADDR - 1);
-		end = OFF_TO_IDX(lblktosize(fs, lbn));
+		end = OFF_TO_IDX(ffs_lblktosize(fs, lbn));
 	} else
 		end = extend;
 	vn_pages_remove(vp, OFF_TO_IDX(OFF_MAX), end);
@@ -7743,7 +7743,7 @@ freework_freeblock(freework)
 	freeblks = freework->fw_freeblks;
 	fs = ump->um_fs;
 	needj = MOUNTEDSUJ(freeblks->fb_list.wk_mp) != 0;
-	bsize = lfragtosize(fs, freework->fw_frags);
+	bsize = ffs_lfragtosize(fs, freework->fw_frags);
 	LIST_INIT(&wkhd);
 	/*
 	 * DEPCOMPLETE is cleared in indirblk_insert() if the block lives
@@ -8486,8 +8486,8 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp, isnewblk)
 	jaddref = NULL;
 	mkdir1 = mkdir2 = NULL;
 	fs = ump->um_fs;
-	lbn = lblkno(fs, diroffset);
-	offset = blkoff(fs, diroffset);
+	lbn = ffs_lblkno(fs, diroffset);
+	offset = ffs_blkoff(fs, diroffset);
 	dap = malloc(sizeof(struct diradd), M_DIRADD,
 		M_SOFTDEP_FLAGS|M_ZERO);
 	workitem_alloc(&dap->da_list, D_DIRADD, mp);
@@ -8498,7 +8498,7 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp, isnewblk)
 	isindir = bp->b_lblkno >= UFS_NDADDR;
 	newdirblk = NULL;
 	if (isnewblk &&
-	    (isindir ? blkoff(fs, diroffset) : fragoff(fs, diroffset)) == 0) {
+	    (isindir ? ffs_blkoff(fs, diroffset) : ffs_fragoff(fs, diroffset)) == 0) {
 		newdirblk = malloc(sizeof(struct newdirblk),
 		    M_NEWDIRBLK, M_SOFTDEP_FLAGS);
 		workitem_alloc(&newdirblk->db_list, D_NEWDIRBLK, mp);
@@ -8661,8 +8661,8 @@ softdep_change_directoryentry_offset(bp, dp, base, oldloc, newloc, entrysize)
 		    dp->i_offset + (oldloc - base),
 		    dp->i_offset + (newloc - base));
 	}
-	lbn = lblkno(ump->um_fs, dp->i_offset);
-	offset = blkoff(ump->um_fs, dp->i_offset);
+	lbn = ffs_lblkno(ump->um_fs, dp->i_offset);
+	offset = ffs_blkoff(ump->um_fs, dp->i_offset);
 	oldoffset = offset + (oldloc - base);
 	newoffset = offset + (newloc - base);
 	ACQUIRE_LOCK(ump);
@@ -9188,8 +9188,8 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 			    ip->i_effnlink + 1);
 	}
 	ACQUIRE_LOCK(ump);
-	lbn = lblkno(ump->um_fs, dp->i_offset);
-	offset = blkoff(ump->um_fs, dp->i_offset);
+	lbn = ffs_lblkno(ump->um_fs, dp->i_offset);
+	offset = ffs_blkoff(ump->um_fs, dp->i_offset);
 	pagedep_lookup(UFSTOVFS(ump), bp, dp->i_number, lbn, DEPALLOC,
 	    &pagedep);
 	dirrem->dm_pagedep = pagedep;
@@ -9301,7 +9301,7 @@ softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
 
 	mp = ITOVFS(dp);
 	ump = VFSTOUFS(mp);
-	offset = blkoff(ump->um_fs, dp->i_offset);
+	offset = ffs_blkoff(ump->um_fs, dp->i_offset);
 	KASSERT(MOUNTEDSOFTDEP(mp) != 0,
 	   ("softdep_setup_directory_change called on non-softdep filesystem"));
 
@@ -10860,13 +10860,13 @@ jnewblk_rollback(jnewblk, fs, cgp, blksfree)
 	 * superblock updates.
 	 */
 	if (frags == fs->fs_frag) {
-		fragno = fragstoblks(fs, cgbno);
+		fragno = ffs_fragstoblks(fs, cgbno);
 		ffs_setblock(fs, blksfree, fragno);
 		ffs_clusteracct(fs, cgp, fragno, 1);
 		cgp->cg_cs.cs_nbfree++;
 	} else {
 		cgbno += jnewblk->jn_oldfrags;
-		bbase = cgbno - fragnum(fs, cgbno);
+		bbase = cgbno - ffs_fragnum(fs, cgbno);
 		/* Decrement the old frags.  */
 		blk = blkmap(fs, blksfree, bbase);
 		ffs_fragacct(fs, blk, cgp->cg_frsum, -1);
@@ -10878,7 +10878,7 @@ jnewblk_rollback(jnewblk, fs, cgp, blksfree)
 		blk = blkmap(fs, blksfree, bbase);
 		ffs_fragacct(fs, blk, cgp->cg_frsum, 1);
 		/* If a complete block has been reassembled, account for it. */
-		fragno = fragstoblks(fs, bbase);
+		fragno = ffs_fragstoblks(fs, bbase);
 		if (ffs_isblock(fs, blksfree, fragno)) {
 			cgp->cg_cs.cs_nffree -= fs->fs_frag;
 			ffs_clusteracct(fs, cgp, fragno, 1);
@@ -11802,15 +11802,15 @@ jnewblk_rollforward(jnewblk, fs, cgp, blksfree)
 		frags++;
 	}
 	if (frags == fs->fs_frag) {
-		blkno = fragstoblks(fs, cgbno);
+		blkno = ffs_fragstoblks(fs, cgbno);
 		ffs_clrblock(fs, blksfree, (long)blkno);
 		ffs_clusteracct(fs, cgp, blkno, -1);
 		cgp->cg_cs.cs_nbfree--;
 	} else {
-		bbase = cgbno - fragnum(fs, cgbno);
+		bbase = cgbno - ffs_fragnum(fs, cgbno);
 		cgbno += jnewblk->jn_oldfrags;
                 /* If a complete block had been reassembled, account for it. */
-		fragno = fragstoblks(fs, bbase);
+		fragno = ffs_fragstoblks(fs, bbase);
 		if (ffs_isblock(fs, blksfree, fragno)) {
 			cgp->cg_cs.cs_nffree += fs->fs_frag;
 			ffs_clusteracct(fs, cgp, fragno, -1);
@@ -12502,7 +12502,7 @@ restart:
 		/*
 		 * Flush directory page containing the inode's name.
 		 */
-		error = bread(pvp, lbn, blksize(fs, VTOI(pvp), lbn), td->td_ucred,
+		error = bread(pvp, lbn, ffs_blksize(fs, VTOI(pvp), lbn), td->td_ucred,
 		    &bp);
 		if (error == 0)
 			error = bwrite(bp);
@@ -13339,7 +13339,7 @@ softdep_request_cleanup(fs, vp, cred, resource)
 		needed = (vp->v_mount->mnt_writeopcount + 2) *
 		    fs->fs_contigsumsize;
 		if (priv_check_cred(cred, PRIV_VFS_BLOCKRESERVE, 0))
-			needed += fragstoblks(fs,
+			needed += ffs_fragstoblks(fs,
 			    roundup((fs->fs_dsize * fs->fs_minfree / 100) -
 			    fs->fs_cstotal.cs_nffree, fs->fs_frag));
 	} else {
@@ -13738,8 +13738,8 @@ clear_inodedeps(mp)
 	/*
 	 * Find the last inode in the block with dependencies.
 	 */
-	firstino = rounddown2(inodedep->id_ino, INOPB(fs));
-	for (lastino = firstino + INOPB(fs) - 1; lastino > firstino; lastino--)
+	firstino = rounddown2(inodedep->id_ino, FFS_INOPB(fs));
+	for (lastino = firstino + FFS_INOPB(fs) - 1; lastino > firstino; lastino--)
 		if (inodedep_lookup(mp, lastino, 0, &inodedep) != 0)
 			break;
 	/*

@@ -419,9 +419,9 @@ main(int argc, char *argv[])
 		if (sblock.fs_metaspace == kvalue)
 			warnx("%s remains unchanged as %d", name, kvalue);
 		else {
-			kvalue = blknum(&sblock, kvalue);
+			kvalue = ffs_blknum(&sblock, kvalue);
 			if (kvalue > sblock.fs_fpg / 2) {
-				kvalue = blknum(&sblock, sblock.fs_fpg / 2);
+				kvalue = ffs_blknum(&sblock, sblock.fs_fpg / 2);
 				warnx("%s cannot exceed half the file system "
 				    "space", name);
 			}
@@ -691,7 +691,7 @@ journal_findfile(void)
 	dp2 = ip;
 	dp1 = ip;
 	if (sblock.fs_magic == FS_UFS1_MAGIC) {
-		if ((off_t)dp1->di_size >= lblktosize(&sblock, UFS_NDADDR)) {
+		if ((off_t)dp1->di_size >= ffs_lblktosize(&sblock, UFS_NDADDR)) {
 			warnx("UFS_ROOTINO extends beyond direct blocks.");
 			return (-1);
 		}
@@ -699,11 +699,11 @@ journal_findfile(void)
 			if (dp1->di_db[i] == 0)
 				break;
 			if ((ino = dir_search(dp1->di_db[i],
-			    sblksize(&sblock, (off_t)dp1->di_size, i))) != 0)
+			    ffs_sblksize(&sblock, (off_t)dp1->di_size, i))) != 0)
 				return (ino);
 		}
 	} else {
-		if ((off_t)dp2->di_size >= lblktosize(&sblock, UFS_NDADDR)) {
+		if ((off_t)dp2->di_size >= ffs_lblktosize(&sblock, UFS_NDADDR)) {
 			warnx("UFS_ROOTINO extends beyond direct blocks.");
 			return (-1);
 		}
@@ -711,7 +711,7 @@ journal_findfile(void)
 			if (dp2->di_db[i] == 0)
 				break;
 			if ((ino = dir_search(dp2->di_db[i],
-			    sblksize(&sblock, (off_t)dp2->di_size, i))) != 0)
+			    ffs_sblksize(&sblock, (off_t)dp2->di_size, i))) != 0)
 				return (ino);
 		}
 	}
@@ -822,15 +822,15 @@ journal_insertfile(ino_t ino)
 	 * have to free them and extend the block.
 	 */
 	if (sblock.fs_magic == FS_UFS1_MAGIC) {
-		lbn = lblkno(&sblock, dp1->di_size);
-		off = blkoff(&sblock, dp1->di_size);
+		lbn = ffs_lblkno(&sblock, dp1->di_size);
+		off = ffs_blkoff(&sblock, dp1->di_size);
 		blk = dp1->di_db[lbn];
-		size = sblksize(&sblock, (off_t)dp1->di_size, lbn);
+		size = ffs_sblksize(&sblock, (off_t)dp1->di_size, lbn);
 	} else {
-		lbn = lblkno(&sblock, dp2->di_size);
-		off = blkoff(&sblock, dp2->di_size);
+		lbn = ffs_lblkno(&sblock, dp2->di_size);
+		off = ffs_blkoff(&sblock, dp2->di_size);
 		blk = dp2->di_db[lbn];
-		size = sblksize(&sblock, (off_t)dp2->di_size, lbn);
+		size = ffs_sblksize(&sblock, (off_t)dp2->di_size, lbn);
 	}
 	if (off != 0) {
 		if (dir_extend(blk, nblk, off, ino) == -1)
@@ -843,11 +843,11 @@ journal_insertfile(ino_t ino)
 	if (sblock.fs_magic == FS_UFS1_MAGIC) {
 		dp1->di_blocks += (sblock.fs_bsize - size) / DEV_BSIZE;
 		dp1->di_db[lbn] = nblk;
-		dp1->di_size = lblktosize(&sblock, lbn+1);
+		dp1->di_size = ffs_lblktosize(&sblock, lbn+1);
 	} else {
 		dp2->di_blocks += (sblock.fs_bsize - size) / DEV_BSIZE;
 		dp2->di_db[lbn] = nblk;
-		dp2->di_size = lblktosize(&sblock, lbn+1);
+		dp2->di_size = ffs_lblktosize(&sblock, lbn+1);
 	}
 	if (putino(&disk) < 0) {
 		warn("Failed to write root inode");

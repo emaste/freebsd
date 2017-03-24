@@ -717,7 +717,7 @@ check_cgmagic(int cg, struct bufarea *cgbp)
 	cgp->cg_magic = CG_MAGIC;
 	cgp->cg_cgx = cg;
 	cgp->cg_niblk = sblock.fs_ipg;
-	cgp->cg_initediblk = MIN(sblock.fs_ipg, 2 * INOPB(&sblock));
+	cgp->cg_initediblk = MIN(sblock.fs_ipg, 2 * FFS_INOPB(&sblock));
 	if (cgbase(&sblock, cg) + sblock.fs_fpg < sblock.fs_size)
 		cgp->cg_ndblk = sblock.fs_fpg;
 	else
@@ -744,7 +744,7 @@ check_cgmagic(int cg, struct bufarea *cgbp)
 		cgp->cg_clusteroff = cgp->cg_clustersumoff +
 		    (sblock.fs_contigsumsize + 1) * sizeof(u_int32_t);
 		cgp->cg_nextfreeoff = cgp->cg_clusteroff +
-		    howmany(fragstoblks(&sblock, sblock.fs_fpg), CHAR_BIT);
+		    howmany(ffs_fragstoblks(&sblock, sblock.fs_fpg), CHAR_BIT);
 	}
 	dirty(cgbp);
 	return (0);

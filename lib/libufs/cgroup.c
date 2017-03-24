@@ -68,7 +68,7 @@ gotit:
 	cgp->cg_cs.cs_nbfree--;
 	fs->fs_cstotal.cs_nbfree--;
 	fs->fs_fmod = 1;
-	return (cgbase(fs, cgp->cg_cgx) + blkstofrags(fs, bno));
+	return (cgbase(fs, cgp->cg_cgx) + ffs_blkstofrags(fs, bno));
 }
 
 int
@@ -88,14 +88,14 @@ cgbfree(struct uufsd *disk, ufs2_daddr_t bno, long size)
 	cgbno = dtogd(fs, bno);
 	blksfree = cg_blksfree(cgp);
 	if (size == fs->fs_bsize) {
-		fragno = fragstoblks(fs, cgbno);
+		fragno = ffs_fragstoblks(fs, cgbno);
 		ffs_setblock(fs, blksfree, fragno);
 		ffs_clusteracct(fs, cgp, fragno, 1);
 		cgp->cg_cs.cs_nbfree++;
 		fs->fs_cstotal.cs_nbfree++;
 		fs->fs_cs(fs, cg).cs_nbfree++;
 	} else {
-		bbase = cgbno - fragnum(fs, cgbno);
+		bbase = cgbno - ffs_fragnum(fs, cgbno);
 		/*
 		 * decrement the counts associated with the old frags
 		 */
@@ -104,7 +104,7 @@ cgbfree(struct uufsd *disk, ufs2_daddr_t bno, long size)
 		/*
 		 * deallocate the fragment
 		 */
-		frags = numfrags(fs, size);
+		frags = ffs_numfrags(fs, size);
 		for (i = 0; i < frags; i++)
 			setbit(blksfree, cgbno + i);
 		cgp->cg_cs.cs_nffree += i;
@@ -118,7 +118,7 @@ cgbfree(struct uufsd *disk, ufs2_daddr_t bno, long size)
 		/*
 		 * if a complete block has been reassembled, account for it
 		 */
-		fragno = fragstoblks(fs, bbase);
+		fragno = ffs_fragstoblks(fs, bbase);
 		if (ffs_isblock(fs, blksfree, fragno)) {
 			cgp->cg_cs.cs_nffree -= fs->fs_frag;
 			fs->fs_cstotal.cs_nffree -= fs->fs_frag;
@@ -151,12 +151,12 @@ cgialloc(struct uufsd *disk)
 	return (0);
 gotit:
 	if (fs->fs_magic == FS_UFS2_MAGIC &&
-	    ino + INOPB(fs) > cgp->cg_initediblk &&
+	    ino + FFS_INOPB(fs) > cgp->cg_initediblk &&
 	    cgp->cg_initediblk < cgp->cg_niblk) {
 		char block[MAXBSIZE];
 		bzero(block, (int)fs->fs_bsize);
 		dp2 = (struct ufs2_dinode *)&block;
-		for (i = 0; i < INOPB(fs); i++) {
+		for (i = 0; i < FFS_INOPB(fs); i++) {
 			dp2->di_gen = arc4random();
 			dp2++;
 		}
@@ -164,7 +164,7 @@ gotit:
 		    cgp->cg_cgx * fs->fs_ipg + cgp->cg_initediblk),
 		    block, fs->fs_bsize))
 			return (0);
-		cgp->cg_initediblk += INOPB(fs);
+		cgp->cg_initediblk += FFS_INOPB(fs);
 	}
 
 	setbit(inosused, ino);

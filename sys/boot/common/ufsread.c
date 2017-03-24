@@ -69,7 +69,7 @@ typedef	uint32_t	ufs_ino_t;
 #define VBLKMASK	(VBLKSIZE - 1)
 #define DBPERVBLK	(VBLKSIZE / DEV_BSIZE)
 #define INDIRPERVBLK(fs) (NINDIR(fs) / ((fs)->fs_bsize >> VBLKSHIFT))
-#define IPERVBLK(fs)	(INOPB(fs) / ((fs)->fs_bsize >> VBLKSHIFT))
+#define IPERVBLK(fs)	(FFS_INOPB(fs) / ((fs)->fs_bsize >> VBLKSHIFT))
 #define INO_TO_VBA(fs, ipervblk, x) \
     (fsbtodb(fs, cgimin(fs, ino_to_cg(fs, x))) + \
     (((x) % (fs)->fs_ipg) / (ipervblk) * DBPERVBLK))
@@ -259,8 +259,8 @@ fsread_size(ufs_ino_t inode, void *buf, size_t nbyte, size_t *fsizep)
 		nbyte = n;
 	nb = nbyte;
 	while (nb) {
-		lbn = lblkno(&fs, fs_off);
-		off = blkoff(&fs, fs_off);
+		lbn = ffs_lblkno(&fs, fs_off);
+		off = ffs_blkoff(&fs, fs_off);
 		if (lbn < UFS_NDADDR) {
 			addr2 = DIP(di_db[lbn]);
 		} else if (lbn < UFS_NDADDR + NINDIR(&fs)) {
@@ -294,7 +294,7 @@ fsread_size(ufs_ino_t inode, void *buf, size_t nbyte, size_t *fsizep)
 			return -1;
 		vbaddr = fsbtodb(&fs, addr2) + (off >> VBLKSHIFT) * DBPERVBLK;
 		vboff = off & VBLKMASK;
-		n = sblksize(&fs, (off_t)size, lbn) - (off & ~VBLKMASK);
+		n = ffs_sblksize(&fs, (off_t)size, lbn) - (off & ~VBLKMASK);
 		if (n > VBLKSIZE)
 			n = VBLKSIZE;
 		if (blkmap != vbaddr) {

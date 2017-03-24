@@ -154,8 +154,9 @@ growfs(int fsi, int fso, unsigned int Nflag)
 		errx(1, "calloc failed");
 	for (i = 0; i < osblock.fs_cssize; i += osblock.fs_bsize) {
 		rdfs(fsbtodb(&osblock, osblock.fs_csaddr +
-		    numfrags(&osblock, i)), (size_t)MIN(osblock.fs_cssize - i,
-		    osblock.fs_bsize), (void *)(((char *)fscs) + i), fsi);
+		    ffs_numfrags(&osblock, i)),
+		    (size_t)MIN(osblock.fs_cssize - i, osblock.fs_bsize),
+		    (void *)(((char *)fscs) + i), fsi);
 	}
 
 #ifdef FS_DEBUG
@@ -233,7 +234,8 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	 * Now write the cylinder summary back to disk.
 	 */
 	for (i = 0; i < sblock.fs_cssize; i += sblock.fs_bsize) {
-		wtfs(fsbtodb(&sblock, sblock.fs_csaddr + numfrags(&sblock, i)),
+		wtfs(fsbtodb(&sblock, sblock.fs_csaddr +
+		    ffs_numfrags(&sblock, i)),
 		    (size_t)MIN(sblock.fs_cssize - i, sblock.fs_bsize),
 		    (void *)(((char *)fscs) + i), fso, Nflag);
 	}
@@ -348,7 +350,7 @@ initcg(int cylno, time_t modtime, int fso, unsigned int Nflag)
 	acg.cg_magic = CG_MAGIC;
 	acg.cg_cgx = cylno;
 	acg.cg_niblk = sblock.fs_ipg;
-	acg.cg_initediblk = MIN(sblock.fs_ipg, 2 * INOPB(&sblock));
+	acg.cg_initediblk = MIN(sblock.fs_ipg, 2 * FFS_INOPB(&sblock));
 	acg.cg_ndblk = dmax - cbase;
 	if (sblock.fs_contigsumsize > 0)
 		acg.cg_nclusterblks = acg.cg_ndblk / sblock.fs_frag;
@@ -377,7 +379,7 @@ initcg(int cylno, time_t modtime, int fso, unsigned int Nflag)
 		acg.cg_clusteroff = acg.cg_clustersumoff +
 		    (sblock.fs_contigsumsize + 1) * sizeof(u_int32_t);
 		acg.cg_nextfreeoff = acg.cg_clusteroff +
-		    howmany(fragstoblks(&sblock, sblock.fs_fpg), CHAR_BIT);
+		    howmany(ffs_fragstoblks(&sblock, sblock.fs_fpg), CHAR_BIT);
 	}
 	if (acg.cg_nextfreeoff > (unsigned)sblock.fs_cgsize) {
 		/*
@@ -397,10 +399,10 @@ initcg(int cylno, time_t modtime, int fso, unsigned int Nflag)
 	 */
 	if (sblock.fs_magic == FS_UFS1_MAGIC) {
 		bzero(iobuf, sblock.fs_bsize);
-		for (i = 0; i < sblock.fs_ipg / INOPF(&sblock);
+		for (i = 0; i < sblock.fs_ipg / FFS_INOPF(&sblock);
 		    i += sblock.fs_frag) {
 			dp1 = (struct ufs1_dinode *)(void *)iobuf;
-			for (j = 0; j < INOPB(&sblock); j++) {
+			for (j = 0; j < FFS_INOPB(&sblock); j++) {
 				dp1->di_gen = arc4random();
 				dp1++;
 			}
@@ -1627,7 +1629,7 @@ main(int argc, char **argv)
 	 * respective cylinder group data area.
 	 */
 	sblock.fs_cssize =
-	    fragroundup(&sblock, sblock.fs_ncg * sizeof(struct csum));
+	    ffs_fragroundup(&sblock, sblock.fs_ncg * sizeof(struct csum));
 
 	if (osblock.fs_size >= sblock.fs_size)
 		errx(1, "not enough new space");

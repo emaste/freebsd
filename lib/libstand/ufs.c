@@ -315,9 +315,9 @@ buf_write_file(f, buf_p, size_p)
 	/*
 	 * Calculate the starting block address and offset.
 	 */
-	off = blkoff(fs, fp->f_seekp);
-	file_block = lblkno(fs, fp->f_seekp);
-	block_size = sblksize(fs, DIP(fp, di_size), file_block);
+	off = ffs_blkoff(fs, fp->f_seekp);
+	file_block = ffs_lblkno(fs, fp->f_seekp);
+	block_size = ffs_sblksize(fs, DIP(fp, di_size), file_block);
 
 	rc = block_map(f, file_block, &disk_block);
 	if (rc)
@@ -390,9 +390,9 @@ buf_read_file(f, buf_p, size_p)
 	size_t block_size;
 	int rc;
 
-	off = blkoff(fs, fp->f_seekp);
-	file_block = lblkno(fs, fp->f_seekp);
-	block_size = sblksize(fs, DIP(fp, di_size), file_block);
+	off = ffs_blkoff(fs, fp->f_seekp);
+	file_block = ffs_lblkno(fs, fp->f_seekp);
+	block_size = ffs_sblksize(fs, DIP(fp, di_size), file_block);
 
 	if (file_block != fp->f_buf_blkno) {
 		if (fp->f_buf == (char *)0)

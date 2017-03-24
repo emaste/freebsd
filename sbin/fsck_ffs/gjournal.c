@@ -271,7 +271,7 @@ blkfree(ufs2_daddr_t bno, long size)
 	cgbno = dtogd(fs, bno);
 	blksfree = cg_blksfree(cgp);
 	if (size == fs->fs_bsize) {
-		fragno = fragstoblks(fs, cgbno);
+		fragno = ffs_fragstoblks(fs, cgbno);
 		if (!ffs_isfreeblock(fs, blksfree, fragno))
 			assert(!"blkfree: freeing free block");
 		ffs_setblock(fs, blksfree, fragno);
@@ -280,7 +280,7 @@ blkfree(ufs2_daddr_t bno, long size)
 		fs->fs_cstotal.cs_nbfree++;
 		fs->fs_cs(fs, cg).cs_nbfree++;
 	} else {
-		bbase = cgbno - fragnum(fs, cgbno);
+		bbase = cgbno - ffs_fragnum(fs, cgbno);
 		/*
 		 * decrement the counts associated with the old frags
 		 */
@@ -289,7 +289,7 @@ blkfree(ufs2_daddr_t bno, long size)
 		/*
 		 * deallocate the fragment
 		 */
-		frags = numfrags(fs, size);
+		frags = ffs_numfrags(fs, size);
 		for (i = 0; i < frags; i++) {
 			if (isset(blksfree, cgbno + i))
 				assert(!"blkfree: freeing free frag");
@@ -306,7 +306,7 @@ blkfree(ufs2_daddr_t bno, long size)
 		/*
 		 * if a complete block has been reassembled, account for it
 		 */
-		fragno = fragstoblks(fs, bbase);
+		fragno = ffs_fragstoblks(fs, bbase);
 		if (ffs_isblock(fs, blksfree, fragno)) {
 			cgp->cg_cs.cs_nffree -= fs->fs_frag;
 			fs->fs_cstotal.cs_nffree -= fs->fs_frag;
@@ -344,9 +344,9 @@ freeindir(ufs2_daddr_t blk, int level)
 }
 
 #define	dblksize(fs, dino, lbn) \
-	((dino)->di_size >= smalllblktosize(fs, (lbn) + 1) \
+	((dino)->di_size >= ffs_smalllblktosize(fs, (lbn) + 1) \
 	    ? (fs)->fs_bsize \
-	    : fragroundup(fs, blkoff(fs, (dino)->di_size)))
+	    : ffs_fragroundup(fs, ffs_blkoff(fs, (dino)->di_size)))
 
 /*
  * Free all blocks associated with the given inode.
@@ -361,7 +361,7 @@ clear_inode(struct ufs2_dinode *dino)
 
 	extblocks = 0;
 	if (fs->fs_magic == FS_UFS2_MAGIC && dino->di_extsize > 0)
-		extblocks = btodb(fragroundup(fs, dino->di_extsize));
+		extblocks = btodb(ffs_fragroundup(fs, dino->di_extsize));
 	/* deallocate external attributes blocks */
 	if (extblocks > 0) {
 		osize = dino->di_extsize;
@@ -370,7 +370,7 @@ clear_inode(struct ufs2_dinode *dino)
 		for (i = 0; i < UFS_NXADDR; i++) {
 			if (dino->di_extb[i] == 0)
 				continue;
-			blkfree(dino->di_extb[i], sblksize(fs, osize, i));
+			blkfree(dino->di_extb[i], ffs_sblksize(fs, osize, i));
 		}
 	}
 #define	SINGLE	0	/* index of single indirect block */

@@ -132,8 +132,8 @@ ffs_susp_rdwr(struct cdev *dev, struct uio *uio, int ioflag)
 			len = uio->uio_iov[i].iov_len;
 			if (len > fs->fs_bsize)
 				len = fs->fs_bsize;
-			if (fragoff(fs, uio->uio_offset) != 0 ||
-			    fragoff(fs, len) != 0) {
+			if (ffs_fragoff(fs, uio->uio_offset) != 0 ||
+			    ffs_fragoff(fs, len) != 0) {
 				error = EINVAL;
 				goto out;
 			}
