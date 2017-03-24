@@ -44,7 +44,7 @@ union dinode {
 };
 
 struct inode {
-	ino_t	  	i_number;	/* The identity of the inode. */
+	ino_t		i_number;	/* The identity of the inode. */
 	struct fs	*i_fs;		/* File system */
 	union dinode	i_din;
 	int		i_fd;		/* File descriptor */
