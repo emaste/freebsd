@@ -78,23 +78,22 @@ static int count_digits(int);
 #define	UMASK		0755
 #define	POWEROF2(num)	(((num) & ((num) - 1)) == 0)
 
-union {
+static union {
 	struct fs fs;
 	char pad[SBLOCKSIZE];
 } fsun;
 #define	sblock	fsun.fs
-struct	csum *fscs;
 
-union {
+static union {
 	struct cg cg;
 	char pad[FFS_MAXBSIZE];
 } cgun;
 #define	acg	cgun.cg
 
-char *iobuf;
-int iobufsize;
+static char *iobuf;
+static int iobufsize;
 
-char writebuf[FFS_MAXBSIZE];
+static char writebuf[FFS_MAXBSIZE];
 
 static int     Oflag;	   /* format as an 4.3BSD file system */
 static int64_t fssize;	   /* file system size */
@@ -117,7 +116,8 @@ struct fs *
 ffs_mkfs(const char *fsys, const fsinfo_t *fsopts, time_t tstamp)
 {
 	int fragsperinode, optimalfpg, origdensity, minfpg, lastminfpg;
-	int32_t cylno, i, csfrags;
+	int32_t csfrags;
+	size_t cylno, i;
 	long long sizepb;
 	void *space;
 	int size;
@@ -497,7 +497,7 @@ ffs_mkfs(const char *fsys, const fsinfo_t *fsopts, time_t tstamp)
 	 */
 	memcpy(writebuf, &sblock, sbsize);
 	if (fsopts->needswap)
-		ffs_sb_swap(&sblock, (struct fs*)writebuf);
+		ffs_sb_swap(&sblock, (struct fs*)(void *)writebuf);
 	memcpy(iobuf, writebuf, SBLOCKSIZE);
 
 	printf("super-block backups (for fsck -b #) at:");
@@ -535,7 +535,8 @@ ffs_mkfs(const char *fsys, const fsinfo_t *fsopts, time_t tstamp)
 void
 ffs_write_superblock(struct fs *fs, const fsinfo_t *fsopts)
 {
-	int cylno, size, blks, i, saveflag;
+	int size, blks, i, saveflag;
+	size_t cylno;
 	void *space;
 	char *wrbuf;
 
@@ -544,7 +545,7 @@ ffs_write_superblock(struct fs *fs, const fsinfo_t *fsopts)
 
 	memcpy(writebuf, &sblock, sbsize);
 	if (fsopts->needswap)
-		ffs_sb_swap(fs, (struct fs*)writebuf);
+		ffs_sb_swap(fs, (struct fs*)(void *)writebuf);
 	ffs_wtfs(fs->fs_sblockloc / sectorsize, sbsize, writebuf, fsopts);
 
 	/* Write out the duplicate super blocks */
@@ -563,7 +564,7 @@ ffs_write_superblock(struct fs *fs, const fsinfo_t *fsopts)
 			size = (blks - i) * fs->fs_fsize;
 		if (fsopts->needswap)
 			ffs_csum_swap((struct csum *)space,
-			    (struct csum *)wrbuf, size);
+			    (struct csum *)(void *)wrbuf, size);
 		else
 			memcpy(wrbuf, space, (u_int)size);
 		ffs_wtfs(fsbtodb(fs, fs->fs_csaddr + i), size, wrbuf, fsopts);
@@ -580,7 +581,8 @@ static void
 initcg(int cylno, time_t utime, const fsinfo_t *fsopts)
 {
 	daddr_t cbase, dmax;
-	int32_t i, j, d, dlower, dupper, blkno;
+	int32_t blkno;
+	uint32_t d, dlower, dupper, i, j;
 	struct ufs1_dinode *dp1;
 	struct ufs2_dinode *dp2;
 	int start;
@@ -611,7 +613,7 @@ initcg(int cylno, time_t utime, const fsinfo_t *fsopts)
 	if (Oflag == 2) {
 		acg.cg_iusedoff = start;
 	} else {
-		if (cylno == sblock.fs_ncg - 1)
+		if ((unsigned)cylno == sblock.fs_ncg - 1)
 			acg.cg_old_ncyl = howmany(acg.cg_ndblk,
 			    sblock.fs_fpg / sblock.fs_old_cpg);
 		else
@@ -641,7 +643,7 @@ initcg(int cylno, time_t utime, const fsinfo_t *fsopts)
 		acg.cg_nextfreeoff = acg.cg_clusteroff +
 		    howmany(ffs_fragstoblks(&sblock, sblock.fs_fpg), CHAR_BIT);
 	}
-	if (acg.cg_nextfreeoff > sblock.fs_cgsize) {
+	if ((int32_t)acg.cg_nextfreeoff > sblock.fs_cgsize) {
 		printf("Panic: cylinder group too big\n");
 		exit(37);
 	}
@@ -725,10 +727,10 @@ initcg(int cylno, time_t utime, const fsinfo_t *fsopts)
 	start = MAX(sblock.fs_bsize, SBLOCKSIZE);
 	memcpy(&iobuf[start], &acg, sblock.fs_cgsize);
 	if (fsopts->needswap)
-		ffs_cg_swap(&acg, (struct cg*)&iobuf[start], &sblock);
+		ffs_cg_swap(&acg, (struct cg*)(void *)&iobuf[start], &sblock);
 	start += sblock.fs_bsize;
-	dp1 = (struct ufs1_dinode *)(&iobuf[start]);
-	dp2 = (struct ufs2_dinode *)(&iobuf[start]);
+	dp1 = (struct ufs1_dinode *)(void *)(&iobuf[start]);
+	dp2 = (struct ufs2_dinode *)(void *)(&iobuf[start]);
 	for (i = 0; i < acg.cg_initediblk; i++) {
 		if (sblock.fs_magic == FS_UFS1_MAGIC) {
 			/* No need to swap, it'll stay random */
@@ -748,7 +750,7 @@ initcg(int cylno, time_t utime, const fsinfo_t *fsopts)
 		for (i = 2 * sblock.fs_frag;
 		     i < sblock.fs_ipg / FFS_INOPF(&sblock);
 		     i += sblock.fs_frag) {
-			dp1 = (struct ufs1_dinode *)(&iobuf[start]);
+			dp1 = (struct ufs1_dinode *)(void *)(&iobuf[start]);
 			for (j = 0; j < FFS_INOPB(&sblock); j++) {
 				dp1->di_gen = random();
 				dp1++;

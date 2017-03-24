@@ -79,7 +79,7 @@ ffs_balloc_ufs1(struct inode *ip, off_t offset, int bufsize, struct buf **bpp)
 {
 	daddr_t lbn, lastlbn;
 	int size;
-	int32_t nb;
+	uint32_t nb;
 	struct buf *bp, *nbp;
 	struct fs *fs = ip->i_fs;
 	struct indir indirs[UFS_NIADDR + 2];
@@ -333,7 +333,8 @@ ffs_balloc_ufs2(struct inode *ip, off_t offset, int bufsize, struct buf **bpp)
 	struct buf *bp, *nbp;
 	struct fs *fs = ip->i_fs;
 	struct indir indirs[UFS_NIADDR + 2];
-	daddr_t newb, pref, nb;
+	daddr_t newb, pref;
+	uint64_t nb;
 	int64_t *bap;
 	int osize, nsize, num, i, error;
 	int64_t *allocblk, allociblk[UFS_NIADDR + 1];
