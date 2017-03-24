@@ -630,7 +630,7 @@ ffs_size_dir(fsnode *root, fsinfo_t *fsopts)
 			if (node->type == S_IFREG)
 				ADDSIZE(node->inode->st.st_size);
 			if (node->type == S_IFLNK) {
-				int	slen;
+				size_t	slen;
 
 				slen = strlen(node->symlink) + 1;
 				if (slen >= (ffs_opts->version == 1 ?
@@ -653,7 +653,7 @@ static void *
 ffs_build_dinode1(struct ufs1_dinode *dinp, dirbuf_t *dbufp, fsnode *cur,
 		 fsnode *root, fsinfo_t *fsopts)
 {
-	int slen;
+	size_t slen;
 	void *membuf;
 	struct stat *st = stampst.st_ino != 0 ? &stampst : &cur->inode->st;
 
@@ -701,7 +701,7 @@ static void *
 ffs_build_dinode2(struct ufs2_dinode *dinp, dirbuf_t *dbufp, fsnode *cur,
 		 fsnode *root, fsinfo_t *fsopts)
 {
-	int slen;
+	size_t slen;
 	void *membuf;
 	struct stat *st = stampst.st_ino != 0 ? &stampst : &cur->inode->st;
 
@@ -855,8 +855,8 @@ ffs_populate_dir(const char *dir, fsnode *root, fsinfo_t *fsopts)
 	for (cur = root; cur != NULL; cur = cur->next) {
 		if (cur->child == NULL)
 			continue;
-		if (snprintf(path, sizeof(path), "%s/%s", dir, cur->name)
-		    >= sizeof(path))
+		if ((size_t)snprintf(path, sizeof(path), "%s/%s", dir,
+		    cur->name) >= sizeof(path))
 			errx(1, "Pathname too long.");
 		if (! ffs_populate_dir(path, cur->child, fsopts))
 			return (0);
@@ -999,7 +999,7 @@ ffs_dump_dirbuf(dirbuf_t *dbuf, const char *dir, int needswap)
 	    dir, dbuf->size, dbuf->cur);
 
 	for (i = 0; i < dbuf->size; ) {
-		de = (struct direct *)(dbuf->buf + i);
+		de = (struct direct *)(void *)(dbuf->buf + i);
 		reclen = ufs_rw16(de->d_reclen, needswap);
 		printf(
 	    " inode %4d %7s offset %4d reclen %3d namlen %3d name %s\n",
@@ -1030,7 +1030,7 @@ ffs_make_dirbuf(dirbuf_t *dbuf, const char *name, fsnode *node, int needswap)
 	reclen = DIRSIZ_SWAP(0, &de, needswap);
 	de.d_reclen = ufs_rw16(reclen, needswap);
 
-	dp = (struct direct *)(dbuf->buf + dbuf->cur);
+	dp = (struct direct *)(void *)(dbuf->buf + dbuf->cur);
 	llen = 0;
 	if (dp != NULL)
 		llen = DIRSIZ_SWAP(0, dp, needswap);
@@ -1056,7 +1056,7 @@ ffs_make_dirbuf(dirbuf_t *dbuf, const char *name, fsnode *node, int needswap)
 		dp->d_reclen = ufs_rw16(llen,needswap);
 		dbuf->cur += llen;
 	}
-	dp = (struct direct *)(dbuf->buf + dbuf->cur);
+	dp = (struct direct *)(void *)(dbuf->buf + dbuf->cur);
 	memcpy(dp, &de, reclen);
 	dp->d_reclen = ufs_rw16(dbuf->size - dbuf->cur, needswap);
 }
@@ -1075,7 +1075,7 @@ ffs_write_inode(union dinode *dp, uint32_t ino, const fsinfo_t *fsopts)
 	int		cg, cgino, i;
 	daddr_t		d;
 	char		sbbuf[FFS_MAXBSIZE];
-	int32_t		initediblk;
+	uint32_t	initediblk;
 	ffs_opt_t	*ffs_opts = fsopts->fs_specific;
 
 	assert (dp != NULL);
@@ -1092,15 +1092,15 @@ ffs_write_inode(union dinode *dp, uint32_t ino, const fsinfo_t *fsopts)
 
 	ffs_rdfs(fsbtodb(fs, cgtod(fs, cg)), (int)fs->fs_cgsize, &sbbuf,
 	    fsopts);
-	cgp = (struct cg *)sbbuf;
+	cgp = (struct cg *)(void *)sbbuf;
 	if (!cg_chkmagic_swap(cgp, fsopts->needswap))
 		errx(1, "ffs_write_inode: cg %d: bad magic number", cg);
 
 	assert (isclr(cg_inosused_swap(cgp, fsopts->needswap), cgino));
 
 	buf = emalloc(fs->fs_bsize);
-	dp1 = (struct ufs1_dinode *)buf;
-	dp2 = (struct ufs2_dinode *)buf;
+	dp1 = (struct ufs1_dinode *)(void *)buf;
+	dp2 = (struct ufs2_dinode *)(void *)buf;
 
 	if (fs->fs_cstotal.cs_nifree == 0)
 		errx(1, "ffs_write_inode: fs out of inodes for ino %u",
@@ -1123,11 +1123,13 @@ ffs_write_inode(union dinode *dp, uint32_t ino, const fsinfo_t *fsopts)
 	 * Initialize inode blocks on the fly for UFS2.
 	 */
 	initediblk = ufs_rw32(cgp->cg_initediblk, fsopts->needswap);
-	if (ffs_opts->version == 2 && cgino + INOPB(fs) > initediblk &&
+	if (ffs_opts->version == 2 &&
+	    (uint32_t)(cgino + INOPB(fs)) > initediblk &&
 	    initediblk < ufs_rw32(cgp->cg_niblk, fsopts->needswap)) {
 		memset(buf, 0, fs->fs_bsize);
-		dip = (struct ufs2_dinode *)buf;
-		for (i = 0; i < INOPB(fs); i++) {
+		dip = (struct ufs2_dinode *)(void *)buf;
+		/* XXX check (int) */
+		for (i = 0; i < (int)INOPB(fs); i++) {
 			dip->di_gen = random();
 			dip++;
 		}
