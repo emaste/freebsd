@@ -1015,7 +1015,7 @@ cd9660_handle_collisions(iso9660_disk *diskStructure, cd9660node *colliding,
 	for (iter = TAILQ_FIRST(&colliding->cn_children);
 	     iter != NULL && (next = TAILQ_NEXT(iter, cn_next_child)) != NULL;) {
 		if (strcmp(iter->isoDirRecord->name,
-		           next->isoDirRecord->name) != 0) {
+		    next->isoDirRecord->name) != 0) {
 			iter = TAILQ_NEXT(iter, cn_next_child);
 			continue;
 		}
@@ -1052,7 +1052,7 @@ cd9660_rename_filename(iso9660_disk *diskStructure, cd9660node *iter, int num,
 	int numbts, digit, digits, temp, powers, count;
 	char *naming;
 	int maxlength;
-        char *tmp;
+	char *tmp;
 
 	if (diskStructure->verbose_level > 0)
 		printf("Rename_filename called\n");
@@ -1199,7 +1199,7 @@ cd9660_sort_nodes(cd9660node *node)
 			if ((next = TAILQ_NEXT(cn, cn_next_child)) == NULL)
 				return;
 			else if (strcmp(next->isoDirRecord->name,
-				        cn->isoDirRecord->name) >= 0)
+			    cn->isoDirRecord->name) >= 0)
 				continue;
 			TAILQ_REMOVE(&node->cn_children, next, cn_next_child);
 			TAILQ_INSERT_BEFORE(cn, next, cn_next_child);
@@ -2078,8 +2078,8 @@ cd9660_create_special_directory(iso9660_disk *diskStructure, u_char type,
 	} else if (type == CD9660_TYPE_DOTDOT) {
 		parent->dot_dot_record = temp;
 		/*
-                 * If the first child is the dot record, insert
-                 * this second.  Otherwise, insert it at the head.
+		 * If the first child is the dot record, insert
+		 * this second.  Otherwise, insert it at the head.
 		 */
 		if ((first = TAILQ_FIRST(&parent->cn_children)) == NULL ||
 		    (first->type & CD9660_TYPE_DOT) == 0) {

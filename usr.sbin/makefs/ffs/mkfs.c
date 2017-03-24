@@ -125,21 +125,21 @@ ffs_mkfs(const char *fsys, const fsinfo_t *fsopts, time_t tstamp)
 	ffs_opt_t	*ffs_opts = fsopts->fs_specific;
 
 	Oflag =		ffs_opts->version;
-	fssize =        fsopts->size / fsopts->sectorsize;
-	sectorsize =    fsopts->sectorsize;
-	fsize =         ffs_opts->fsize;
-	bsize =         ffs_opts->bsize;
-	maxbsize =      ffs_opts->maxbsize;
-	maxblkspercg =  ffs_opts->maxblkspercg;
-	minfree =       ffs_opts->minfree;
-	opt =           ffs_opts->optimization;
-	density =       ffs_opts->density;
-	maxcontig =     ffs_opts->maxcontig;
-	maxbpg =        ffs_opts->maxbpg;
-	avgfilesize =   ffs_opts->avgfilesize;
-	avgfpdir =      ffs_opts->avgfpdir;
-	bbsize =        BBSIZE;
-	sbsize =        SBLOCKSIZE;
+	fssize =	fsopts->size / fsopts->sectorsize;
+	sectorsize =	fsopts->sectorsize;
+	fsize =		ffs_opts->fsize;
+	bsize =		ffs_opts->bsize;
+	maxbsize =		ffs_opts->maxbsize;
+	maxblkspercg =	ffs_opts->maxblkspercg;
+	minfree =	ffs_opts->minfree;
+	opt =		ffs_opts->optimization;
+	density =	ffs_opts->density;
+	maxcontig =	ffs_opts->maxcontig;
+	maxbpg =	ffs_opts->maxbpg;
+	avgfilesize =	ffs_opts->avgfilesize;
+	avgfpdir =	ffs_opts->avgfpdir;
+	bbsize =	BBSIZE;
+	sbsize =	SBLOCKSIZE;
 
 	strlcpy(sblock.fs_volname, ffs_opts->label, sizeof(sblock.fs_volname));
 
@@ -544,7 +544,7 @@ ffs_write_superblock(struct fs *fs, const fsinfo_t *fsopts)
 	saveflag = fs->fs_flags & FS_INTERNAL;
 	fs->fs_flags &= ~FS_INTERNAL;
 
-        memcpy(writebuf, &sblock, sbsize);
+	memcpy(writebuf, &sblock, sbsize);
 	if (fsopts->needswap)
 		ffs_sb_swap(fs, (struct fs*)writebuf);
 	ffs_wtfs(fs->fs_sblockloc / sectorsize, sbsize, writebuf, fsopts);

@@ -188,7 +188,7 @@ cd9660_write_path_table(iso9660_disk *diskStructure, FILE *fd, off_t sector,
 		/* round up */
 		len = temp_entry.length[0] + 8 + (temp_entry.length[0] & 0x01);
 
-                /* todo: function pointers instead */
+		/* todo: function pointers instead */
 		if (mode == LITTLE_ENDIAN) {
 			cd9660_731(ptcur->fileDataSector,
 			    temp_entry.first_sector);

@@ -93,5 +93,5 @@ struct inode {
 
 #undef DIP
 #define DIP(ip, field) \
-        (((ip)->i_fs->fs_magic == FS_UFS1_MAGIC) ? \
-        (ip)->i_ffs1_##field : (ip)->i_ffs2_##field)
+	(((ip)->i_fs->fs_magic == FS_UFS1_MAGIC) ? \
+	(ip)->i_ffs1_##field : (ip)->i_ffs2_##field)

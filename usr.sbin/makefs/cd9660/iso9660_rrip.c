@@ -674,7 +674,7 @@ int
 cd9660node_rrip_nm(struct ISO_SUSP_ATTRIBUTES *p, cd9660node *file_node)
 {
 	int nm_length = strlen(file_node->isoDirRecord->name) + 5;
-        p->attr.rr_entry.NM.h.type[0] = 'N';
+	p->attr.rr_entry.NM.h.type[0] = 'N';
 	p->attr.rr_entry.NM.h.type[1] = 'M';
 	sprintf(p->attr.rr_entry.NM.altname, "%s", file_node->isoDirRecord->name);
 	p->attr.rr_entry.NM.h.length[0] = (unsigned char)nm_length;

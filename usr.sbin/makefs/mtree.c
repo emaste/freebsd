@@ -774,9 +774,9 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 	}
 
 	/*
-         * Check for hardlinks. If the contents key is used, then the check
-         * will only trigger if the contents file is a link even if it is used
-         * by more than one file
+	 * Check for hardlinks. If the contents key is used, then the check
+	 * will only trigger if the contents file is a link even if it is used
+	 * by more than one file
 	 */
 	if (sb.st_nlink > 1) {
 		fsinode *curino;

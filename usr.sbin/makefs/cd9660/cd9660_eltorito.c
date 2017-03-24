@@ -100,7 +100,7 @@ cd9660_add_boot_disk(iso9660_disk *diskStructure, const char *boot_info)
 	else if (strcmp(sysname, "powerpc") == 0)
 		new_image->system = ET_SYS_PPC;
 	else if (strcmp(sysname, "macppc") == 0 ||
-	         strcmp(sysname, "mac68k") == 0)
+		strcmp(sysname, "mac68k") == 0)
 		new_image->system = ET_SYS_MAC;
 	else {
 		warnx("boot disk system must be "
@@ -245,7 +245,7 @@ cd9660_boot_setup_validation_entry(char sys)
 	checksum = -checksum;
 	cd9660_721(checksum, ve->checksum);
 
-        ELTORITO_DPRINTF(("%s: header_id %d, platform_id %d, key[0] %d, key[1] %d, "
+	ELTORITO_DPRINTF(("%s: header_id %d, platform_id %d, key[0] %d, key[1] %d, "
 	    "checksum %04x\n", __func__, ve->header_id[0], ve->platform_id[0],
 	    ve->key[0], ve->key[1], checksum));
 	return entry;
@@ -556,13 +556,13 @@ cd9660_write_apm_partition_entry(FILE *fd, int idx, int total_partitions,
 
 	apm32 = 0;
 	/* pmLgDataStart */
-        fwrite(&apm32, sizeof(apm32), 1, fd);
+	fwrite(&apm32, sizeof(apm32), 1, fd);
 	/* pmDataCnt */ 
 	apm32 = htobe32(nsectors);
-        fwrite(&apm32, sizeof(apm32), 1, fd);
+	fwrite(&apm32, sizeof(apm32), 1, fd);
 	/* pmPartStatus */
 	apm32 = htobe32(part_status);
-        fwrite(&apm32, sizeof(apm32), 1, fd);
+	fwrite(&apm32, sizeof(apm32), 1, fd);
 
 	return 0;
 }
@@ -680,7 +680,7 @@ cd9660_write_boot(iso9660_disk *diskStructure, FILE *fd)
 			    512, "CD Boot", "Apple_Bootstrap");
 		}
 		/* Write ISO9660 descriptor, enclosing the whole disk */
-                cd9660_write_apm_partition_entry(fd, 2 + apm_partitions,
+		cd9660_write_apm_partition_entry(fd, 2 + apm_partitions,
 		    total_parts, 0, diskStructure->totalSectors *
 		    (diskStructure->sectorSize / 512), 512, "ISO9660",
 		    "CD_ROM_Mode_1");
