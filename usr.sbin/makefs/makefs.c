@@ -490,7 +490,7 @@ usage(fstype_t *fstype, fsinfo_t *fsoptions)
 "\t[-F mtree-specfile] [-f free-files] [-M minimum-size] [-m maximum-size]\n"
 "\t[-N userdb-dir] [-O offset] [-o fs-options] [-R roundup-size]\n"
 "\t[-S sector-size] [-s image-size] [-T <timestamp/file>] [-t fs-type]\n"
-"\timage-file directory | manifest [extra-directory ...]\n",
+"\timage-file (directory [extra-directory ...] | manifest)\n",
 	    prog);
 
 	if (fstype) {
