@@ -691,7 +691,7 @@ journal_findfile(void)
 	dp2 = ip;
 	dp1 = ip;
 	if (sblock.fs_magic == FS_UFS1_MAGIC) {
-		if ((off_t)dp1->di_size >= ffs_lblktosize(&sblock, UFS_NDADDR)) {
+		if (dp1->di_size >= ffs_lblktosize(&sblock, UFS_NDADDR)) {
 			warnx("UFS_ROOTINO extends beyond direct blocks.");
 			return (-1);
 		}
@@ -703,7 +703,7 @@ journal_findfile(void)
 				return (ino);
 		}
 	} else {
-		if ((off_t)dp2->di_size >= ffs_lblktosize(&sblock, UFS_NDADDR)) {
+		if (dp2->di_size >= ffs_lblktosize(&sblock, UFS_NDADDR)) {
 			warnx("UFS_ROOTINO extends beyond direct blocks.");
 			return (-1);
 		}

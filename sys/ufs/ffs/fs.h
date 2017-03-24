@@ -574,7 +574,7 @@ struct cg {
 #define	ffs_lfragtosize(fs, frag) /* calculates ((off_t)frag * fs->fs_fsize)*/ \
 	(((off_t)(frag)) << (fs)->fs_fshift)
 #define	ffs_lblktosize(fs, blk)	/* calculates ((off_t)blk * fs->fs_bsize) */ \
-	(((off_t)(blk)) << (fs)->fs_bshift)
+	(((uint64_t)(blk)) << (fs)->fs_bshift)
 /* Use this only when `blk' is known to be small, e.g., < UFS_NDADDR. */
 #define	ffs_smalllblktosize(fs, blk) /* calculates (blk * fs->fs_bsize) */ \
 	((blk) << (fs)->fs_bshift)
