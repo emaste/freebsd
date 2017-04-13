@@ -107,9 +107,7 @@ __DEFAULT_YES_OPTIONS = \
     FREEBSD_UPDATE \
     FTP \
     GAMES \
-    GDB \
     GH_BC \
-    GNU_DIFF \
     GOOGLETEST \
     GPIO \
     HAST \
@@ -172,7 +170,6 @@ __DEFAULT_YES_OPTIONS = \
     REPRODUCIBLE_BUILD \
     RESCUE \
     ROUTED \
-    SENDMAIL \
     SERVICESDB \
     SETUID_LOGIN \
     SHARED_TOOLCHAIN \
@@ -186,7 +183,6 @@ __DEFAULT_YES_OPTIONS = \
     SYSTEM_COMPILER \
     SYSTEM_LINKER \
     TALK \
-    TCP_WRAPPERS \
     TCSH \
     TELNET \
     TEXTPROC \
@@ -208,6 +204,8 @@ __DEFAULT_NO_OPTIONS = \
     CLANG_FORMAT \
     DTRACE_TESTS \
     EXPERIMENTAL \
+    GDB \
+    GNU_DIFF \
     GNU_GREP \
     GNU_GREP_COMPAT \
     HESIOD \
@@ -219,8 +217,10 @@ __DEFAULT_NO_OPTIONS = \
     OFED_EXTRA \
     OPENLDAP \
     RPCBIND_WARMSTART_SUPPORT \
+    SENDMAIL \
     SORT_THREADS \
     SVN \
+    TCP_WRAPPERS \
     ZONEINFO_LEAPSECONDS_SUPPORT \
 
 # LEFT/RIGHT. Left options which default to "yes" unless their corresponding
