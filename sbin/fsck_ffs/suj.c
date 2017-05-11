@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include "fsck.h"
 
-#define	DOTDOT_OFFSET	DIRECTSIZ(1)
+#define	DOTDOT_OFFSET	UFS_DIRECTSIZ(1)
 #define	SUJ_HASHSIZE	2048
 #define	SUJ_HASHMASK	(SUJ_HASHSIZE - 1)
 #define	SUJ_HASH(x)	((x * 2654435761) & SUJ_HASHMASK)
@@ -891,7 +891,7 @@ ino_isat(ino_t parent, off_t diroff, ino_t child, int *mode, int *isdot)
 	lbn = ffs_lblkno(fs, diroff);
 	doff = ffs_blkoff(fs, diroff);
 	blksize = ffs_sblksize(fs, DIP(dip, di_size), lbn);
-	if (diroff + DIRECTSIZ(1) > DIP(dip, di_size) || doff >= blksize) {
+	if (diroff + UFS_DIRECTSIZ(1) > DIP(dip, di_size) || doff >= blksize) {
 		if (debug)
 			printf("ino %ju absent from %ju due to offset %jd"
 			    " exceeding size %jd\n",

@@ -273,7 +273,7 @@ restart:
 	if ((nameiop == CREATE || nameiop == RENAME) &&
 	    (flags & ISLASTCN)) {
 		slotstatus = NONE;
-		slotneeded = DIRECTSIZ(cnp->cn_namelen);
+		slotneeded = UFS_DIRECTSIZ(cnp->cn_namelen);
 	}
 
 #ifdef UFS_DIRHASH
@@ -394,7 +394,7 @@ searchloop:
 			int size = ep->d_reclen;
 
 			if (ep->d_ino != 0)
-				size -= DIRSIZ(OFSFMT(vdp), ep);
+				size -= UFS_DIRSIZ(OFSFMT(vdp), ep);
 			if (size > 0) {
 				if (size >= slotneeded) {
 					slotstatus = FOUND;
@@ -550,9 +550,9 @@ found:
 	 * Check that directory length properly reflects presence
 	 * of this entry.
 	 */
-	if (i_offset + DIRSIZ(OFSFMT(vdp), ep) > dp->i_size) {
+	if (i_offset + UFS_DIRSIZ(OFSFMT(vdp), ep) > dp->i_size) {
 		ufs_dirbad(dp, i_offset, "i_size too small");
-		dp->i_size = i_offset + DIRSIZ(OFSFMT(vdp), ep);
+		dp->i_size = i_offset + UFS_DIRSIZ(OFSFMT(vdp), ep);
 		DIP_SET(dp, i_size, dp->i_size);
 		dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	}
@@ -792,7 +792,7 @@ ufs_dirbadentry(dp, ep, entryoffsetinblock)
 #	endif
 	if ((ep->d_reclen & 0x3) != 0 ||
 	    ep->d_reclen > UFS_DIRBLKSIZ - (entryoffsetinblock & (UFS_DIRBLKSIZ - 1)) ||
-	    ep->d_reclen < DIRSIZ(OFSFMT(dp), ep) || namlen > UFS_MAXNAMLEN) {
+	    ep->d_reclen < UFS_DIRSIZ(OFSFMT(dp), ep) || namlen > UFS_MAXNAMLEN) {
 		/*return (1); */
 		printf("First bad\n");
 		goto bad;
@@ -876,7 +876,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 	cr = td->td_ucred;
 
 	dp = VTOI(dvp);
-	newentrysize = DIRSIZ(OFSFMT(dvp), dirp);
+	newentrysize = UFS_DIRSIZ(OFSFMT(dvp), dirp);
 
 	if (dp->i_count == 0) {
 		/*
@@ -1012,7 +1012,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 	 * dp->i_offset + dp->i_count would yield the space.
 	 */
 	ep = (struct direct *)dirbuf;
-	dsize = ep->d_ino ? DIRSIZ(OFSFMT(dvp), ep) : 0;
+	dsize = ep->d_ino ? UFS_DIRSIZ(OFSFMT(dvp), ep) : 0;
 	spacefree = ep->d_reclen - dsize;
 	for (loc = ep->d_reclen; loc < dp->i_count; ) {
 		nep = (struct direct *)(dirbuf + loc);
@@ -1037,7 +1037,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 			dsize = 0;
 			continue;
 		}
-		dsize = DIRSIZ(OFSFMT(dvp), nep);
+		dsize = UFS_DIRSIZ(OFSFMT(dvp), nep);
 		spacefree += nep->d_reclen - dsize;
 #ifdef UFS_DIRHASH
 		if (dp->i_dirhash != NULL)

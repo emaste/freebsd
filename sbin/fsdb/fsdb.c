@@ -835,7 +835,7 @@ chnamefunc(struct inodesc *idesc)
 	if (slotcount++ == desired) {
 	    /* will name fit? */
 	    testdir.d_namlen = strlen(idesc->id_name);
-	    if (DIRSIZ(NEWDIRFMT, &testdir) <= dirp->d_reclen) {
+	    if (UFS_DIRSIZ(UFS_NEWDIRFMT, &testdir) <= dirp->d_reclen) {
 		dirp->d_namlen = testdir.d_namlen;
 		strcpy(dirp->d_name, idesc->id_name);
 		return STOP|ALTERED|FOUND;

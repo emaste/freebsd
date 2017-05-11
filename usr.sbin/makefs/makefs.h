@@ -277,11 +277,11 @@ extern	struct stat stampst;
 #if (BYTE_ORDER == LITTLE_ENDIAN)
 #define DIRSIZ_SWAP(oldfmt, dp, needswap)      \
     (((oldfmt) && !(needswap)) ?       \
-    DIRECTSIZ((dp)->d_type) : DIRECTSIZ((dp)->d_namlen))
+    UFS_DIRECTSIZ((dp)->d_type) : UFS_DIRECTSIZ((dp)->d_namlen))
 #else
 #define DIRSIZ_SWAP(oldfmt, dp, needswap)      \
     (((oldfmt) && (needswap)) ?                \
-    DIRECTSIZ((dp)->d_type) : DIRECTSIZ((dp)->d_namlen))
+    UFS_DIRECTSIZ((dp)->d_type) : UFS_DIRECTSIZ((dp)->d_namlen))
 #endif
 
 #define        cg_chkmagic_swap(cgp, ns) \

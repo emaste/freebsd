@@ -172,7 +172,7 @@ extractdirs(int genmode)
 	nulldir.d_type = DT_DIR;
 	nulldir.d_namlen = 1;
 	(void) strcpy(nulldir.d_name, "/");
-	nulldir.d_reclen = DIRSIZ(0, &nulldir);
+	nulldir.d_reclen = UFS_DIRSIZ(0, &nulldir);
 	for (;;) {
 		curfile.name = "<directory file - name unknown>";
 		curfile.action = USING;
@@ -346,7 +346,7 @@ putdir(char *buf, size_t size)
 		i = DIRBLKSIZ - (loc & (DIRBLKSIZ - 1));
 		if ((dp->d_reclen & 0x3) != 0 ||
 		    dp->d_reclen > i ||
-		    dp->d_reclen < DIRSIZ(0, dp)
+		    dp->d_reclen < UFS_DIRSIZ(0, dp)
 #if NAME_MAX < 255
 		    || dp->d_namlen > NAME_MAX
 #endif
@@ -355,10 +355,10 @@ putdir(char *buf, size_t size)
 			if ((dp->d_reclen & 0x3) != 0)
 				vprintf(stdout,
 				   "reclen not multiple of 4 ");
-			if (dp->d_reclen < DIRSIZ(0, dp))
+			if (dp->d_reclen < UFS_DIRSIZ(0, dp))
 				vprintf(stdout,
-				   "reclen less than DIRSIZ (%u < %zu) ",
-				   dp->d_reclen, DIRSIZ(0, dp));
+				   "reclen less than UFS_DIRSIZ (%u < %zu) ",
+				   dp->d_reclen, UFS_DIRSIZ(0, dp));
 #if NAME_MAX < 255
 			if (dp->d_namlen > NAME_MAX)
 				vprintf(stdout,
@@ -389,7 +389,7 @@ long prev = 0;
 static void
 putent(struct direct *dp)
 {
-	dp->d_reclen = DIRSIZ(0, dp);
+	dp->d_reclen = UFS_DIRSIZ(0, dp);
 	if (dirloc + dp->d_reclen > DIRBLKSIZ) {
 		((struct direct *)(dirbuf + prev))->d_reclen =
 		    DIRBLKSIZ - prev;

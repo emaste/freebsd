@@ -367,7 +367,7 @@ ufsdirhash_build(struct inode *ip)
 	vp = ip->i_vnode;
 	/* Allocate 50% more entries than this dir size could ever need. */
 	KASSERT(ip->i_size >= UFS_DIRBLKSIZ, ("ufsdirhash_build size"));
-	nslots = ip->i_size / DIRECTSIZ(1);
+	nslots = ip->i_size / UFS_DIRECTSIZ(1);
 	nslots = (nslots * 3 + 1) / 2;
 	narrays = howmany(nslots, DH_NBLKOFF);
 	nslots = narrays * DH_NBLKOFF;
@@ -449,7 +449,7 @@ ufsdirhash_build(struct inode *ip)
 				slot = WRAPINCR(slot, dh->dh_hlen);
 			dh->dh_hused++;
 			DH_ENTRY(dh, slot) = pos;
-			ufsdirhash_adjfree(dh, pos, -DIRSIZ(0, ep));
+			ufsdirhash_adjfree(dh, pos, -UFS_DIRSIZ(0, ep));
 		}
 		pos += ep->d_reclen;
 	}
@@ -653,7 +653,7 @@ restart:
 			}
 
 			/* Update offset. */
-			dh->dh_seqoff = offset + DIRSIZ(0, dp);
+			dh->dh_seqoff = offset + UFS_DIRSIZ(0, dp);
 			*bpp = bp;
 			*offp = offset;
 			ufsdirhash_release(dh);
@@ -729,7 +729,7 @@ ufsdirhash_findfree(struct inode *ip, int slotneeded, int *slotsize)
 			brelse(bp);
 			return (-1);
 		}
-		if (dp->d_ino == 0 || dp->d_reclen > DIRSIZ(0, dp))
+		if (dp->d_ino == 0 || dp->d_reclen > UFS_DIRSIZ(0, dp))
 			break;
 		i += dp->d_reclen;
 		dp = (struct direct *)((char *)dp + dp->d_reclen);
@@ -745,7 +745,7 @@ ufsdirhash_findfree(struct inode *ip, int slotneeded, int *slotsize)
 	while (i < UFS_DIRBLKSIZ && freebytes < slotneeded) {
 		freebytes += dp->d_reclen;
 		if (dp->d_ino != 0)
-			freebytes -= DIRSIZ(0, dp);
+			freebytes -= UFS_DIRSIZ(0, dp);
 		if (dp->d_reclen == 0) {
 			brelse(bp);
 			return (-1);
@@ -827,7 +827,7 @@ ufsdirhash_add(struct inode *ip, struct direct *dirp, doff_t offset)
 	dh->dh_lastused = time_second;
 
 	/* Update the per-block summary info. */
-	ufsdirhash_adjfree(dh, offset, -DIRSIZ(0, dirp));
+	ufsdirhash_adjfree(dh, offset, -UFS_DIRSIZ(0, dirp));
 	ufsdirhash_release(dh);
 }
 
@@ -854,7 +854,7 @@ ufsdirhash_remove(struct inode *ip, struct direct *dirp, doff_t offset)
 	ufsdirhash_delslot(dh, slot);
 
 	/* Update the per-block summary info. */
-	ufsdirhash_adjfree(dh, offset, DIRSIZ(0, dirp));
+	ufsdirhash_adjfree(dh, offset, UFS_DIRSIZ(0, dirp));
 	ufsdirhash_release(dh);
 }
 
@@ -1003,7 +1003,7 @@ ufsdirhash_checkblock(struct inode *ip, char *buf, doff_t offset)
 		/* Check that the entry	exists (will panic if it doesn't). */
 		ufsdirhash_findslot(dh, dp->d_name, dp->d_namlen, offset + i);
 
-		nfree += dp->d_reclen - DIRSIZ(0, dp);
+		nfree += dp->d_reclen - UFS_DIRSIZ(0, dp);
 	}
 	if (i != UFS_DIRBLKSIZ)
 		panic("ufsdirhash_checkblock: bad dir end");

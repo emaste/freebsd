@@ -59,9 +59,9 @@
  * with null bytes.  All names are guaranteed null terminated.
  * The maximum length of a name in a directory is UFS_MAXNAMLEN.
  *
- * The macro DIRSIZ(fmt, dp) gives the amount of space required to represent
+ * The macro UFS_DIRSIZ(fmt, dp) gives the amount of space required to represent
  * a directory entry.  Free space in a directory is represented by
- * entries which have dp->d_reclen > DIRSIZ(fmt, dp).  All UFS_DIRBLKSIZ bytes
+ * entries which have dp->d_reclen > UFS_DIRSIZ(fmt, dp).  All UFS_DIRBLKSIZ bytes
  * in a directory block are claimed by the directory entries.  This
  * usually results in the last entry in a directory having a large
  * dp->d_reclen.  When entries are deleted from a directory, the
@@ -103,25 +103,25 @@ struct	direct {
 #define	DTTOIF(dirtype)	((dirtype) << 12)
 
 /*
- * The DIRSIZ macro gives the minimum record length which will hold
+ * The UFS_DIRSIZ macro gives the minimum record length which will hold
  * the directory entry.  This requires the amount of space in struct direct
  * without the d_name field, plus enough space for the name with a terminating
  * null byte (dp->d_namlen+1), rounded up to a 4 byte boundary.
  *
  * 
  */
-#define	DIRECTSIZ(namlen)						\
+#define	UFS_DIRECTSIZ(namlen)						\
 	((__offsetof(struct direct, d_name) +				\
 	  ((namlen)+1)*sizeof(((struct direct *)0)->d_name[0]) + 3) & ~3)
 #if (BYTE_ORDER == LITTLE_ENDIAN)
-#define	DIRSIZ(oldfmt, dp) \
-    ((oldfmt) ? DIRECTSIZ((dp)->d_type) : DIRECTSIZ((dp)->d_namlen))
+#define	UFS_DIRSIZ(oldfmt, dp) \
+    ((oldfmt) ? UFS_DIRECTSIZ((dp)->d_type) : UFS_DIRECTSIZ((dp)->d_namlen))
 #else
-#define	DIRSIZ(oldfmt, dp) \
-    DIRECTSIZ((dp)->d_namlen)
+#define	UFS_DIRSIZ(oldfmt, dp) \
+    UFS_DIRECTSIZ((dp)->d_namlen)
 #endif
-#define	OLDDIRFMT	1
-#define	NEWDIRFMT	0
+#define	UFS_OLDDIRFMT	1
+#define	UFS_NEWDIRFMT	0
 
 /*
  * Template for manipulating directories.  Should use struct direct's,

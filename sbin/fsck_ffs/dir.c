@@ -216,7 +216,7 @@ dircheck(struct inodesc *idesc, struct direct *dp)
 		goto bad;
 	if (dp->d_ino == 0)
 		return (1);
-	size = DIRSIZ(0, dp);
+	size = UFS_DIRSIZ(0, dp);
 	namlen = dp->d_namlen;
 	type = dp->d_type;
 	if (dp->d_reclen < size ||
@@ -345,9 +345,9 @@ mkentry(struct inodesc *idesc)
 	int newlen, oldlen;
 
 	newent.d_namlen = strlen(idesc->id_name);
-	newlen = DIRSIZ(0, &newent);
+	newlen = UFS_DIRSIZ(0, &newent);
 	if (dirp->d_ino != 0)
-		oldlen = DIRSIZ(0, dirp);
+		oldlen = UFS_DIRSIZ(0, dirp);
 	else
 		oldlen = 0;
 	if (dirp->d_reclen - oldlen < newlen)

@@ -924,13 +924,13 @@ makedir(struct direct *protodir, int entries)
 	spcleft = UFS_DIRBLKSIZ;
 	memset(iobuf, 0, UFS_DIRBLKSIZ);
 	for (cp = iobuf, i = 0; i < entries - 1; i++) {
-		protodir[i].d_reclen = DIRSIZ(0, &protodir[i]);
+		protodir[i].d_reclen = UFS_DIRSIZ(0, &protodir[i]);
 		memmove(cp, &protodir[i], protodir[i].d_reclen);
 		cp += protodir[i].d_reclen;
 		spcleft -= protodir[i].d_reclen;
 	}
 	protodir[i].d_reclen = spcleft;
-	memmove(cp, &protodir[i], DIRSIZ(0, &protodir[i]));
+	memmove(cp, &protodir[i], UFS_DIRSIZ(0, &protodir[i]));
 	return (UFS_DIRBLKSIZ);
 }
 
