@@ -53,8 +53,6 @@
 #include <sys/dirent.h>
 #include <sys/sysctl.h>
 
-#include <ufs/ufs/dir.h>
-
 #include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2_mount.h>
 #include <fs/ext2fs/ext2fs.h>
@@ -70,13 +68,6 @@ static int dirchk = 0;
 
 static SYSCTL_NODE(_vfs, OID_AUTO, e2fs, CTLFLAG_RD, 0, "EXT2FS filesystem");
 SYSCTL_INT(_vfs_e2fs, OID_AUTO, dircheck, CTLFLAG_RW, &dirchk, 0, "");
-
-/*
-   DIRBLKSIZE in ffs is DEV_BSIZE (in most cases 512)
-   while it is the native blocksize in ext2fs - thus, a #define
-   is no longer appropriate
-*/
-#undef  DIRBLKSIZ
 
 static u_char ext2_ft_to_dt[] = {
 	DT_UNKNOWN,		/* EXT2_FT_UNKNOWN */
@@ -143,6 +134,10 @@ ext2_readdir(struct vop_readdir_args *ap)
 	size_t readcnt, skipcnt;
 	ssize_t startresid;
 	int ncookies;
+	/* 
+	 * DIRBLKSIZ in ffs is DEV_BSIZE (in most cases 512) 
+	 * while it is the native blocksize in ext2fs 
+	 */
 	int DIRBLKSIZ = VTOI(ap->a_vp)->i_e2fs->e2fs_bsize;
 	int error;
 

@@ -373,7 +373,7 @@ ufs_extattr_iterate_directory(struct ufsmount *ump, struct vnode *dvp,
 	if (dvp->v_type != VDIR)
 		return (ENOTDIR);
 
-	dirbuf = malloc(DIRBLKSIZ, M_TEMP, M_WAITOK);
+	dirbuf = malloc(UFS_DIRBLKSIZ, M_TEMP, M_WAITOK);
 
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
@@ -391,9 +391,9 @@ ufs_extattr_iterate_directory(struct ufsmount *ump, struct vnode *dvp,
 	vargs.a_cookies = NULL;
 
 	while (!eofflag) {
-		auio.uio_resid = DIRBLKSIZ;
+		auio.uio_resid = UFS_DIRBLKSIZ;
 		aiov.iov_base = dirbuf;
-		aiov.iov_len = DIRBLKSIZ;
+		aiov.iov_len = UFS_DIRBLKSIZ;
 		error = ufs_readdir(&vargs);
 		if (error) {
 			printf("ufs_extattr_iterate_directory: ufs_readdir "
@@ -401,7 +401,7 @@ ufs_extattr_iterate_directory(struct ufsmount *ump, struct vnode *dvp,
 			return (error);
 		}
 
-		edp = (struct dirent *)&dirbuf[DIRBLKSIZ - auio.uio_resid];
+		edp = (struct dirent *)&dirbuf[UFS_DIRBLKSIZ - auio.uio_resid];
 		for (dp = (struct dirent *)dirbuf; dp < edp; ) {
 			if (dp->d_reclen == 0)
 				break;

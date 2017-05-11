@@ -131,11 +131,11 @@ SYSCTL_NODE(_vfs, OID_AUTO, ufs, CTLFLAG_RD, 0, "UFS filesystem");
  */
 static struct dirtemplate mastertemplate = {
 	0, 12, DT_DIR, 1, ".",
-	0, DIRBLKSIZ - 12, DT_DIR, 2, ".."
+	0, UFS_DIRBLKSIZ - 12, DT_DIR, 2, ".."
 };
 static struct odirtemplate omastertemplate = {
 	0, 12, 1, ".",
-	0, DIRBLKSIZ - 12, 2, ".."
+	0, UFS_DIRBLKSIZ - 12, 2, ".."
 };
 
 static void
@@ -1940,12 +1940,12 @@ ufs_mkdir(ap)
 	dirtemplate = *dtp;
 	dirtemplate.dot_ino = ip->i_number;
 	dirtemplate.dotdot_ino = dp->i_number;
-	vnode_pager_setsize(tvp, DIRBLKSIZ);
-	if ((error = UFS_BALLOC(tvp, (off_t)0, DIRBLKSIZ, cnp->cn_cred,
+	vnode_pager_setsize(tvp, UFS_DIRBLKSIZ);
+	if ((error = UFS_BALLOC(tvp, (off_t)0, UFS_DIRBLKSIZ, cnp->cn_cred,
 	    BA_CLRBUF, &bp)) != 0)
 		goto bad;
-	ip->i_size = DIRBLKSIZ;
-	DIP_SET(ip, i_size, DIRBLKSIZ);
+	ip->i_size = UFS_DIRBLKSIZ;
+	DIP_SET(ip, i_size, UFS_DIRBLKSIZ);
 	ip->i_flag |= IN_CHANGE | IN_UPDATE;
 	bcopy((caddr_t)&dirtemplate, (caddr_t)bp->b_data, sizeof dirtemplate);
 	if (DOINGSOFTDEP(tvp)) {
@@ -1955,11 +1955,11 @@ ufs_mkdir(ap)
 		 * block does not have to ensure that the block is
 		 * written before the inode.
 		 */
-		blkoff = DIRBLKSIZ;
+		blkoff = UFS_DIRBLKSIZ;
 		while (blkoff < bp->b_bcount) {
 			((struct direct *)
-			   (bp->b_data + blkoff))->d_reclen = DIRBLKSIZ;
-			blkoff += DIRBLKSIZ;
+			   (bp->b_data + blkoff))->d_reclen = UFS_DIRBLKSIZ;
+			blkoff += UFS_DIRBLKSIZ;
 		}
 	}
 	if ((error = UFS_UPDATE(tvp, !DOINGSOFTDEP(tvp) &&
@@ -2203,7 +2203,7 @@ ufs_readdir(ap)
 		else
 			readcnt = bp->b_bcount;
 		skipcnt = (size_t)(uio->uio_offset - bp->b_offset) &
-		    ~(size_t)(DIRBLKSIZ - 1);
+		    ~(size_t)(UFS_DIRBLKSIZ - 1);
 		offset = bp->b_offset + skipcnt;
 		dp = (struct direct *)&bp->b_data[skipcnt];
 		edp = (struct direct *)&bp->b_data[readcnt];

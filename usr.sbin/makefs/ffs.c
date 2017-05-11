@@ -593,12 +593,12 @@ ffs_size_dir(fsnode *root, fsinfo_t *fsopts)
 
 #define	ADDDIRENT(e) do {						\
 	tmpdir.d_namlen = strlen((e));					\
-	this = DIRSIZ_SWAP(0, &tmpdir, 0);					\
+	this = DIRSIZ_SWAP(0, &tmpdir, 0);				\
 	if (debug & DEBUG_FS_SIZE_DIR_ADD_DIRENT)			\
 		printf("ADDDIRENT: was: %s (%d) this %d cur %d\n",	\
 		    e, tmpdir.d_namlen, this, curdirsize);		\
-	if (this + curdirsize > roundup(curdirsize, DIRBLKSIZ))		\
-		curdirsize = roundup(curdirsize, DIRBLKSIZ);		\
+	if (this + curdirsize > roundup(curdirsize, UFS_DIRBLKSIZ))	\
+		curdirsize = roundup(curdirsize, UFS_DIRBLKSIZ);	\
 	curdirsize += this;						\
 	if (debug & DEBUG_FS_SIZE_DIR_ADD_DIRENT)			\
 		printf("ADDDIRENT: now: %s (%d) this %d cur %d\n",	\
@@ -1043,15 +1043,15 @@ ffs_make_dirbuf(dirbuf_t *dbuf, const char *name, fsnode *node, int needswap)
 		    ufs_rw32(de.d_ino, needswap), de.d_type, reclen,
 		    de.d_namlen, de.d_name);
 
-	if (reclen + dbuf->cur + llen > roundup(dbuf->size, DIRBLKSIZ)) {
+	if (reclen + dbuf->cur + llen > roundup(dbuf->size, UFS_DIRBLKSIZ)) {
 		if (debug & DEBUG_FS_MAKE_DIRBUF)
 			printf("ffs_make_dirbuf: growing buf to %d\n",
-			    dbuf->size + DIRBLKSIZ);
-		newbuf = erealloc(dbuf->buf, dbuf->size + DIRBLKSIZ);
+			    dbuf->size + UFS_DIRBLKSIZ);
+		newbuf = erealloc(dbuf->buf, dbuf->size + UFS_DIRBLKSIZ);
 		dbuf->buf = newbuf;
-		dbuf->size += DIRBLKSIZ;
-		memset(dbuf->buf + dbuf->size - DIRBLKSIZ, 0, DIRBLKSIZ);
-		dbuf->cur = dbuf->size - DIRBLKSIZ;
+		dbuf->size += UFS_DIRBLKSIZ;
+		memset(dbuf->buf + dbuf->size - UFS_DIRBLKSIZ, 0, UFS_DIRBLKSIZ);
+		dbuf->cur = dbuf->size - UFS_DIRBLKSIZ;
 	} else if (dp) {			/* shrink end of previous */
 		dp->d_reclen = ufs_rw16(llen,needswap);
 		dbuf->cur += llen;

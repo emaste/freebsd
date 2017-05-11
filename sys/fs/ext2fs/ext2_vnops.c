@@ -77,8 +77,6 @@
 
 #include "opt_directio.h"
 
-#include <ufs/ufs/dir.h>
-
 #include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2_extern.h>
@@ -186,11 +184,11 @@ struct vop_vector ext2_fifoops = {
  */
 static struct dirtemplate mastertemplate = {
 	0, 12, 1, EXT2_FT_DIR, ".",
-	0, DIRBLKSIZ - 12, 2, EXT2_FT_DIR, ".."
+	0, DEV_BSIZE - 12, 2, EXT2_FT_DIR, ".."
 };
 static struct dirtemplate omastertemplate = {
 	0, 12, 1, EXT2_FT_UNKNOWN, ".",
-	0, DIRBLKSIZ - 12, 2, EXT2_FT_UNKNOWN, ".."
+	0, DEV_BSIZE - 12, 2, EXT2_FT_UNKNOWN, ".."
 };
 
 static void
@@ -1164,12 +1162,9 @@ ext2_mkdir(struct vop_mkdir_args *ap)
 	dirtemplate = *dtp;
 	dirtemplate.dot_ino = ip->i_number;
 	dirtemplate.dotdot_ino = dp->i_number;
-	/*
-	 * note that in ext2 DIRBLKSIZ == blocksize, not DEV_BSIZE so let's
-	 * just redefine it - for this function only
-	 */
-#undef  DIRBLKSIZ
-#define DIRBLKSIZ  VTOI(dvp)->i_e2fs->e2fs_bsize
+
+	/* * note that in ext2 DIRBLKSIZ == blocksize, not DEV_BSIZE */
+	int DIRBLKSIZ = VTOI(dvp)->i_e2fs->e2fs_bsize;
 	dirtemplate.dotdot_reclen = DIRBLKSIZ - 12;
 	error = vn_rdwr(UIO_WRITE, tvp, (caddr_t)&dirtemplate,
 	    sizeof(dirtemplate), (off_t)0, UIO_SYSSPACE,
@@ -1207,8 +1202,6 @@ bad:
 		*ap->a_vpp = tvp;
 out:
 	return (error);
-#undef  DIRBLKSIZ
-#define DIRBLKSIZ  DEV_BSIZE
 }
 
 /*

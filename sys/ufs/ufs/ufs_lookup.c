@@ -306,7 +306,7 @@ restart:
 			    (i_offset & bmask));
 			goto foundentry;
 		case ENOENT:
-			i_offset = roundup2(dp->i_size, DIRBLKSIZ);
+			i_offset = roundup2(dp->i_size, UFS_DIRBLKSIZ);
 			goto notfound;
 		default:
 			/* Something failed; just do a linear search. */
@@ -338,7 +338,7 @@ restart:
 		nchstats.ncs_2passes++;
 	}
 	prevoff = i_offset;
-	endsearch = roundup2(dp->i_size, DIRBLKSIZ);
+	endsearch = roundup2(dp->i_size, UFS_DIRBLKSIZ);
 	enduseful = 0;
 
 searchloop:
@@ -360,7 +360,7 @@ searchloop:
 		 * boundary, have to start looking for free space again.
 		 */
 		if (slotstatus == NONE &&
-		    (entryoffsetinblock & (DIRBLKSIZ - 1)) == 0) {
+		    (entryoffsetinblock & (UFS_DIRBLKSIZ - 1)) == 0) {
 			slotoffset = -1;
 			slotfreespace = 0;
 		}
@@ -373,12 +373,12 @@ searchloop:
 		 */
 		ep = (struct direct *)((char *)bp->b_data + entryoffsetinblock);
 		if (ep->d_reclen == 0 || ep->d_reclen >
-		    DIRBLKSIZ - (entryoffsetinblock & (DIRBLKSIZ - 1)) ||
+		    UFS_DIRBLKSIZ - (entryoffsetinblock & (UFS_DIRBLKSIZ - 1)) ||
 		    (dirchk && ufs_dirbadentry(vdp, ep, entryoffsetinblock))) {
 			int i;
 
 			ufs_dirbad(dp, i_offset, "mangled entry");
-			i = DIRBLKSIZ - (entryoffsetinblock & (DIRBLKSIZ - 1));
+			i = UFS_DIRBLKSIZ - (entryoffsetinblock & (UFS_DIRBLKSIZ - 1));
 			i_offset += i;
 			entryoffsetinblock += i;
 			continue;
@@ -502,12 +502,12 @@ notfound:
 		 * dp->i_offset + dp->i_count.
 		 */
 		if (slotstatus == NONE) {
-			dp->i_offset = roundup2(dp->i_size, DIRBLKSIZ);
+			dp->i_offset = roundup2(dp->i_size, UFS_DIRBLKSIZ);
 			dp->i_count = 0;
 			enduseful = dp->i_offset;
 		} else if (nameiop == DELETE) {
 			dp->i_offset = slotoffset;
-			if ((dp->i_offset & (DIRBLKSIZ - 1)) == 0)
+			if ((dp->i_offset & (UFS_DIRBLKSIZ - 1)) == 0)
 				dp->i_count = 0;
 			else
 				dp->i_count = dp->i_offset - prevoff;
@@ -517,7 +517,7 @@ notfound:
 			if (enduseful < slotoffset + slotsize)
 				enduseful = slotoffset + slotsize;
 		}
-		dp->i_endoff = roundup2(enduseful, DIRBLKSIZ);
+		dp->i_endoff = roundup2(enduseful, UFS_DIRBLKSIZ);
 		/*
 		 * We return with the directory locked, so that
 		 * the parameters we set up above will still be
@@ -564,7 +564,7 @@ found:
 	 * in the cache as to where the entry was found.
 	 */
 	if ((flags & ISLASTCN) && nameiop == LOOKUP)
-		dp->i_diroff = rounddown2(i_offset, DIRBLKSIZ);
+		dp->i_diroff = rounddown2(i_offset, UFS_DIRBLKSIZ);
 
 	/*
 	 * If deleting, and at end of pathname, return
@@ -585,7 +585,7 @@ found:
 		 * overwrite these.
 		 */
 		dp->i_offset = i_offset;
-		if ((dp->i_offset & (DIRBLKSIZ - 1)) == 0)
+		if ((dp->i_offset & (UFS_DIRBLKSIZ - 1)) == 0)
 			dp->i_count = 0;
 		else
 			dp->i_count = dp->i_offset - prevoff;
@@ -769,7 +769,7 @@ ufs_dirbad(ip, offset, how)
 /*
  * Do consistency checking on a directory entry:
  *	record length must be multiple of 4
- *	entry must fit in rest of its DIRBLKSIZ block
+ *	entry must fit in rest of its UFS_DIRBLKSIZ block
  *	record must be large enough to contain entry
  *	name is not longer than UFS_MAXNAMLEN
  *	name must be as long as advertised, and null terminated
@@ -791,7 +791,7 @@ ufs_dirbadentry(dp, ep, entryoffsetinblock)
 		namlen = ep->d_namlen;
 #	endif
 	if ((ep->d_reclen & 0x3) != 0 ||
-	    ep->d_reclen > DIRBLKSIZ - (entryoffsetinblock & (DIRBLKSIZ - 1)) ||
+	    ep->d_reclen > UFS_DIRBLKSIZ - (entryoffsetinblock & (UFS_DIRBLKSIZ - 1)) ||
 	    ep->d_reclen < DIRSIZ(OFSFMT(dp), ep) || namlen > UFS_MAXNAMLEN) {
 		/*return (1); */
 		printf("First bad\n");
@@ -885,7 +885,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 		 * be on a directory block boundary and we will write the
 		 * new entry into a fresh block.
 		 */
-		if (dp->i_offset & (DIRBLKSIZ - 1))
+		if (dp->i_offset & (UFS_DIRBLKSIZ - 1))
 			panic("ufs_direnter: newblk");
 		flags = BA_CLRBUF;
 		if (!DOINGSOFTDEP(dvp) && !DOINGASYNC(dvp))
@@ -898,19 +898,19 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 		}
 #endif
 		old_isize = dp->i_size;
-		vnode_pager_setsize(dvp, (u_long)dp->i_offset + DIRBLKSIZ);
-		if ((error = UFS_BALLOC(dvp, (off_t)dp->i_offset, DIRBLKSIZ,
+		vnode_pager_setsize(dvp, (u_long)dp->i_offset + UFS_DIRBLKSIZ);
+		if ((error = UFS_BALLOC(dvp, (off_t)dp->i_offset, UFS_DIRBLKSIZ,
 		    cr, flags, &bp)) != 0) {
 			if (DOINGSOFTDEP(dvp) && newdirbp != NULL)
 				bdwrite(newdirbp);
 			vnode_pager_setsize(dvp, (u_long)old_isize);
 			return (error);
 		}
-		dp->i_size = dp->i_offset + DIRBLKSIZ;
+		dp->i_size = dp->i_offset + UFS_DIRBLKSIZ;
 		DIP_SET(dp, i_size, dp->i_size);
 		dp->i_endoff = dp->i_size;
 		dp->i_flag |= IN_CHANGE | IN_UPDATE;
-		dirp->d_reclen = DIRBLKSIZ;
+		dirp->d_reclen = UFS_DIRBLKSIZ;
 		blkoff = dp->i_offset &
 		    (VFSTOUFS(dvp->v_mount)->um_mountp->mnt_stat.f_iosize - 1);
 		bcopy((caddr_t)dirp, (caddr_t)bp->b_data + blkoff,newentrysize);
@@ -929,11 +929,11 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 			 * block does not have to ensure that the block is
 			 * written before the inode.
 			 */
-			blkoff += DIRBLKSIZ;
+			blkoff += UFS_DIRBLKSIZ;
 			while (blkoff < bp->b_bcount) {
 				((struct direct *)
-				   (bp->b_data + blkoff))->d_reclen = DIRBLKSIZ;
-				blkoff += DIRBLKSIZ;
+				   (bp->b_data + blkoff))->d_reclen = UFS_DIRBLKSIZ;
+				blkoff += UFS_DIRBLKSIZ;
 			}
 			if (softdep_setup_directory_add(bp, dp, dp->i_offset,
 			    dirp->d_ino, newdirbp, 1))
@@ -1090,8 +1090,8 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 #ifdef UFS_DIRHASH
 	if (dp->i_dirhash != NULL)
 		ufsdirhash_checkblock(dp, dirbuf -
-		    (dp->i_offset & (DIRBLKSIZ - 1)),
-		    rounddown2(dp->i_offset, DIRBLKSIZ));
+		    (dp->i_offset & (UFS_DIRBLKSIZ - 1)),
+		    rounddown2(dp->i_offset, UFS_DIRBLKSIZ));
 #endif
 
 	if (DOINGSOFTDEP(dvp)) {
@@ -1222,8 +1222,8 @@ ufs_dirremove(dvp, ip, flags, isrmdir)
 #ifdef UFS_DIRHASH
 	if (dp->i_dirhash != NULL)
 		ufsdirhash_checkblock(dp, (char *)ep -
-		    ((dp->i_offset - dp->i_count) & (DIRBLKSIZ - 1)),
-		    rounddown2(dp->i_offset, DIRBLKSIZ));
+		    ((dp->i_offset - dp->i_count) & (UFS_DIRBLKSIZ - 1)),
+		    rounddown2(dp->i_offset, UFS_DIRBLKSIZ));
 #endif
 out:
 	error = 0;

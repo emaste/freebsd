@@ -62,7 +62,7 @@ eascan(struct inodesc *idesc, struct ufs2_dinode *dp)
 	u_int dsize, n;
 	u_char *cp;
 	long blksiz;
-	char dbuf[DIRBLKSIZ];
+	char dbuf[UFS_DIRBLKSIZ];
 
 	printf("Inode %ju extsize %ju\n",
 	   (intmax_t)idesc->id_number, (uintmax_t)dp->di_extsize);

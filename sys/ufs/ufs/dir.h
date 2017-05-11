@@ -47,11 +47,11 @@
 #define	MAXDIRSIZE	(0x7fffffff)
 
 /*
- * A directory consists of some number of blocks of DIRBLKSIZ
- * bytes, where DIRBLKSIZ is chosen such that it can be transferred
+ * A directory consists of some number of blocks of UFS_DIRBLKSIZ
+ * bytes, where UFS_DIRBLKSIZ is chosen such that it can be transferred
  * to disk in a single atomic operation (e.g. 512 bytes on most machines).
  *
- * Each DIRBLKSIZ byte block contains some number of directory entry
+ * Each UFS_DIRBLKSIZ byte block contains some number of directory entry
  * structures, which are of variable length.  Each directory entry has
  * a struct direct at the front of it, containing its inode number,
  * the length of the entry, and the length of the name contained in
@@ -61,7 +61,7 @@
  *
  * The macro DIRSIZ(fmt, dp) gives the amount of space required to represent
  * a directory entry.  Free space in a directory is represented by
- * entries which have dp->d_reclen > DIRSIZ(fmt, dp).  All DIRBLKSIZ bytes
+ * entries which have dp->d_reclen > DIRSIZ(fmt, dp).  All UFS_DIRBLKSIZ bytes
  * in a directory block are claimed by the directory entries.  This
  * usually results in the last entry in a directory having a large
  * dp->d_reclen.  When entries are deleted from a directory, the
@@ -71,7 +71,7 @@
  * Entries other than the first in a directory do not normally have
  * dp->d_ino set to 0.
  */
-#define	DIRBLKSIZ	DEV_BSIZE
+#define	UFS_DIRBLKSIZ	DEV_BSIZE
 #define	UFS_MAXNAMLEN	255
 
 struct	direct {

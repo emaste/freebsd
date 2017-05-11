@@ -724,17 +724,17 @@ dir_clear_block(const char *block, off_t off)
 {
 	struct direct *dp;
 
-	for (; off < sblock.fs_bsize; off += DIRBLKSIZ) {
+	for (; off < sblock.fs_bsize; off += UFS_DIRBLKSIZ) {
 		dp = (struct direct *)&block[off];
 		dp->d_ino = 0;
-		dp->d_reclen = DIRBLKSIZ;
+		dp->d_reclen = UFS_DIRBLKSIZ;
 		dp->d_type = DT_UNKNOWN;
 	}
 }
 
 /*
  * Insert the journal at inode 'ino' into directory blk 'blk' at the first
- * free offset of 'off'.  DIRBLKSIZ blocks after off are initialized as
+ * free offset of 'off'.  UFS_DIRBLKSIZ blocks after off are initialized as
  * empty.
  */
 static int
@@ -750,11 +750,11 @@ dir_insert(ufs2_daddr_t blk, off_t off, ino_t ino)
 	bzero(&block[off], sblock.fs_bsize - off);
 	dp = (struct direct *)&block[off];
 	dp->d_ino = ino;
-	dp->d_reclen = DIRBLKSIZ;
+	dp->d_reclen = UFS_DIRBLKSIZ;
 	dp->d_type = DT_REG;
 	dp->d_namlen = strlen(SUJ_FILE);
 	bcopy(SUJ_FILE, &dp->d_name, strlen(SUJ_FILE));
-	dir_clear_block(block, off + DIRBLKSIZ);
+	dir_clear_block(block, off + UFS_DIRBLKSIZ);
 	if (bwrite(&disk, FFS_FSBTODB(&sblock, blk), block, sblock.fs_bsize) <= 0) {
 		warn("Failed to write dir block");
 		return (-1);

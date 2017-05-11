@@ -154,29 +154,29 @@ pass2(void)
 			continue;
 		if (inp->i_isize < MINDIRSIZE) {
 			direrror(inp->i_number, "DIRECTORY TOO SHORT");
-			inp->i_isize = roundup(MINDIRSIZE, DIRBLKSIZ);
+			inp->i_isize = roundup(MINDIRSIZE, UFS_DIRBLKSIZ);
 			if (reply("FIX") == 1) {
 				dp = ginode(inp->i_number);
 				DIP_SET(dp, di_size, inp->i_isize);
 				inodirty();
 			}
-		} else if ((inp->i_isize & (DIRBLKSIZ - 1)) != 0) {
+		} else if ((inp->i_isize & (UFS_DIRBLKSIZ - 1)) != 0) {
 			getpathname(pathbuf, inp->i_number, inp->i_number);
 			if (usedsoftdep)
 				pfatal("%s %s: LENGTH %jd NOT MULTIPLE OF %d",
 					"DIRECTORY", pathbuf,
-					(intmax_t)inp->i_isize, DIRBLKSIZ);
+					(intmax_t)inp->i_isize, UFS_DIRBLKSIZ);
 			else
 				pwarn("%s %s: LENGTH %jd NOT MULTIPLE OF %d",
 					"DIRECTORY", pathbuf,
-					(intmax_t)inp->i_isize, DIRBLKSIZ);
+					(intmax_t)inp->i_isize, UFS_DIRBLKSIZ);
 			if (preen)
 				printf(" (ADJUSTED)\n");
-			inp->i_isize = roundup(inp->i_isize, DIRBLKSIZ);
+			inp->i_isize = roundup(inp->i_isize, UFS_DIRBLKSIZ);
 			if (preen || reply("ADJUST") == 1) {
 				dp = ginode(inp->i_number);
 				DIP_SET(dp, di_size,
-				    roundup(inp->i_isize, DIRBLKSIZ));
+				    roundup(inp->i_isize, UFS_DIRBLKSIZ));
 				inodirty();
 			}
 		}

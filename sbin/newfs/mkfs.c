@@ -921,8 +921,8 @@ makedir(struct direct *protodir, int entries)
 	char *cp;
 	int i, spcleft;
 
-	spcleft = DIRBLKSIZ;
-	memset(iobuf, 0, DIRBLKSIZ);
+	spcleft = UFS_DIRBLKSIZ;
+	memset(iobuf, 0, UFS_DIRBLKSIZ);
 	for (cp = iobuf, i = 0; i < entries - 1; i++) {
 		protodir[i].d_reclen = DIRSIZ(0, &protodir[i]);
 		memmove(cp, &protodir[i], protodir[i].d_reclen);
@@ -931,7 +931,7 @@ makedir(struct direct *protodir, int entries)
 	}
 	protodir[i].d_reclen = spcleft;
 	memmove(cp, &protodir[i], DIRSIZ(0, &protodir[i]));
-	return (DIRBLKSIZ);
+	return (UFS_DIRBLKSIZ);
 }
 
 /*
