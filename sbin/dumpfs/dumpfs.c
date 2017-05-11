@@ -282,7 +282,7 @@ dumpfs(const char *name)
 		(uintmax_t)afs.fs_providersize);
 	printf("\ncs[].cs_(nbfree,ndir,nifree,nffree):\n\t");
 	afs.fs_csp = calloc(1, afs.fs_cssize);
-	if (bread(&disk, fsbtodb(&afs, afs.fs_csaddr), afs.fs_csp, afs.fs_cssize) == -1)
+	if (bread(&disk, FFS_FSBTODB(&afs, afs.fs_csaddr), afs.fs_csp, afs.fs_cssize) == -1)
 		goto err;
 	for (i = 0; i < afs.fs_ncg; i++) {
 		struct csum *cs = &afs.fs_cs(&afs, i);
@@ -318,7 +318,7 @@ dumpcg(void)
 	int i, j;
 
 	printf("\ncg %d:\n", disk.d_lcg);
-	cur = fsbtodb(&afs, cgtod(&afs, disk.d_lcg)) * disk.d_bsize;
+	cur = FFS_FSBTODB(&afs, cgtod(&afs, disk.d_lcg)) * disk.d_bsize;
 	switch (disk.d_ufs) {
 	case 2:
 		cgtime = acg.cg_time;
@@ -440,7 +440,7 @@ marshal(const char *name)
 		break;
 	}
 	/* -p..r unimplemented */
-	printf("-s %jd ", (intmax_t)fsbtodb(fs, fs->fs_size));
+	printf("-s %jd ", (intmax_t)FFS_FSBTODB(fs, fs->fs_size));
 	if (fs->fs_flags & FS_TRIM)
 		printf("-t ");
 	printf("%s ", disk.d_name);

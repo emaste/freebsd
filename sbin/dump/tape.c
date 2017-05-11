@@ -177,7 +177,7 @@ dumpblock(ufs2_daddr_t blkno, int size)
 	int avail, tpblks;
 	ufs2_daddr_t dblkno;
 
-	dblkno = fsbtodb(sblock, blkno);
+	dblkno = FFS_FSBTODB(sblock, blkno);
 	tpblks = size >> tp_bshift;
 	while ((avail = MIN(tpblks, ntrec - trecno)) > 0) {
 		slp->req[trecno].dblk = dblkno;

@@ -2537,7 +2537,7 @@ softdep_mount(devvp, mp, fs, cred)
 		return (0);
 	bzero(&cstotal, sizeof cstotal);
 	for (cyl = 0; cyl < fs->fs_ncg; cyl++) {
-		if ((error = bread(devvp, fsbtodb(fs, cgtod(fs, cyl)),
+		if ((error = bread(devvp, FFS_FSBTODB(fs, cgtod(fs, cyl)),
 		    fs->fs_cgsize, cred, &bp)) != 0) {
 			brelse(bp);
 			softdep_unmount(mp);
@@ -2791,7 +2791,7 @@ journal_mount(mp, fs, cred)
 		error = ufs_bmaparray(vp, i, &blkno, NULL, NULL, NULL);
 		if (error)
 			break;
-		jblocks_add(jblocks, blkno, fsbtodb(fs, fs->fs_frag));
+		jblocks_add(jblocks, blkno, FFS_FSBTODB(fs, fs->fs_frag));
 	}
 	if (error) {
 		jblocks_destroy(jblocks);
@@ -5983,7 +5983,7 @@ indirdep_lookup(mp, ip, bp)
 	 * This could search b_dep for D_ALLOCDIRECT/D_ALLOCINDIR rather
 	 * than using the hash.
 	 */
-	if (newblk_lookup(mp, dbtofsb(fs, bp->b_blkno), 0, &newblk))
+	if (newblk_lookup(mp, FFS_DBTOFSB(fs, bp->b_blkno), 0, &newblk))
 		LIST_INSERT_HEAD(&newblk->nb_indirdeps, indirdep, ir_next);
 	else
 		indirdep->ir_state |= DEPCOMPLETE;
@@ -6291,7 +6291,7 @@ setup_trunc_indir(freeblks, ip, lbn, lastlbn, blkno)
 	 * live on this newblk.
 	 */
 	if ((indirdep->ir_state & DEPCOMPLETE) == 0) {
-		newblk_lookup(mp, dbtofsb(ump->um_fs, bp->b_blkno), 0, &newblk);
+		newblk_lookup(mp, FFS_DBTOFSB(ump->um_fs, bp->b_blkno), 0, &newblk);
 		LIST_FOREACH(indirn, &newblk->nb_indirdeps, ir_next)
 			trunc_indirdep(indirn, freeblks, bp, off);
 	} else
@@ -6449,7 +6449,7 @@ blkcount(fs, datablocks, length)
 		numblks = howmany(numblks, NINDIR(fs));
 	}
 out:
-	totblks = fsbtodb(fs, totblks);
+	totblks = FFS_FSBTODB(fs, totblks);
 	/*
 	 * Handle sparse files.  We can't reclaim more blocks than the inode
 	 * references.  We will correct it later in handle_complete_freeblks()
@@ -6650,7 +6650,7 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 	 */
 	ufs_itimes(vp);
 	ip->i_flag &= ~(IN_LAZYACCESS | IN_LAZYMOD | IN_MODIFIED);
-	error = bread(ump->um_devvp, fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
+	error = bread(ump->um_devvp, FFS_FSBTODB(fs, ino_to_fsba(fs, ip->i_number)),
 	    (int)fs->fs_bsize, cred, &bp);
 	if (error) {
 		brelse(bp);
@@ -6866,7 +6866,7 @@ softdep_setup_freeblocks(ip, length, flags)
 	KASSERT(length == 0, ("softdep_setup_freeblocks: non-zero length"));
 	fs = ump->um_fs;
 	if ((error = bread(ump->um_devvp,
-	    fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
+	    FFS_FSBTODB(fs, ino_to_fsba(fs, ip->i_number)),
 	    (int)fs->fs_bsize, NOCRED, &bp)) != 0) {
 		brelse(bp);
 		softdep_error("softdep_setup_freeblocks", error);
@@ -7836,7 +7836,7 @@ handle_workitem_indirblk(freework)
 	}
 	freework->fw_state |= INPROGRESS;
 	FREE_LOCK(ump);
-	indir_trunc(freework, fsbtodb(fs, freework->fw_blkno),
+	indir_trunc(freework, FFS_FSBTODB(fs, freework->fw_blkno),
 	    freework->fw_lbn);
 	ACQUIRE_LOCK(ump);
 }
@@ -8194,7 +8194,7 @@ indir_trunc(freework, dbn, lbn)
 				    nlbn, nb, fs->fs_frag, 0, 0);
 				freedeps++;
 			}
-			indir_trunc(nfreework, fsbtodb(fs, nb), nlbn);
+			indir_trunc(nfreework, FFS_FSBTODB(fs, nb), nlbn);
 		} else {
 			struct freedep *freedep;
 
@@ -8247,7 +8247,7 @@ indir_trunc(freework, dbn, lbn)
 	/*
 	 * If we're not journaling we can free the indirect now.
 	 */
-	dbn = dbtofsb(fs, dbn);
+	dbn = FFS_DBTOFSB(fs, dbn);
 	CTR3(KTR_SUJ,
 	    "indir_trunc 2: ino %d blkno %jd size %ld",
 	    freeblks->fb_inum, dbn, fs->fs_bsize);
@@ -8597,7 +8597,7 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp, isnewblk)
 			FREE_LOCK(ump);
 			return (0);
 		}
-		if (newblk_lookup(mp, dbtofsb(fs, bp->b_blkno), 0, &newblk)
+		if (newblk_lookup(mp, FFS_DBTOFSB(fs, bp->b_blkno), 0, &newblk)
 		    == 0)
 			panic("softdep_setup_directory_add: lost entry");
 		WORKLIST_INSERT(&newblk->nb_newdirblk, &newdirblk->db_list);
@@ -9659,7 +9659,7 @@ clear_unlinked_inodedep(inodedep)
 			    (int)fs->fs_sbsize, 0, 0, 0);
 		} else {
 			error = bread(ump->um_devvp,
-			    fsbtodb(fs, ino_to_fsba(fs, pino)),
+			    FFS_FSBTODB(fs, ino_to_fsba(fs, pino)),
 			    (int)fs->fs_bsize, NOCRED, &bp);
 			if (error)
 				brelse(bp);
@@ -13821,7 +13821,7 @@ softdep_inode_append(ip, cred, wkhd)
 	KASSERT(MOUNTEDSOFTDEP(UFSTOVFS(ump)) != 0,
 	    ("softdep_inode_append called on non-softdep filesystem"));
 	fs = ump->um_fs;
-	error = bread(ump->um_devvp, fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
+	error = bread(ump->um_devvp, FFS_FSBTODB(fs, ino_to_fsba(fs, ip->i_number)),
 	    (int)fs->fs_bsize, cred, &bp);
 	if (error) {
 		bqrelse(bp);
@@ -14286,7 +14286,7 @@ inodedep_print(struct inodedep *inodedep, int verbose)
 	    " saveino %p\n",
 	    inodedep, inodedep->id_fs, inodedep->id_state,
 	    (intmax_t)inodedep->id_ino,
-	    (intmax_t)fsbtodb(inodedep->id_fs,
+	    (intmax_t)FFS_FSBTODB(inodedep->id_fs,
 	    ino_to_fsba(inodedep->id_fs, inodedep->id_ino)),
 	    (intmax_t)inodedep->id_nlinkdelta,
 	    (intmax_t)inodedep->id_savednlink,

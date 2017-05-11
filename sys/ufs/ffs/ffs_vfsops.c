@@ -683,7 +683,7 @@ ffs_reload(struct mount *mp, struct thread *td, int flags)
 		size = fs->fs_bsize;
 		if (i + fs->fs_frag > blks)
 			size = (blks - i) * fs->fs_fsize;
-		error = bread(devvp, fsbtodb(fs, fs->fs_csaddr + i), size,
+		error = bread(devvp, FFS_FSBTODB(fs, fs->fs_csaddr + i), size,
 		    NOCRED, &bp);
 		if (error)
 			return (error);
@@ -733,7 +733,7 @@ loop:
 		 */
 		ip = VTOI(vp);
 		error =
-		    bread(devvp, fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
+		    bread(devvp, FFS_FSBTODB(fs, ino_to_fsba(fs, ip->i_number)),
 		    (int)fs->fs_bsize, NOCRED, &bp);
 		if (error) {
 			VOP_UNLOCK(vp, 0);
@@ -938,7 +938,7 @@ ffs_mountfs(devvp, mp, td)
 		size = fs->fs_bsize;
 		if (i + fs->fs_frag > blks)
 			size = (blks - i) * fs->fs_fsize;
-		if ((error = bread(devvp, fsbtodb(fs, fs->fs_csaddr + i), size,
+		if ((error = bread(devvp, FFS_FSBTODB(fs, fs->fs_csaddr + i), size,
 		    cred, &bp)) != 0) {
 			free(fs->fs_csp, M_UFSMNT);
 			goto out;
@@ -1042,7 +1042,7 @@ ffs_mountfs(devvp, mp, td)
 	ump->um_dev = dev;
 	ump->um_devvp = devvp;
 	ump->um_nindir = fs->fs_nindir;
-	ump->um_bptrtodb = fs->fs_fsbtodb;
+	ump->um_bptrtodb = fs->fs_FFS_FSBTODB;
 	ump->um_seqinc = fs->fs_frag;
 	for (i = 0; i < MAXQUOTAS; i++)
 		ump->um_quotas[i] = NULLVP;
@@ -1430,9 +1430,9 @@ ffs_statfs(mp, sbp)
 	sbp->f_blocks = fs->fs_dsize;
 	UFS_LOCK(ump);
 	sbp->f_bfree = fs->fs_cstotal.cs_nbfree * fs->fs_frag +
-	    fs->fs_cstotal.cs_nffree + dbtofsb(fs, fs->fs_pendingblocks);
+	    fs->fs_cstotal.cs_nffree + FFS_DBTOFSB(fs, fs->fs_pendingblocks);
 	sbp->f_bavail = freespace(fs, fs->fs_minfree) +
-	    dbtofsb(fs, fs->fs_pendingblocks);
+	    FFS_DBTOFSB(fs, fs->fs_pendingblocks);
 	sbp->f_files =  fs->fs_ncg * fs->fs_ipg - UFS_ROOTINO;
 	sbp->f_ffree = fs->fs_cstotal.cs_nifree + fs->fs_pendinginodes;
 	UFS_UNLOCK(ump);
@@ -1741,7 +1741,7 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 		return (error);
 
 	/* Read in the disk contents for the inode, copy into the inode. */
-	error = bread(ump->um_devvp, fsbtodb(fs, ino_to_fsba(fs, ino)),
+	error = bread(ump->um_devvp, FFS_FSBTODB(fs, ino_to_fsba(fs, ino)),
 	    (int)fs->fs_bsize, NOCRED, &bp);
 	if (error) {
 		/*
@@ -1859,7 +1859,7 @@ ffs_fhtovp(mp, fhp, flags, vpp)
 	if (fs->fs_magic != FS_UFS2_MAGIC)
 		return (ufs_fhtovp(mp, ufhp, flags, vpp));
 	cg = ino_to_cg(fs, ino);
-	error = bread(ump->um_devvp, fsbtodb(fs, cgtod(fs, cg)),
+	error = bread(ump->um_devvp, FFS_FSBTODB(fs, cgtod(fs, cg)),
 		(int)fs->fs_cgsize, NOCRED, &bp);
 	if (error)
 		return (error);
@@ -1934,7 +1934,7 @@ ffs_sbupdate(ump, waitfor, suspended)
 		size = fs->fs_bsize;
 		if (i + fs->fs_frag > blks)
 			size = (blks - i) * fs->fs_fsize;
-		bp = getblk(ump->um_devvp, fsbtodb(fs, fs->fs_csaddr + i),
+		bp = getblk(ump->um_devvp, FFS_FSBTODB(fs, fs->fs_csaddr + i),
 		    size, 0, 0, 0);
 		bcopy(space, bp->b_data, (u_int)size);
 		space = (char *)space + size;

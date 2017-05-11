@@ -542,7 +542,7 @@ checkfilesys(char *filesys)
 		 */
 		for (cylno = 0; cylno < sblock.fs_ncg; cylno++)
 			blwrite(fswritefd, (char *)&sblock,
-			    fsbtodb(&sblock, cgsblock(&sblock, cylno)),
+			    FFS_FSBTODB(&sblock, cgsblock(&sblock, cylno)),
 			    SBLOCKSIZE);
 	}
 	if (rerun)

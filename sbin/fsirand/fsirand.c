@@ -168,7 +168,7 @@ fsirand(char *device)
 	/* Make sure backup superblocks are sane. */
 	sblock = (struct fs *)&sbuftmp;
 	for (cg = 0; cg < (int)sblock->fs_ncg; cg++) {
-		dblk = fsbtodb(sblock, cgsblock(sblock, cg));
+		dblk = FFS_FSBTODB(sblock, cgsblock(sblock, cg));
 		if (lseek(devfd, (off_t)dblk * bsize, SEEK_SET) < 0) {
 			warn("can't seek to %jd", (intmax_t)dblk * bsize);
 			return (1);
@@ -231,7 +231,7 @@ fsirand(char *device)
 	for (cg = 0, inumber = 0; cg < (int)sblock->fs_ncg; cg++) {
 		/* Update superblock if appropriate */
 		if (!printonly) {
-			dblk = fsbtodb(sblock, cgsblock(sblock, cg));
+			dblk = FFS_FSBTODB(sblock, cgsblock(sblock, cg));
 			if (lseek(devfd, (off_t)dblk * bsize, SEEK_SET) < 0) {
 				warn("can't seek to %jd",
 				    (intmax_t)dblk * bsize);
@@ -246,7 +246,7 @@ fsirand(char *device)
 		}
 
 		/* Read in inodes, then print or randomize generation nums */
-		dblk = fsbtodb(sblock, ino_to_fsba(sblock, inumber));
+		dblk = FFS_FSBTODB(sblock, ino_to_fsba(sblock, inumber));
 		if (lseek(devfd, (off_t)dblk * bsize, SEEK_SET) < 0) {
 			warn("can't seek to %jd", (intmax_t)dblk * bsize);
 			return (1);

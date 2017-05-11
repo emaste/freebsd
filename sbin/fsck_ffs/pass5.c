@@ -588,9 +588,9 @@ clear_blocks(ufs2_daddr_t start, ufs2_daddr_t end)
 	if (debug)
 		printf("Zero frags %jd to %jd\n", start, end);
 	if (Zflag)
-		blzero(fswritefd, fsbtodb(&sblock, start),
+		blzero(fswritefd, FFS_FSBTODB(&sblock, start),
 		    ffs_lfragtosize(&sblock, end - start + 1));
 	if (Eflag)
-		blerase(fswritefd, fsbtodb(&sblock, start),
+		blerase(fswritefd, FFS_FSBTODB(&sblock, start),
 		    ffs_lfragtosize(&sblock, end - start + 1));
 }

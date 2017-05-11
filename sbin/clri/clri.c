@@ -118,7 +118,7 @@ main(int argc, char *argv[])
 
 		/* read in the appropriate block. */
 		offset = ino_to_fsba(sbp, inonum);	/* inode to fs blk */
-		offset = fsbtodb(sbp, offset);		/* fs blk disk blk */
+		offset = FFS_FSBTODB(sbp, offset);	/* fs blk disk blk */
 		offset *= DEV_BSIZE;			/* disk blk to bytes */
 
 		/* seek and read the block */

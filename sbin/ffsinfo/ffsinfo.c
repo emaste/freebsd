@@ -250,7 +250,7 @@ main(int argc, char **argv)
 
 		/* get the cylinder summary into the memory ... */
 		for (i = 0; i < sblock.fs_cssize; i += sblock.fs_bsize) {
-			if (bread(&disk, fsbtodb(&sblock,
+			if (bread(&disk, FFS_FSBTODB(&sblock,
 			    sblock.fs_csaddr + ffs_numfrags(&sblock, i)), 
 			    (void *)(((char *)fscs)+i), 
 			    (size_t)(sblock.fs_cssize-i < sblock.fs_bsize ?
@@ -275,7 +275,7 @@ main(int argc, char **argv)
 			snprintf(dbg_line, sizeof(dbg_line), "cgr %d", cylno);
 			if (cfg_lv & 0x002) {
 				/* dump the superblock copies */
-				if (bread(&disk, fsbtodb(&sblock,
+				if (bread(&disk, FFS_FSBTODB(&sblock,
 				    cgsblock(&sblock, cylno)), 
 				    (void *)&osblock, SBLOCKSIZE) == -1)
 					err(1, "bread: %s", disk.d_error);
@@ -286,7 +286,7 @@ main(int argc, char **argv)
 			 * Read the cylinder group and dump whatever was
 			 * requested.
 			 */
-			if (bread(&disk, fsbtodb(&sblock,
+			if (bread(&disk, FFS_FSBTODB(&sblock,
 			    cgtod(&sblock, cylno)), (void *)&acg,
 			    (size_t)sblock.fs_cgsize) == -1)
 				err(1, "bread: %s", disk.d_error);
@@ -382,7 +382,7 @@ dump_whole_ufs1_inode(ino_t inode, int level)
 		/*
 		 * Dump single indirect block.
 		 */
-		if (bread(&disk, fsbtodb(&sblock, ino->di_ib[0]), (void *)&i1blk, 
+		if (bread(&disk, FFS_FSBTODB(&sblock, ino->di_ib[0]), (void *)&i1blk, 
 			(size_t)sblock.fs_bsize) == -1) {
 			err(1, "bread: %s", disk.d_error);
 		}
@@ -398,7 +398,7 @@ dump_whole_ufs1_inode(ino_t inode, int level)
 		/*
 		 * Dump double indirect blocks.
 		 */
-		if (bread(&disk, fsbtodb(&sblock, ino->di_ib[1]), (void *)&i2blk, 
+		if (bread(&disk, FFS_FSBTODB(&sblock, ino->di_ib[1]), (void *)&i2blk, 
 			(size_t)sblock.fs_bsize) == -1) {
 			err(1, "bread: %s", disk.d_error);
 		}
@@ -412,7 +412,7 @@ dump_whole_ufs1_inode(ino_t inode, int level)
 			sizeof(ufs1_daddr_t))) && (rb>0)); ind2ctr++) {
 			ind2ptr=&((ufs1_daddr_t *)(void *)&i2blk)[ind2ctr];
 
-			if (bread(&disk, fsbtodb(&sblock, *ind2ptr), (void *)&i1blk, 
+			if (bread(&disk, FFS_FSBTODB(&sblock, *ind2ptr), (void *)&i1blk, 
 				(size_t)sblock.fs_bsize) == -1) {
 				err(1, "bread: %s", disk.d_error);
 			}
@@ -430,7 +430,7 @@ dump_whole_ufs1_inode(ino_t inode, int level)
 		/*
 		 * Dump triple indirect blocks.
 		 */
-		if (bread(&disk, fsbtodb(&sblock, ino->di_ib[2]), (void *)&i3blk, 
+		if (bread(&disk, FFS_FSBTODB(&sblock, ino->di_ib[2]), (void *)&i3blk, 
 			(size_t)sblock.fs_bsize) == -1) {
 			err(1, "bread: %s", disk.d_error);
 		}
@@ -447,7 +447,7 @@ dump_whole_ufs1_inode(ino_t inode, int level)
 			sizeof(ufs1_daddr_t)))&&(rb>0)); ind3ctr++) {
 			ind3ptr=&((ufs1_daddr_t *)(void *)&i3blk)[ind3ctr];
 
-			if (bread(&disk, fsbtodb(&sblock, *ind3ptr), (void *)&i2blk, 
+			if (bread(&disk, FFS_FSBTODB(&sblock, *ind3ptr), (void *)&i2blk, 
 				(size_t)sblock.fs_bsize) == -1) {
 				err(1, "bread: %s", disk.d_error);
 			}
@@ -463,7 +463,7 @@ dump_whole_ufs1_inode(ino_t inode, int level)
 			    sizeof(ufs1_daddr_t)))&&(rb>0)); ind2ctr++) {
 				ind2ptr=&((ufs1_daddr_t *)(void *)&i2blk)
 				    [ind2ctr];
-				if (bread(&disk, fsbtodb(&sblock, *ind2ptr),
+				if (bread(&disk, FFS_FSBTODB(&sblock, *ind2ptr),
 				    (void *)&i1blk, (size_t)sblock.fs_bsize)
 				    == -1) {
 					err(1, "bread: %s", disk.d_error);
@@ -534,7 +534,7 @@ dump_whole_ufs2_inode(ino_t inode, int level)
 		/*
 		 * Dump single indirect block.
 		 */
-		if (bread(&disk, fsbtodb(&sblock, ino->di_ib[0]), (void *)&i1blk, 
+		if (bread(&disk, FFS_FSBTODB(&sblock, ino->di_ib[0]), (void *)&i1blk, 
 			(size_t)sblock.fs_bsize) == -1) {
 			err(1, "bread: %s", disk.d_error);
 		}
@@ -547,7 +547,7 @@ dump_whole_ufs2_inode(ino_t inode, int level)
 		/*
 		 * Dump double indirect blocks.
 		 */
-		if (bread(&disk, fsbtodb(&sblock, ino->di_ib[1]), (void *)&i2blk, 
+		if (bread(&disk, FFS_FSBTODB(&sblock, ino->di_ib[1]), (void *)&i2blk, 
 			(size_t)sblock.fs_bsize) == -1) {
 			err(1, "bread: %s", disk.d_error);
 		}
@@ -561,7 +561,7 @@ dump_whole_ufs2_inode(ino_t inode, int level)
 			sizeof(ufs2_daddr_t))) && (rb>0)); ind2ctr++) {
 			ind2ptr = &((ufs2_daddr_t *)(void *)&i2blk)[ind2ctr];
 
-			if (bread(&disk, fsbtodb(&sblock, *ind2ptr), (void *)&i1blk, 
+			if (bread(&disk, FFS_FSBTODB(&sblock, *ind2ptr), (void *)&i1blk, 
 				(size_t)sblock.fs_bsize) == -1) {
 				err(1, "bread: %s", disk.d_error);
 			}
@@ -576,7 +576,7 @@ dump_whole_ufs2_inode(ino_t inode, int level)
 		/*
 		 * Dump triple indirect blocks.
 		 */
-		if (bread(&disk, fsbtodb(&sblock, ino->di_ib[2]), (void *)&i3blk, 
+		if (bread(&disk, FFS_FSBTODB(&sblock, ino->di_ib[2]), (void *)&i3blk, 
 			(size_t)sblock.fs_bsize) == -1) {
 			err(1, "bread: %s", disk.d_error);
 		}
@@ -593,7 +593,7 @@ dump_whole_ufs2_inode(ino_t inode, int level)
 			sizeof(ufs2_daddr_t))) && (rb > 0)); ind3ctr++) {
 			ind3ptr = &((ufs2_daddr_t *)(void *)&i3blk)[ind3ctr];
 
-			if (bread(&disk, fsbtodb(&sblock, *ind3ptr), (void *)&i2blk, 
+			if (bread(&disk, FFS_FSBTODB(&sblock, *ind3ptr), (void *)&i2blk, 
 				(size_t)sblock.fs_bsize) == -1) {
 				err(1, "bread: %s", disk.d_error);
 			}
@@ -608,7 +608,7 @@ dump_whole_ufs2_inode(ino_t inode, int level)
 			for (ind2ctr = 0; ((ind2ctr < howmany(sblock.fs_bsize,
 				sizeof(ufs2_daddr_t))) && (rb > 0)); ind2ctr++) {
 				ind2ptr = &((ufs2_daddr_t *)(void *)&i2blk) [ind2ctr];
-				if (bread(&disk, fsbtodb(&sblock, *ind2ptr), (void *)&i1blk, 
+				if (bread(&disk, FFS_FSBTODB(&sblock, *ind2ptr), (void *)&i1blk, 
 					(size_t)sblock.fs_bsize) == -1) {
 					err(1, "bread: %s", disk.d_error);
 				}

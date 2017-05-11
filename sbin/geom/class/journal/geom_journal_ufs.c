@@ -73,6 +73,6 @@ g_journal_ufs_using_last_sector(const char *prov)
 	/* Provider size in 512 bytes blocks. */
 	psize = g_get_mediasize(prov) / DEV_BSIZE;
 	/* File system size in 512 bytes blocks. */
-	fssize = fsbtodb(fs, fs->fs_size);
+	fssize = FFS_FSBTODB(fs, fs->fs_size);
 	return (psize <= fssize);
 }

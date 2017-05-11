@@ -490,7 +490,7 @@ restart:
 	i = fs->fs_frag - loc % fs->fs_frag;
 	len = (i == fs->fs_frag) ? 0 : i * fs->fs_fsize;
 	if (len > 0) {
-		if ((error = bread(devvp, fsbtodb(fs, fs->fs_csaddr + loc),
+		if ((error = bread(devvp, FFS_FSBTODB(fs, fs->fs_csaddr + loc),
 		    len, KERNCRED, &bp)) != 0) {
 			brelse(bp);
 			free(copy_fs->fs_csp, M_UFSMNT);
@@ -888,7 +888,7 @@ cgaccount(cg, vp, nbp, passno)
 
 	ip = VTOI(vp);
 	fs = ITOFS(ip);
-	error = bread(ITODEVVP(ip), fsbtodb(fs, cgtod(fs, cg)),
+	error = bread(ITODEVVP(ip), FFS_FSBTODB(fs, cgtod(fs, cg)),
 	    (int)fs->fs_cgsize, KERNCRED, &bp);
 	if (error) {
 		brelse(bp);
@@ -1118,7 +1118,7 @@ indiracct_ufs1(snapvp, cancelvp, level, blkno, lbn, rlbn, remblks,
 	 * up the block number for any blocks that are not in the cache.
 	 */
 	bp = getblk(cancelvp, lbn, fs->fs_bsize, 0, 0, 0);
-	bp->b_blkno = fsbtodb(fs, blkno);
+	bp->b_blkno = FFS_FSBTODB(fs, blkno);
 	if ((bp->b_flags & (B_DONE | B_DELWRI)) == 0 &&
 	    (error = readblock(cancelvp, bp, ffs_fragstoblks(fs, blkno)))) {
 		brelse(bp);
@@ -1402,7 +1402,7 @@ indiracct_ufs2(snapvp, cancelvp, level, blkno, lbn, rlbn, remblks,
 	 * up the block number for any blocks that are not in the cache.
 	 */
 	bp = getblk(cancelvp, lbn, fs->fs_bsize, 0, 0, 0);
-	bp->b_blkno = fsbtodb(fs, blkno);
+	bp->b_blkno = FFS_FSBTODB(fs, blkno);
 	if ((bp->b_flags & (B_DONE | B_DELWRI)) == 0 &&
 	    (error = readblock(cancelvp, bp, ffs_fragstoblks(fs, blkno)))) {
 		brelse(bp);
@@ -2137,7 +2137,7 @@ ffs_bp_snapblk(devvp, bp)
 	if (sn == NULL || TAILQ_FIRST(&sn->sn_head) == NULL)
 		return (0);
 	fs = ITOFS(TAILQ_FIRST(&sn->sn_head));
-	lbn = ffs_fragstoblks(fs, dbtofsb(fs, bp->b_blkno));
+	lbn = ffs_fragstoblks(fs, FFS_DBTOFSB(fs, bp->b_blkno));
 	snapblklist = sn->sn_blklist;
 	upper = sn->sn_listsize - 1;
 	lower = 1;
@@ -2264,7 +2264,7 @@ ffs_copyonwrite(devvp, bp)
 	}
 	ip = TAILQ_FIRST(&sn->sn_head);
 	fs = ITOFS(ip);
-	lbn = ffs_fragstoblks(fs, dbtofsb(fs, bp->b_blkno));
+	lbn = ffs_fragstoblks(fs, FFS_DBTOFSB(fs, bp->b_blkno));
 	snapblklist = sn->sn_blklist;
 	upper = sn->sn_listsize - 1;
 	lower = 1;
@@ -2500,7 +2500,7 @@ readblock(vp, bp, lbn)
 
 	bip = g_alloc_bio();
 	bip->bio_cmd = BIO_READ;
-	bip->bio_offset = dbtob(fsbtodb(fs, ffs_blkstofrags(fs, lbn)));
+	bip->bio_offset = dbtob(FFS_FSBTODB(fs, ffs_blkstofrags(fs, lbn)));
 	bip->bio_data = bp->b_data;
 	bip->bio_length = bp->b_bcount;
 	bip->bio_done = NULL;

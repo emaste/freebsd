@@ -632,7 +632,7 @@ journal_balloc(void)
 		warnx("Failed to find sufficient free blocks for the journal");
 		return -1;
 	}
-	if (bwrite(&disk, fsbtodb(&sblock, blk), clrbuf,
+	if (bwrite(&disk, FFS_FSBTODB(&sblock, blk), clrbuf,
 	    sblock.fs_bsize) <= 0) {
 		warn("Failed to initialize new block");
 		return -1;
@@ -650,7 +650,7 @@ dir_search(ufs2_daddr_t blk, int bytes)
 	struct direct *dp;
 	int off;
 
-	if (bread(&disk, fsbtodb(&sblock, blk), block, bytes) <= 0) {
+	if (bread(&disk, FFS_FSBTODB(&sblock, blk), block, bytes) <= 0) {
 		warn("Failed to read dir block");
 		return (-1);
 	}
@@ -743,7 +743,7 @@ dir_insert(ufs2_daddr_t blk, off_t off, ino_t ino)
 	struct direct *dp;
 	char block[MAXBSIZE];
 
-	if (bread(&disk, fsbtodb(&sblock, blk), block, sblock.fs_bsize) <= 0) {
+	if (bread(&disk, FFS_FSBTODB(&sblock, blk), block, sblock.fs_bsize) <= 0) {
 		warn("Failed to read dir block");
 		return (-1);
 	}
@@ -755,7 +755,7 @@ dir_insert(ufs2_daddr_t blk, off_t off, ino_t ino)
 	dp->d_namlen = strlen(SUJ_FILE);
 	bcopy(SUJ_FILE, &dp->d_name, strlen(SUJ_FILE));
 	dir_clear_block(block, off + DIRBLKSIZ);
-	if (bwrite(&disk, fsbtodb(&sblock, blk), block, sblock.fs_bsize) <= 0) {
+	if (bwrite(&disk, FFS_FSBTODB(&sblock, blk), block, sblock.fs_bsize) <= 0) {
 		warn("Failed to write dir block");
 		return (-1);
 	}
@@ -771,13 +771,13 @@ dir_extend(ufs2_daddr_t blk, ufs2_daddr_t nblk, off_t size, ino_t ino)
 {
 	char block[MAXBSIZE];
 
-	if (bread(&disk, fsbtodb(&sblock, blk), block,
+	if (bread(&disk, FFS_FSBTODB(&sblock, blk), block,
 	    roundup(size, sblock.fs_fsize)) <= 0) {
 		warn("Failed to read dir block");
 		return (-1);
 	}
 	dir_clear_block(block, size);
-	if (bwrite(&disk, fsbtodb(&sblock, nblk), block, sblock.fs_bsize)
+	if (bwrite(&disk, FFS_FSBTODB(&sblock, nblk), block, sblock.fs_bsize)
 	    <= 0) {
 		warn("Failed to write dir block");
 		return (-1);
@@ -900,7 +900,7 @@ indir_fill(ufs2_daddr_t blk, int level, int *resid)
 		} else 
 			(*resid)--;
 	}
-	if (bwrite(&disk, fsbtodb(&sblock, blk), indirbuf,
+	if (bwrite(&disk, FFS_FSBTODB(&sblock, blk), indirbuf,
 	    sblock.fs_bsize) <= 0) {
 		warn("Failed to write indirect");
 		return (-1);

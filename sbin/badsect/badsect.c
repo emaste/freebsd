@@ -135,7 +135,7 @@ main(int argc, char *argv[])
 		 * of BSD before 4.4 because dev_t was 16 bits and another
 		 * bit was lost by bogus sign extensions.
 		 */
-		diskbn = dbtofsb(fs, number);
+		diskbn = FFS_DBTOFSB(fs, number);
 		if ((dev_t)diskbn != diskbn) {
 			printf("sector %ld cannot be represented as a dev_t\n",
 			    (long)number);
@@ -157,7 +157,7 @@ chkuse(daddr_t blkno, int cnt)
 	int cg;
 	daddr_t fsbn, bn;
 
-	fsbn = dbtofsb(fs, blkno);
+	fsbn = FFS_DBTOFSB(fs, blkno);
 	if ((unsigned)(fsbn+cnt) > fs->fs_size) {
 		printf("block %ld out of range of file system\n", (long)blkno);
 		return (1);

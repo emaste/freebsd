@@ -250,7 +250,7 @@ ffs_mkfs(const char *fsys, const fsinfo_t *fsopts, time_t tstamp)
 	}
 	sblock.fs_fsbtodb = ilog2(sblock.fs_fsize / sectorsize);
 	sblock.fs_size = sblock.fs_providersize = fssize =
-	    dbtofsb(&sblock, fssize);
+	    FFS_DBTOFSB(&sblock, fssize);
 
 	if (Oflag <= 1) {
 		sblock.fs_magic = FS_UFS1_MAGIC;
@@ -465,7 +465,7 @@ ffs_mkfs(const char *fsys, const fsinfo_t *fsopts, time_t tstamp)
 	printf("%s: %.1fMB (%lld sectors) block size %d, "
 	       "fragment size %d\n",
 	    fsys, (float)sblock.fs_size * sblock.fs_fsize * B2MBFACTOR,
-	    (long long)fsbtodb(&sblock, sblock.fs_size),
+	    (long long)FFS_FSBTODB(&sblock, sblock.fs_size),
 	    sblock.fs_bsize, sblock.fs_fsize);
 	printf("\tusing %d cylinder groups of %.2fMB, %d blks, "
 	       "%d inodes.\n",
@@ -479,7 +479,7 @@ ffs_mkfs(const char *fsys, const fsinfo_t *fsopts, time_t tstamp)
 	 * subwindows in sysinst.
 	 */
 	printcolwidth = count_digits(
-			fsbtodb(&sblock, cgsblock(&sblock, sblock.fs_ncg -1)));
+			FFS_FSBTODB(&sblock, cgsblock(&sblock, sblock.fs_ncg -1)));
 	nprintcols = 76 / (printcolwidth + 2);
 
 	/*
@@ -506,7 +506,7 @@ ffs_mkfs(const char *fsys, const fsinfo_t *fsopts, time_t tstamp)
 		if (cylno % nprintcols == 0)
 			printf("\n");
 		printf(" %*lld,", printcolwidth,
-			(long long)fsbtodb(&sblock, cgsblock(&sblock, cylno)));
+			(long long)FFS_FSBTODB(&sblock, cgsblock(&sblock, cylno)));
 		fflush(stdout);
 	}
 	printf("\n");
@@ -550,7 +550,7 @@ ffs_write_superblock(struct fs *fs, const fsinfo_t *fsopts)
 
 	/* Write out the duplicate super blocks */
 	for (cylno = 0; cylno < fs->fs_ncg; cylno++)
-		ffs_wtfs(fsbtodb(fs, cgsblock(fs, cylno)),
+		ffs_wtfs(FFS_FSBTODB(fs, cgsblock(fs, cylno)),
 		    sbsize, writebuf, fsopts);
 
 	/* Write out the cylinder group summaries */
@@ -567,7 +567,7 @@ ffs_write_superblock(struct fs *fs, const fsinfo_t *fsopts)
 			    (struct csum *)(void *)wrbuf, size);
 		else
 			memcpy(wrbuf, space, (u_int)size);
-		ffs_wtfs(fsbtodb(fs, fs->fs_csaddr + i), size, wrbuf, fsopts);
+		ffs_wtfs(FFS_FSBTODB(fs, fs->fs_csaddr + i), size, wrbuf, fsopts);
 		space = (char *)space + size;
 	}
 	free(wrbuf);
@@ -741,7 +741,7 @@ initcg(int cylno, time_t utime, const fsinfo_t *fsopts)
 			dp2++;
 		}
 	}
-	ffs_wtfs(fsbtodb(&sblock, cgsblock(&sblock, cylno)), iobufsize, iobuf,
+	ffs_wtfs(FFS_FSBTODB(&sblock, cgsblock(&sblock, cylno)), iobufsize, iobuf,
 	    fsopts);
 	/*
 	 * For the old file system, we have to initialize all the inodes.
@@ -755,7 +755,7 @@ initcg(int cylno, time_t utime, const fsinfo_t *fsopts)
 				dp1->di_gen = random();
 				dp1++;
 			}
-			ffs_wtfs(fsbtodb(&sblock, cgimin(&sblock, cylno) + i),
+			ffs_wtfs(FFS_FSBTODB(&sblock, cgimin(&sblock, cylno) + i),
 			    sblock.fs_bsize, &iobuf[start], fsopts);
 		}
 	}

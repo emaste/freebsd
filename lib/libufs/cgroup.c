@@ -193,7 +193,7 @@ cgread1(struct uufsd *disk, int c)
 	if ((unsigned)c >= fs->fs_ncg) {
 		return (0);
 	}
-	if (bread(disk, fsbtodb(fs, cgtod(fs, c)), disk->d_cgunion.d_buf,
+	if (bread(disk, FFS_FSBTODB(fs, cgtod(fs, c)), disk->d_cgunion.d_buf,
 	    fs->fs_bsize) == -1) {
 		ERROR(disk, "unable to read cylinder group");
 		return (-1);
@@ -214,7 +214,7 @@ cgwrite1(struct uufsd *disk, int c)
 	struct fs *fs;
 
 	fs = &disk->d_fs;
-	if (bwrite(disk, fsbtodb(fs, cgtod(fs, c)),
+	if (bwrite(disk, FFS_FSBTODB(fs, cgtod(fs, c)),
 	    disk->d_cgunion.d_buf, fs->fs_bsize) == -1) {
 		ERROR(disk, "unable to write cylinder group");
 		return (-1);

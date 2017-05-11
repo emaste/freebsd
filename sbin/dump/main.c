@@ -448,7 +448,7 @@ main(int argc, char *argv[])
 	}
 	if (sblock_try[i] == -1)
 		quit("Cannot find file system superblock\n");
-	dev_bsize = sblock->fs_fsize / fsbtodb(sblock, 1);
+	dev_bsize = sblock->fs_fsize / FFS_FSBTODB(sblock, 1);
 	dev_bshift = ffs(dev_bsize) - 1;
 	if (dev_bsize != (1 << dev_bshift))
 		quit("dev_bsize (%ld) is not a power of 2", dev_bsize);

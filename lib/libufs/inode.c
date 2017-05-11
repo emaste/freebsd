@@ -72,7 +72,7 @@ getino(struct uufsd *disk, void **dino, ino_t inode, int *mode)
 	}
 	if (inode >= min && inode < max)
 		goto gotit;
-	bread(disk, fsbtodb(fs, ino_to_fsba(fs, inode)), inoblock,
+	bread(disk, FFS_FSBTODB(fs, ino_to_fsba(fs, inode)), inoblock,
 	    fs->fs_bsize);
 	disk->d_inomin = min = inode - (inode % FFS_INOPB(fs));
 	disk->d_inomax = max = min + FFS_INOPB(fs);
@@ -104,7 +104,7 @@ putino(struct uufsd *disk)
 		ERROR(disk, "No inode block allocated");
 		return (-1);
 	}
-	if (bwrite(disk, fsbtodb(fs, ino_to_fsba(&disk->d_fs, disk->d_inomin)),
+	if (bwrite(disk, FFS_FSBTODB(fs, ino_to_fsba(&disk->d_fs, disk->d_inomin)),
 	    disk->d_inoblock, disk->d_fs.fs_bsize) <= 0)
 		return (-1);
 	return (0);

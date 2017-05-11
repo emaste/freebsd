@@ -335,12 +335,12 @@ chkquota(char *specname, struct quotafile *qfu, struct quotafile *qfg)
 		warn("Cannot find file system superblock");
 		return (1);
 	}
-	dev_bsize = sblock.fs_fsize / fsbtodb(&sblock, 1);
+	dev_bsize = sblock.fs_fsize / FFS_FSBTODB(&sblock, 1);
 	maxino = sblock.fs_ncg * sblock.fs_ipg;
 	for (cg = 0; cg < sblock.fs_ncg; cg++) {
 		ino = cg * sblock.fs_ipg;
 		setinodebuf(ino);
-		bread(fsbtodb(&sblock, cgtod(&sblock, cg)), (char *)(&cgblk),
+		bread(FFS_FSBTODB(&sblock, cgtod(&sblock, cg)), (char *)(&cgblk),
 		    sblock.fs_cgsize);
 		if (sblock.fs_magic == FS_UFS2_MAGIC)
 			inosused = cgblk.cg_initediblk;
@@ -607,7 +607,7 @@ getnextinode(ino_t inumber)
 		    (uintmax_t)inumber);
 	if (inumber >= lastinum) {
 		readcnt++;
-		dblk = fsbtodb(&sblock, ino_to_fsba(&sblock, lastinum));
+		dblk = FFS_FSBTODB(&sblock, ino_to_fsba(&sblock, lastinum));
 		if (readcnt % readpercg == 0) {
 			size = partialsize;
 			lastinum += partialcnt;

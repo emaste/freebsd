@@ -329,7 +329,7 @@ freeindir(ufs2_daddr_t blk, int level)
 	ufs2_daddr_t *blks;
 	int i;
 
-	if (bread(disk, fsbtodb(fs, blk), (void *)&sblks, (size_t)fs->fs_bsize) == -1)
+	if (bread(disk, FFS_FSBTODB(fs, blk), (void *)&sblks, (size_t)fs->fs_bsize) == -1)
 		err(1, "bread: %s", disk->d_error);
 	blks = (ufs2_daddr_t *)&sblks;
 	for (i = 0; i < NINDIR(fs); i++) {

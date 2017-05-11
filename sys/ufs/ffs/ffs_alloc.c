@@ -305,7 +305,7 @@ retry:
 	if (bp->b_blkno == bp->b_lblkno) {
 		if (lbprev >= UFS_NDADDR)
 			panic("ffs_realloccg: lbprev out of range");
-		bp->b_blkno = fsbtodb(fs, bprev);
+		bp->b_blkno = FFS_FSBTODB(fs, bprev);
 	}
 
 #ifdef QUOTA
@@ -323,7 +323,7 @@ retry:
 	UFS_LOCK(ump);
 	bno = ffs_fragextend(ip, cg, bprev, osize, nsize);
 	if (bno) {
-		if (bp->b_blkno != fsbtodb(fs, bno))
+		if (bp->b_blkno != FFS_FSBTODB(fs, bno))
 			panic("ffs_realloccg: bad blockno");
 		delta = btodb(nsize - osize);
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + delta);
@@ -389,7 +389,7 @@ retry:
 	}
 	bno = ffs_hashalloc(ip, cg, bpref, request, nsize, ffs_alloccg);
 	if (bno > 0) {
-		bp->b_blkno = fsbtodb(fs, bno);
+		bp->b_blkno = FFS_FSBTODB(fs, bno);
 		if (!DOINGSOFTDEP(vp))
 			ffs_blkfree(ump, fs, ump->um_devvp, bprev, (long)osize,
 			    ip->i_number, vp->v_type, NULL);
@@ -546,13 +546,13 @@ ffs_reallocblks_ufs1(ap)
 #ifdef INVARIANTS
 	for (i = 0; i < len; i++)
 		if (!ffs_checkblk(ip,
-		   dbtofsb(fs, buflist->bs_children[i]->b_blkno), fs->fs_bsize))
+		   FFS_DBTOFSB(fs, buflist->bs_children[i]->b_blkno), fs->fs_bsize))
 			panic("ffs_reallocblks: unallocated block 1");
 	for (i = 1; i < len; i++)
 		if (buflist->bs_children[i]->b_lblkno != start_lbn + i)
 			panic("ffs_reallocblks: non-logical cluster");
 	blkno = buflist->bs_children[0]->b_blkno;
-	ssize = fsbtodb(fs, fs->fs_frag);
+	ssize = FFS_FSBTODB(fs, fs->fs_frag);
 	for (i = 1; i < len - 1; i++)
 		if (buflist->bs_children[i]->b_blkno != blkno + (i * ssize))
 			panic("ffs_reallocblks: non-physical cluster %d", i);
@@ -574,8 +574,8 @@ ffs_reallocblks_ufs1(ap)
 	 * the filesystem has decided to move and do not force it back to
 	 * the previous cylinder group.
 	 */
-	if (dtog(fs, dbtofsb(fs, buflist->bs_children[0]->b_blkno)) !=
-	    dtog(fs, dbtofsb(fs, buflist->bs_children[len - 1]->b_blkno)))
+	if (dtog(fs, FFS_DBTOFSB(fs, buflist->bs_children[0]->b_blkno)) !=
+	    dtog(fs, FFS_DBTOFSB(fs, buflist->bs_children[len - 1]->b_blkno)))
 		return (ENOSPC);
 	if (ufs_getlbns(vp, start_lbn, start_ap, &start_lvl) ||
 	    ufs_getlbns(vp, end_lbn, end_ap, &end_lvl))
@@ -667,9 +667,9 @@ ffs_reallocblks_ufs1(ap)
 		}
 #ifdef INVARIANTS
 		if (!ffs_checkblk(ip,
-		   dbtofsb(fs, buflist->bs_children[i]->b_blkno), fs->fs_bsize))
+		   FFS_DBTOFSB(fs, buflist->bs_children[i]->b_blkno), fs->fs_bsize))
 			panic("ffs_reallocblks: unallocated block 2");
-		if (dbtofsb(fs, buflist->bs_children[i]->b_blkno) != *bap)
+		if (FFS_DBTOFSB(fs, buflist->bs_children[i]->b_blkno) != *bap)
 			panic("ffs_reallocblks: alloc mismatch");
 #endif
 #ifdef DEBUG
@@ -728,12 +728,12 @@ ffs_reallocblks_ufs1(ap)
 	for (blkno = newblk, i = 0; i < len; i++, blkno += fs->fs_frag) {
 		if (!DOINGSOFTDEP(vp))
 			ffs_blkfree(ump, fs, ump->um_devvp,
-			    dbtofsb(fs, buflist->bs_children[i]->b_blkno),
+			    FFS_DBTOFSB(fs, buflist->bs_children[i]->b_blkno),
 			    fs->fs_bsize, ip->i_number, vp->v_type, NULL);
-		buflist->bs_children[i]->b_blkno = fsbtodb(fs, blkno);
+		buflist->bs_children[i]->b_blkno = FFS_FSBTODB(fs, blkno);
 #ifdef INVARIANTS
 		if (!ffs_checkblk(ip,
-		   dbtofsb(fs, buflist->bs_children[i]->b_blkno), fs->fs_bsize))
+		   FFS_DBTOFSB(fs, buflist->bs_children[i]->b_blkno), fs->fs_bsize))
 			panic("ffs_reallocblks: unallocated block 3");
 #endif
 #ifdef DEBUG
@@ -795,13 +795,13 @@ ffs_reallocblks_ufs2(ap)
 #ifdef INVARIANTS
 	for (i = 0; i < len; i++)
 		if (!ffs_checkblk(ip,
-		   dbtofsb(fs, buflist->bs_children[i]->b_blkno), fs->fs_bsize))
+		   FFS_DBTOFSB(fs, buflist->bs_children[i]->b_blkno), fs->fs_bsize))
 			panic("ffs_reallocblks: unallocated block 1");
 	for (i = 1; i < len; i++)
 		if (buflist->bs_children[i]->b_lblkno != start_lbn + i)
 			panic("ffs_reallocblks: non-logical cluster");
 	blkno = buflist->bs_children[0]->b_blkno;
-	ssize = fsbtodb(fs, fs->fs_frag);
+	ssize = FFS_FSBTODB(fs, fs->fs_frag);
 	for (i = 1; i < len - 1; i++)
 		if (buflist->bs_children[i]->b_blkno != blkno + (i * ssize))
 			panic("ffs_reallocblks: non-physical cluster %d", i);
@@ -823,8 +823,8 @@ ffs_reallocblks_ufs2(ap)
 	 * the filesystem has decided to move and do not force it back to
 	 * the previous cylinder group.
 	 */
-	if (dtog(fs, dbtofsb(fs, buflist->bs_children[0]->b_blkno)) !=
-	    dtog(fs, dbtofsb(fs, buflist->bs_children[len - 1]->b_blkno)))
+	if (dtog(fs, FFS_DBTOFSB(fs, buflist->bs_children[0]->b_blkno)) !=
+	    dtog(fs, FFS_DBTOFSB(fs, buflist->bs_children[len - 1]->b_blkno)))
 		return (ENOSPC);
 	if (ufs_getlbns(vp, start_lbn, start_ap, &start_lvl) ||
 	    ufs_getlbns(vp, end_lbn, end_ap, &end_lvl))
@@ -915,9 +915,9 @@ ffs_reallocblks_ufs2(ap)
 		}
 #ifdef INVARIANTS
 		if (!ffs_checkblk(ip,
-		   dbtofsb(fs, buflist->bs_children[i]->b_blkno), fs->fs_bsize))
+		   FFS_DBTOFSB(fs, buflist->bs_children[i]->b_blkno), fs->fs_bsize))
 			panic("ffs_reallocblks: unallocated block 2");
-		if (dbtofsb(fs, buflist->bs_children[i]->b_blkno) != *bap)
+		if (FFS_DBTOFSB(fs, buflist->bs_children[i]->b_blkno) != *bap)
 			panic("ffs_reallocblks: alloc mismatch");
 #endif
 #ifdef DEBUG
@@ -976,12 +976,12 @@ ffs_reallocblks_ufs2(ap)
 	for (blkno = newblk, i = 0; i < len; i++, blkno += fs->fs_frag) {
 		if (!DOINGSOFTDEP(vp))
 			ffs_blkfree(ump, fs, ump->um_devvp,
-			    dbtofsb(fs, buflist->bs_children[i]->b_blkno),
+			    FFS_DBTOFSB(fs, buflist->bs_children[i]->b_blkno),
 			    fs->fs_bsize, ip->i_number, vp->v_type, NULL);
-		buflist->bs_children[i]->b_blkno = fsbtodb(fs, blkno);
+		buflist->bs_children[i]->b_blkno = FFS_FSBTODB(fs, blkno);
 #ifdef INVARIANTS
 		if (!ffs_checkblk(ip,
-		   dbtofsb(fs, buflist->bs_children[i]->b_blkno), fs->fs_bsize))
+		   FFS_DBTOFSB(fs, buflist->bs_children[i]->b_blkno), fs->fs_bsize))
 			panic("ffs_reallocblks: unallocated block 3");
 #endif
 #ifdef DEBUG
@@ -1602,7 +1602,7 @@ ffs_fragextend(ip, cg, bprev, osize, nsize)
 		return (0);
 	}
 	UFS_UNLOCK(ump);
-	error = bread(ump->um_devvp, fsbtodb(fs, cgtod(fs, cg)),
+	error = bread(ump->um_devvp, FFS_FSBTODB(fs, cgtod(fs, cg)),
 	    (int)fs->fs_cgsize, NOCRED, &bp);
 	if (error)
 		goto fail;
@@ -1680,7 +1680,7 @@ ffs_alloccg(ip, cg, bpref, size, rsize)
 	if (fs->fs_cs(fs, cg).cs_nbfree == 0 && size == fs->fs_bsize)
 		return (0);
 	UFS_UNLOCK(ump);
-	error = bread(ump->um_devvp, fsbtodb(fs, cgtod(fs, cg)),
+	error = bread(ump->um_devvp, FFS_FSBTODB(fs, cgtod(fs, cg)),
 	    (int)fs->fs_cgsize, NOCRED, &bp);
 	if (error)
 		goto fail;
@@ -1868,7 +1868,7 @@ ffs_clusteralloc(ip, cg, bpref, len)
 	if (fs->fs_maxcluster[cg] < len)
 		return (0);
 	UFS_UNLOCK(ump);
-	if (bread(ump->um_devvp, fsbtodb(fs, cgtod(fs, cg)), (int)fs->fs_cgsize,
+	if (bread(ump->um_devvp, FFS_FSBTODB(fs, cgtod(fs, cg)), (int)fs->fs_cgsize,
 	    NOCRED, &bp))
 		goto fail_lock;
 	cgp = (struct cg *)bp->b_data;
@@ -1968,7 +1968,7 @@ getinobuf(struct inode *ip, u_int cg, u_int32_t cginoblk, int gbflags)
 	struct fs *fs;
 
 	fs = ITOFS(ip);
-	return (getblk(ITODEVVP(ip), fsbtodb(fs, ino_to_fsba(fs,
+	return (getblk(ITODEVVP(ip), FFS_FSBTODB(fs, ino_to_fsba(fs,
 	    cg * fs->fs_ipg + cginoblk)), (int)fs->fs_bsize, 0, 0,
 	    gbflags));
 }
@@ -2005,7 +2005,7 @@ check_nifree:
 	if (fs->fs_cs(fs, cg).cs_nifree == 0)
 		return (0);
 	UFS_UNLOCK(ump);
-	error = bread(ump->um_devvp, fsbtodb(fs, cgtod(fs, cg)),
+	error = bread(ump->um_devvp, FFS_FSBTODB(fs, cgtod(fs, cg)),
 		(int)fs->fs_cgsize, NOCRED, &bp);
 	if (error) {
 		brelse(bp);
@@ -2103,7 +2103,7 @@ gotit:
 		 * to it, then leave it unchanged as the other thread
 		 * has already set it correctly.
 		 */
-		error = bread(ump->um_devvp, fsbtodb(fs, cgtod(fs, cg)),
+		error = bread(ump->um_devvp, FFS_FSBTODB(fs, cgtod(fs, cg)),
 		    (int)fs->fs_cgsize, NOCRED, &bp);
 		UFS_LOCK(ump);
 		ACTIVECLEAR(fs, cg);
@@ -2174,7 +2174,7 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 	} else if (devvp->v_type == VCHR) {
 		/* devvp is a normal disk device */
 		dev = devvp->v_rdev;
-		cgblkno = fsbtodb(fs, cgtod(fs, cg));
+		cgblkno = FFS_FSBTODB(fs, cgtod(fs, cg));
 		ASSERT_VOP_LOCKED(devvp, "ffs_blkfree_cg");
 	} else
 		return;
@@ -2372,7 +2372,7 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum, vtype, dephd)
 
 	bip = g_alloc_bio();
 	bip->bio_cmd = BIO_DELETE;
-	bip->bio_offset = dbtob(fsbtodb(fs, bno));
+	bip->bio_offset = dbtob(FFS_FSBTODB(fs, bno));
 	bip->bio_done = ffs_blkfree_trim_completed;
 	bip->bio_length = size;
 	bip->bio_caller2 = tp;
@@ -2408,7 +2408,7 @@ ffs_checkblk(ip, bno, size)
 	}
 	if ((u_int)bno >= fs->fs_size)
 		panic("ffs_checkblk: bad block %jd", (intmax_t)bno);
-	error = bread(ITODEVVP(ip), fsbtodb(fs, cgtod(fs, dtog(fs, bno))),
+	error = bread(ITODEVVP(ip), FFS_FSBTODB(fs, cgtod(fs, dtog(fs, bno))),
 		(int)fs->fs_cgsize, NOCRED, &bp);
 	if (error)
 		panic("ffs_checkblk: cg bread failed");
@@ -2484,7 +2484,7 @@ ffs_freefile(ump, fs, devvp, ino, mode, wkhd)
 	} else if (devvp->v_type == VCHR) {
 		/* devvp is a normal disk device */
 		dev = devvp->v_rdev;
-		cgbno = fsbtodb(fs, cgtod(fs, cg));
+		cgbno = FFS_FSBTODB(fs, cgtod(fs, cg));
 	} else {
 		bp = NULL;
 		return (0);
@@ -2555,7 +2555,7 @@ ffs_checkfreefile(fs, devvp, ino)
 		cgbno = ffs_fragstoblks(fs, cgtod(fs, cg));
 	} else if (devvp->v_type == VCHR) {
 		/* devvp is a normal disk device */
-		cgbno = fsbtodb(fs, cgtod(fs, cg));
+		cgbno = FFS_FSBTODB(fs, cgtod(fs, cg));
 	} else {
 		return (1);
 	}

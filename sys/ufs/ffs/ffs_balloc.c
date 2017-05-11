@@ -147,11 +147,11 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 				return (error);
 			if (DOINGSOFTDEP(vp))
 				softdep_setup_allocdirect(ip, nb,
-				    dbtofsb(fs, bp->b_blkno), dp->di_db[nb],
+				    FFS_DBTOFSB(fs, bp->b_blkno), dp->di_db[nb],
 				    fs->fs_bsize, osize, bp);
 			ip->i_size = ffs_smalllblktosize(fs, nb + 1);
 			dp->di_size = ip->i_size;
-			dp->di_db[nb] = dbtofsb(fs, bp->b_blkno);
+			dp->di_db[nb] = FFS_DBTOFSB(fs, bp->b_blkno);
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 			if (flags & IO_SYNC)
 				bwrite(bp);
@@ -174,7 +174,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 				brelse(bp);
 				return (error);
 			}
-			bp->b_blkno = fsbtodb(fs, nb);
+			bp->b_blkno = FFS_FSBTODB(fs, nb);
 			*bpp = bp;
 			return (0);
 		}
@@ -190,7 +190,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 					brelse(bp);
 					return (error);
 				}
-				bp->b_blkno = fsbtodb(fs, nb);
+				bp->b_blkno = FFS_FSBTODB(fs, nb);
 			} else {
 				UFS_LOCK(ump);
 				error = ffs_realloccg(ip, lbn, dp->di_db[lbn],
@@ -201,7 +201,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 					return (error);
 				if (DOINGSOFTDEP(vp))
 					softdep_setup_allocdirect(ip, lbn,
-					    dbtofsb(fs, bp->b_blkno), nb,
+					    FFS_DBTOFSB(fs, bp->b_blkno), nb,
 					    nsize, osize, bp);
 			}
 		} else {
@@ -216,14 +216,14 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 			if (error)
 				return (error);
 			bp = getblk(vp, lbn, nsize, 0, 0, gbflags);
-			bp->b_blkno = fsbtodb(fs, newb);
+			bp->b_blkno = FFS_FSBTODB(fs, newb);
 			if (flags & BA_CLRBUF)
 				vfs_bio_clrbuf(bp);
 			if (DOINGSOFTDEP(vp))
 				softdep_setup_allocdirect(ip, lbn, newb, 0,
 				    nsize, 0, bp);
 		}
-		dp->di_db[lbn] = dbtofsb(fs, bp->b_blkno);
+		dp->di_db[lbn] = FFS_DBTOFSB(fs, bp->b_blkno);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		*bpp = bp;
 		return (0);
@@ -263,7 +263,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		*allocblk++ = nb;
 		*lbns_remfree++ = indirs[1].in_lbn;
 		bp = getblk(vp, indirs[1].in_lbn, fs->fs_bsize, 0, 0, gbflags);
-		bp->b_blkno = fsbtodb(fs, nb);
+		bp->b_blkno = FFS_FSBTODB(fs, nb);
 		vfs_bio_clrbuf(bp);
 		if (DOINGSOFTDEP(vp)) {
 			softdep_setup_allocdirect(ip,
@@ -334,7 +334,7 @@ retry:
 		*allocblk++ = nb;
 		*lbns_remfree++ = indirs[i].in_lbn;
 		nbp = getblk(vp, indirs[i].in_lbn, fs->fs_bsize, 0, 0, 0);
-		nbp->b_blkno = fsbtodb(fs, nb);
+		nbp->b_blkno = FFS_FSBTODB(fs, nb);
 		vfs_bio_clrbuf(nbp);
 		if (DOINGSOFTDEP(vp)) {
 			softdep_setup_allocindir_meta(nbp, ip, bp,
@@ -412,7 +412,7 @@ retry:
 		*allocblk++ = nb;
 		*lbns_remfree++ = lbn;
 		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0, gbflags);
-		nbp->b_blkno = fsbtodb(fs, nb);
+		nbp->b_blkno = FFS_FSBTODB(fs, nb);
 		if (flags & BA_CLRBUF)
 			vfs_bio_clrbuf(nbp);
 		if (DOINGSOFTDEP(vp))
@@ -453,7 +453,7 @@ retry:
 		}
 	} else {
 		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0, gbflags);
-		nbp->b_blkno = fsbtodb(fs, nb);
+		nbp->b_blkno = FFS_FSBTODB(fs, nb);
 	}
 	curthread_pflags_restore(saved_inbdflush);
 	*bpp = nbp;
@@ -489,11 +489,11 @@ fail:
 		bp = getblk(vp, *lbns_remfree, fs->fs_bsize, 0, 0,
 		    GB_NOCREAT | GB_UNMAPPED);
 		if (bp != NULL) {
-			KASSERT(bp->b_blkno == fsbtodb(fs, *blkp),
+			KASSERT(bp->b_blkno == FFS_FSBTODB(fs, *blkp),
 			    ("mismatch1 l %jd %jd b %ju %ju",
 			    (intmax_t)bp->b_lblkno, (uintmax_t)*lbns_remfree,
 			    (uintmax_t)bp->b_blkno,
-			    (uintmax_t)fsbtodb(fs, *blkp)));
+			    (uintmax_t)FFS_FSBTODB(fs, *blkp)));
 			bp->b_flags |= B_INVAL | B_RELBUF | B_NOCACHE;
 			bp->b_flags &= ~(B_ASYNC | B_CACHE);
 			brelse(bp);
@@ -546,7 +546,7 @@ fail:
 		if (bp != NULL) {
 			panic("zombie1 %jd %ju %ju",
 			    (intmax_t)bp->b_lblkno, (uintmax_t)bp->b_blkno,
-			    (uintmax_t)fsbtodb(fs, *blkp));
+			    (uintmax_t)FFS_FSBTODB(fs, *blkp));
 		}
 		lbns_remfree++;
 #endif
@@ -627,11 +627,11 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 					return (error);
 				if (DOINGSOFTDEP(vp))
 					softdep_setup_allocext(ip, nb,
-					    dbtofsb(fs, bp->b_blkno),
+					    FFS_DBTOFSB(fs, bp->b_blkno),
 					    dp->di_extb[nb],
 					    fs->fs_bsize, osize, bp);
 				dp->di_extsize = ffs_smalllblktosize(fs, nb + 1);
-				dp->di_extb[nb] = dbtofsb(fs, bp->b_blkno);
+				dp->di_extb[nb] = FFS_DBTOFSB(fs, bp->b_blkno);
 				bp->b_xflags |= BX_ALTDATA;
 				ip->i_flag |= IN_CHANGE;
 				if (flags & IO_SYNC)
@@ -653,7 +653,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				brelse(bp);
 				return (error);
 			}
-			bp->b_blkno = fsbtodb(fs, nb);
+			bp->b_blkno = FFS_FSBTODB(fs, nb);
 			bp->b_xflags |= BX_ALTDATA;
 			*bpp = bp;
 			return (0);
@@ -671,7 +671,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 					brelse(bp);
 					return (error);
 				}
-				bp->b_blkno = fsbtodb(fs, nb);
+				bp->b_blkno = FFS_FSBTODB(fs, nb);
 				bp->b_xflags |= BX_ALTDATA;
 			} else {
 				UFS_LOCK(ump);
@@ -685,7 +685,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				bp->b_xflags |= BX_ALTDATA;
 				if (DOINGSOFTDEP(vp))
 					softdep_setup_allocext(ip, lbn,
-					    dbtofsb(fs, bp->b_blkno), nb,
+					    FFS_DBTOFSB(fs, bp->b_blkno), nb,
 					    nsize, osize, bp);
 			}
 		} else {
@@ -700,7 +700,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 			if (error)
 				return (error);
 			bp = getblk(vp, -1 - lbn, nsize, 0, 0, gbflags);
-			bp->b_blkno = fsbtodb(fs, newb);
+			bp->b_blkno = FFS_FSBTODB(fs, newb);
 			bp->b_xflags |= BX_ALTDATA;
 			if (flags & BA_CLRBUF)
 				vfs_bio_clrbuf(bp);
@@ -708,7 +708,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				softdep_setup_allocext(ip, lbn, newb, 0,
 				    nsize, 0, bp);
 		}
-		dp->di_extb[lbn] = dbtofsb(fs, bp->b_blkno);
+		dp->di_extb[lbn] = FFS_DBTOFSB(fs, bp->b_blkno);
 		ip->i_flag |= IN_CHANGE;
 		*bpp = bp;
 		return (0);
@@ -732,12 +732,12 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				return (error);
 			if (DOINGSOFTDEP(vp))
 				softdep_setup_allocdirect(ip, nb,
-				    dbtofsb(fs, bp->b_blkno),
+				    FFS_DBTOFSB(fs, bp->b_blkno),
 				    dp->di_db[nb],
 				    fs->fs_bsize, osize, bp);
 			ip->i_size = ffs_smalllblktosize(fs, nb + 1);
 			dp->di_size = ip->i_size;
-			dp->di_db[nb] = dbtofsb(fs, bp->b_blkno);
+			dp->di_db[nb] = FFS_DBTOFSB(fs, bp->b_blkno);
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 			if (flags & IO_SYNC)
 				bwrite(bp);
@@ -759,7 +759,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				brelse(bp);
 				return (error);
 			}
-			bp->b_blkno = fsbtodb(fs, nb);
+			bp->b_blkno = FFS_FSBTODB(fs, nb);
 			*bpp = bp;
 			return (0);
 		}
@@ -776,7 +776,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 					brelse(bp);
 					return (error);
 				}
-				bp->b_blkno = fsbtodb(fs, nb);
+				bp->b_blkno = FFS_FSBTODB(fs, nb);
 			} else {
 				UFS_LOCK(ump);
 				error = ffs_realloccg(ip, lbn, dp->di_db[lbn],
@@ -787,7 +787,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 					return (error);
 				if (DOINGSOFTDEP(vp))
 					softdep_setup_allocdirect(ip, lbn,
-					    dbtofsb(fs, bp->b_blkno), nb,
+					    FFS_DBTOFSB(fs, bp->b_blkno), nb,
 					    nsize, osize, bp);
 			}
 		} else {
@@ -802,14 +802,14 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 			if (error)
 				return (error);
 			bp = getblk(vp, lbn, nsize, 0, 0, gbflags);
-			bp->b_blkno = fsbtodb(fs, newb);
+			bp->b_blkno = FFS_FSBTODB(fs, newb);
 			if (flags & BA_CLRBUF)
 				vfs_bio_clrbuf(bp);
 			if (DOINGSOFTDEP(vp))
 				softdep_setup_allocdirect(ip, lbn, newb, 0,
 				    nsize, 0, bp);
 		}
-		dp->di_db[lbn] = dbtofsb(fs, bp->b_blkno);
+		dp->di_db[lbn] = FFS_DBTOFSB(fs, bp->b_blkno);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		*bpp = bp;
 		return (0);
@@ -850,7 +850,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		*lbns_remfree++ = indirs[1].in_lbn;
 		bp = getblk(vp, indirs[1].in_lbn, fs->fs_bsize, 0, 0,
 		    GB_UNMAPPED);
-		bp->b_blkno = fsbtodb(fs, nb);
+		bp->b_blkno = FFS_FSBTODB(fs, nb);
 		vfs_bio_clrbuf(bp);
 		if (DOINGSOFTDEP(vp)) {
 			softdep_setup_allocdirect(ip,
@@ -922,7 +922,7 @@ retry:
 		*lbns_remfree++ = indirs[i].in_lbn;
 		nbp = getblk(vp, indirs[i].in_lbn, fs->fs_bsize, 0, 0,
 		    GB_UNMAPPED);
-		nbp->b_blkno = fsbtodb(fs, nb);
+		nbp->b_blkno = FFS_FSBTODB(fs, nb);
 		vfs_bio_clrbuf(nbp);
 		if (DOINGSOFTDEP(vp)) {
 			softdep_setup_allocindir_meta(nbp, ip, bp,
@@ -1000,7 +1000,7 @@ retry:
 		*allocblk++ = nb;
 		*lbns_remfree++ = lbn;
 		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0, gbflags);
-		nbp->b_blkno = fsbtodb(fs, nb);
+		nbp->b_blkno = FFS_FSBTODB(fs, nb);
 		if (flags & BA_CLRBUF)
 			vfs_bio_clrbuf(nbp);
 		if (DOINGSOFTDEP(vp))
@@ -1047,7 +1047,7 @@ retry:
 		}
 	} else {
 		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0, gbflags);
-		nbp->b_blkno = fsbtodb(fs, nb);
+		nbp->b_blkno = FFS_FSBTODB(fs, nb);
 	}
 	curthread_pflags_restore(saved_inbdflush);
 	*bpp = nbp;
@@ -1083,11 +1083,11 @@ fail:
 		bp = getblk(vp, *lbns_remfree, fs->fs_bsize, 0, 0,
 		    GB_NOCREAT | GB_UNMAPPED);
 		if (bp != NULL) {
-			KASSERT(bp->b_blkno == fsbtodb(fs, *blkp),
+			KASSERT(bp->b_blkno == FFS_FSBTODB(fs, *blkp),
 			    ("mismatch2 l %jd %jd b %ju %ju",
 			    (intmax_t)bp->b_lblkno, (uintmax_t)*lbns_remfree,
 			    (uintmax_t)bp->b_blkno,
-			    (uintmax_t)fsbtodb(fs, *blkp)));
+			    (uintmax_t)FFS_FSBTODB(fs, *blkp)));
 			bp->b_flags |= B_INVAL | B_RELBUF | B_NOCACHE;
 			bp->b_flags &= ~(B_ASYNC | B_CACHE);
 			brelse(bp);
@@ -1140,7 +1140,7 @@ fail:
 		if (bp != NULL) {
 			panic("zombie2 %jd %ju %ju",
 			    (intmax_t)bp->b_lblkno, (uintmax_t)bp->b_blkno,
-			    (uintmax_t)fsbtodb(fs, *blkp));
+			    (uintmax_t)FFS_FSBTODB(fs, *blkp));
 		}
 		lbns_remfree++;
 #endif

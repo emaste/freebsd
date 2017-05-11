@@ -78,7 +78,7 @@ ufs_gjournal_modref(struct vnode *vp, int count)
 	} else if (devvp->v_type == VCHR) {
 		/* devvp is a normal disk device */
 		dev = devvp->v_rdev;
-		cgbno = fsbtodb(fs, cgtod(fs, cg));
+		cgbno = FFS_FSBTODB(fs, cgtod(fs, cg));
 	} else {
 		bp = NULL;
 		return (EIO);

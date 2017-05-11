@@ -274,7 +274,7 @@ getdatablk(ufs2_daddr_t blkno, long size, int type)
 	struct bufarea *bp;
 
 	TAILQ_FOREACH(bp, &bufhead, b_list)
-		if (bp->b_bno == fsbtodb(&sblock, blkno))
+		if (bp->b_bno == FFS_FSBTODB(&sblock, blkno))
 			goto foundit;
 	TAILQ_FOREACH_REVERSE(bp, &bufhead, buflist, b_list)
 		if ((bp->b_flags & B_INUSE) == 0)
@@ -322,7 +322,7 @@ getblk(struct bufarea *bp, ufs2_daddr_t blk, long size)
 	ufs2_daddr_t dblk;
 	struct timespec start, finish;
 
-	dblk = fsbtodb(&sblock, blk);
+	dblk = FFS_FSBTODB(&sblock, blk);
 	if (bp->b_bno == dblk) {
 		totalreads++;
 	} else {
@@ -364,7 +364,7 @@ flush(int fd, struct bufarea *bp)
 		return;
 	for (i = 0, j = 0; i < sblock.fs_cssize; i += sblock.fs_bsize, j++) {
 		blwrite(fswritefd, (char *)sblock.fs_csp + i,
-		    fsbtodb(&sblock, sblock.fs_csaddr + j * sblock.fs_frag),
+		    FFS_FSBTODB(&sblock, sblock.fs_csaddr + j * sblock.fs_frag),
 		    MIN(sblock.fs_cssize - i, sblock.fs_bsize));
 	}
 }

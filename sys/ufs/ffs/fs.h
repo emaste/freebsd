@@ -518,8 +518,8 @@ struct cg {
  * Turn filesystem block numbers into disk block addresses.
  * This maps filesystem blocks to device size blocks.
  */
-#define	fsbtodb(fs, b)	((daddr_t)(b) << (fs)->fs_fsbtodb)
-#define	dbtofsb(fs, b)	((b) >> (fs)->fs_fsbtodb)
+#define	FFS_FSBTODB(fs, b)	((daddr_t)(b) << (fs)->fs_fsbtodb)
+#define	FFS_DBTOFSB(fs, b)	((b) >> (fs)->fs_fsbtodb)
 
 /*
  * Cylinder group macros to locate things in cylinder groups.

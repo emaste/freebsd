@@ -181,7 +181,7 @@ setup(char *dev)
 		if (reply("LOOK FOR ALTERNATE SUPERBLOCKS") == 0)
 			return (0);
 		for (cg = 0; cg < proto.fs_ncg; cg++) {
-			bflag = fsbtodb(&proto, cgsblock(&proto, cg));
+			bflag = FFS_FSBTODB(&proto, cgsblock(&proto, cg));
 			if (readsb(0) != 0)
 				break;
 		}
@@ -248,7 +248,7 @@ setup(char *dev)
 		size = MIN(sblock.fs_cssize - i, sblock.fs_bsize);
 		readcnt[sblk.b_type]++;
 		if (blread(fsreadfd, (char *)sblock.fs_csp + i,
-		    fsbtodb(&sblock, sblock.fs_csaddr + j * sblock.fs_frag),
+		    FFS_FSBTODB(&sblock, sblock.fs_csaddr + j * sblock.fs_frag),
 		    size) != 0 && !asked) {
 			pfatal("BAD SUMMARY INFORMATION");
 			if (reply("CONTINUE") == 0) {
@@ -356,11 +356,11 @@ readsb(int listerr)
 	}
 	/*
 	 * Compute block size that the file system is based on,
-	 * according to fsbtodb, and adjust superblock block number
+	 * according to FFS_FSBTODB, and adjust superblock block number
 	 * so we can tell if this is an alternate later.
 	 */
 	super *= dev_bsize;
-	dev_bsize = sblock.fs_fsize / fsbtodb(&sblock, 1);
+	dev_bsize = sblock.fs_fsize / FFS_FSBTODB(&sblock, 1);
 	sblk.b_bno = super / dev_bsize;
 	sblk.b_size = SBLOCKSIZE;
 	if (bflag)

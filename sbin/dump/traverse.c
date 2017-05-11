@@ -160,7 +160,7 @@ mapfiles(ino_t maxino, long *tapesize)
 		quit("mapfiles: cannot allocate memory.\n");
 	for (cg = 0; cg < sblock->fs_ncg; cg++) {
 		ino = cg * sblock->fs_ipg;
-		bread(fsbtodb(sblock, cgtod(sblock, cg)), (char *)cgp,
+		bread(FFS_FSBTODB(sblock, cgtod(sblock, cg)), (char *)cgp,
 		    sblock->fs_cgsize);
 		if (sblock->fs_magic == FS_UFS2_MAGIC)
 			inosused = cgp->cg_initediblk;
@@ -341,7 +341,7 @@ dirindir(
 	int ret = 0;
 	int i;
 
-	bread(fsbtodb(sblock, blkno), (char *)&idblk, (int)sblock->fs_bsize);
+	bread(FFS_FSBTODB(sblock, blkno), (char *)&idblk, (int)sblock->fs_bsize);
 	if (ind_level <= 0) {
 		for (i = 0; *filesize > 0 && i < NINDIR(sblock); i++) {
 			if (sblock->fs_magic == FS_UFS1_MAGIC)
@@ -394,7 +394,7 @@ searchdir(
 
 	if (dblk == NULL && (dblk = malloc(sblock->fs_bsize)) == NULL)
 		quit("searchdir: cannot allocate indirect memory.\n");
-	bread(fsbtodb(sblock, blkno), dblk, (int)size);
+	bread(FFS_FSBTODB(sblock, blkno), dblk, (int)size);
 	if (filesize < size)
 		size = filesize;
 	for (loc = 0; loc < size; ) {
@@ -590,7 +590,7 @@ dmpindir(union dinode *dp, ino_t ino, ufs2_daddr_t blk, int ind_level,
 	int i, cnt, last;
 
 	if (blk != 0)
-		bread(fsbtodb(sblock, blk), (char *)&idblk,
+		bread(FFS_FSBTODB(sblock, blk), (char *)&idblk,
 		    (int)sblock->fs_bsize);
 	else
 		memset(&idblk, 0, sblock->fs_bsize);
@@ -882,7 +882,7 @@ getino(ino_t inum, int *modep)
 	curino = inum;
 	if (inum >= minino && inum < maxino)
 		goto gotit;
-	bread(fsbtodb(sblock, ino_to_fsba(sblock, inum)), inoblock,
+	bread(FFS_FSBTODB(sblock, ino_to_fsba(sblock, inum)), inoblock,
 	    (int)sblock->fs_bsize);
 	minino = inum - (inum % FFS_INOPB(sblock));
 	maxino = minino + FFS_INOPB(sblock);
@@ -958,7 +958,7 @@ loop:
 		}
 	}
 bad:
-	if (blkno + (size / dev_bsize) > fsbtodb(sblock, sblock->fs_size)) {
+	if (blkno + (size / dev_bsize) > FFS_FSBTODB(sblock, sblock->fs_size)) {
 		/*
 		 * Trying to read the final fragment.
 		 *

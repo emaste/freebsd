@@ -153,7 +153,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	if (fscs == NULL)
 		errx(1, "calloc failed");
 	for (i = 0; i < osblock.fs_cssize; i += osblock.fs_bsize) {
-		rdfs(fsbtodb(&osblock, osblock.fs_csaddr +
+		rdfs(FFS_FSBTODB(&osblock, osblock.fs_csaddr +
 		    ffs_numfrags(&osblock, i)),
 		    (size_t)MIN(osblock.fs_cssize - i, osblock.fs_bsize),
 		    (void *)(((char *)fscs) + i), fsi);
@@ -188,7 +188,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
 #define B2MBFACTOR (1 / (1024.0 * 1024.0))
 	printf("growfs: %.1fMB (%jd sectors) block size %d, fragment size %d\n",
 	    (float)sblock.fs_size * sblock.fs_fsize * B2MBFACTOR,
-	    (intmax_t)fsbtodb(&sblock, sblock.fs_size), sblock.fs_bsize,
+	    (intmax_t)FFS_FSBTODB(&sblock, sblock.fs_size), sblock.fs_bsize,
 	    sblock.fs_fsize);
 	printf("\tusing %d cylinder groups of %.2fMB, %d blks, %d inodes.\n",
 	    sblock.fs_ncg, (float)sblock.fs_fpg * sblock.fs_fsize * B2MBFACTOR,
@@ -212,7 +212,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	for (cylno = osblock.fs_ncg; cylno < sblock.fs_ncg; cylno++) {
 		initcg(cylno, modtime, fso, Nflag);
 		j = sprintf(tmpbuf, " %jd%s",
-		    (intmax_t)fsbtodb(&sblock, cgsblock(&sblock, cylno)),
+		    (intmax_t)FFS_FSBTODB(&sblock, cgsblock(&sblock, cylno)),
 		    cylno < (sblock.fs_ncg - 1) ? "," : "" );
 		if (i + j >= width) {
 			printf("\n");
@@ -234,7 +234,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	 * Now write the cylinder summary back to disk.
 	 */
 	for (i = 0; i < sblock.fs_cssize; i += sblock.fs_bsize) {
-		wtfs(fsbtodb(&sblock, sblock.fs_csaddr +
+		wtfs(FFS_FSBTODB(&sblock, sblock.fs_csaddr +
 		    ffs_numfrags(&sblock, i)),
 		    (size_t)MIN(sblock.fs_cssize - i, sblock.fs_bsize),
 		    (void *)(((char *)fscs) + i), fso, Nflag);
@@ -300,7 +300,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	 * Write out the duplicate super blocks.
 	 */
 	for (cylno = 0; cylno < sblock.fs_ncg; cylno++) {
-		wtfs(fsbtodb(&sblock, cgsblock(&sblock, cylno)),
+		wtfs(FFS_FSBTODB(&sblock, cgsblock(&sblock, cylno)),
 		    (size_t)SBLOCKSIZE, (void *)&sblock, fso, Nflag);
 	}
 	DBG_PRINT0("sblock copies written\n");
@@ -406,7 +406,7 @@ initcg(int cylno, time_t modtime, int fso, unsigned int Nflag)
 				dp1->di_gen = arc4random();
 				dp1++;
 			}
-			wtfs(fsbtodb(&sblock, cgimin(&sblock, cylno) + i),
+			wtfs(FFS_FSBTODB(&sblock, cgimin(&sblock, cylno) + i),
 			    sblock.fs_bsize, iobuf, fso, Nflag);
 		}
 	}
@@ -486,7 +486,7 @@ initcg(int cylno, time_t modtime, int fso, unsigned int Nflag)
 	memset(iobuf + sblock.fs_cgsize, '\0',
 	    sblock.fs_bsize * 3 - sblock.fs_cgsize);
 
-	wtfs(fsbtodb(&sblock, cgtod(&sblock, cylno)),
+	wtfs(FFS_FSBTODB(&sblock, cgtod(&sblock, cylno)),
 	    sblock.fs_bsize * 3, iobuf, fso, Nflag);
 	DBG_DUMP_CG(&sblock, "new cg", &acg);
 
@@ -572,7 +572,7 @@ updjcg(int cylno, time_t modtime, int fsi, int fso, unsigned int Nflag)
 	 * Read the former last (joining) cylinder group from disk, and make
 	 * a copy.
 	 */
-	rdfs(fsbtodb(&osblock, cgtod(&osblock, cylno)),
+	rdfs(FFS_FSBTODB(&osblock, cgtod(&osblock, cylno)),
 	    (size_t)osblock.fs_cgsize, (void *)&aocg, fsi);
 	DBG_PRINT0("jcg read\n");
 	DBG_DUMP_CG(&sblock, "old joining cg", &aocg);
@@ -591,7 +591,7 @@ updjcg(int cylno, time_t modtime, int fsi, int fso, unsigned int Nflag)
 		if (sblock.fs_magic == FS_UFS1_MAGIC)
 			acg.cg_old_ncyl = sblock.fs_old_cpg;
 
-		wtfs(fsbtodb(&sblock, cgtod(&sblock, cylno)),
+		wtfs(FFS_FSBTODB(&sblock, cgtod(&sblock, cylno)),
 		    (size_t)sblock.fs_cgsize, (void *)&acg, fso, Nflag);
 		DBG_PRINT0("jcg written\n");
 		DBG_DUMP_CG(&sblock, "new joining cg", &acg);
@@ -773,7 +773,7 @@ updjcg(int cylno, time_t modtime, int fsi, int fso, unsigned int Nflag)
 	/*
 	 * Write the updated "joining" cylinder group back to disk.
 	 */
-	wtfs(fsbtodb(&sblock, cgtod(&sblock, cylno)), (size_t)sblock.fs_cgsize,
+	wtfs(FFS_FSBTODB(&sblock, cgtod(&sblock, cylno)), (size_t)sblock.fs_cgsize,
 	    (void *)&acg, fso, Nflag);
 	DBG_PRINT0("jcg written\n");
 	DBG_DUMP_CG(&sblock, "new joining cg", &acg);
@@ -824,7 +824,7 @@ updcsloc(time_t modtime, int fsi, int fso, unsigned int Nflag)
 	 *	some changes done in updjcg by reading the unmodified
 	 *	block from disk.
 	 */
-	rdfs(fsbtodb(&osblock, cgtod(&osblock, ocscg)),
+	rdfs(FFS_FSBTODB(&osblock, cgtod(&osblock, ocscg)),
 	    (size_t)osblock.fs_cgsize, (void *)&aocg, fsi);
 	DBG_PRINT0("oscg read\n");
 	DBG_DUMP_CG(&sblock, "old summary cg", &aocg);
@@ -965,7 +965,7 @@ updcsloc(time_t modtime, int fsi, int fso, unsigned int Nflag)
 	 * Now write the former cylinder group containing the cylinder
 	 * summary back to disk.
 	 */
-	wtfs(fsbtodb(&sblock, cgtod(&sblock, ocscg)),
+	wtfs(FFS_FSBTODB(&sblock, cgtod(&sblock, ocscg)),
 	    (size_t)sblock.fs_cgsize, (void *)&acg, fso, Nflag);
 	DBG_PRINT0("oscg written\n");
 	DBG_DUMP_CG(&sblock, "old summary cg", &acg);
@@ -993,7 +993,7 @@ updcsloc(time_t modtime, int fsi, int fso, unsigned int Nflag)
 	 * Read the future cylinder group containing the cylinder
 	 * summary from disk, and make a copy.
 	 */
-	rdfs(fsbtodb(&sblock, cgtod(&sblock, ncscg)),
+	rdfs(FFS_FSBTODB(&sblock, cgtod(&sblock, ncscg)),
 	    (size_t)sblock.fs_cgsize, (void *)&aocg, fsi);
 	DBG_PRINT0("nscg read\n");
 	DBG_DUMP_CG(&sblock, "new summary cg", &aocg);
@@ -1057,7 +1057,7 @@ updcsloc(time_t modtime, int fsi, int fso, unsigned int Nflag)
 	 * Write the new cylinder group containing the cylinder summary
 	 * back to disk.
 	 */
-	wtfs(fsbtodb(&sblock, cgtod(&sblock, ncscg)),
+	wtfs(FFS_FSBTODB(&sblock, cgtod(&sblock, ncscg)),
 	    (size_t)sblock.fs_cgsize, (void *)&acg, fso, Nflag);
 	DBG_PRINT0("nscg written\n");
 	DBG_DUMP_CG(&sblock, "new summary cg", &acg);
@@ -1500,8 +1500,8 @@ main(int argc, char **argv)
 		   "filesystem size %s", newsizebuf, oldsizebuf);
 	}
 
-	sblock.fs_size = dbtofsb(&osblock, size / DEV_BSIZE);
-	sblock.fs_providersize = dbtofsb(&osblock, mediasize / DEV_BSIZE);
+	sblock.fs_size = FFS_DBTOFSB(&osblock, size / DEV_BSIZE);
+	sblock.fs_providersize = FFS_DBTOFSB(&osblock, mediasize / DEV_BSIZE);
 
 	/*
 	 * Are we really growing?

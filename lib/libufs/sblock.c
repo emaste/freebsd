@@ -88,7 +88,7 @@ sbread(struct uufsd *disk)
 		errno = ENOENT;
 		return (-1);
 	}
-	disk->d_bsize = fs->fs_fsize / fsbtodb(fs, 1);
+	disk->d_bsize = fs->fs_fsize / FFS_FSBTODB(fs, 1);
 	disk->d_sblock = superblock / disk->d_bsize;
 	/*
 	 * Read in the superblock summary information.
@@ -106,7 +106,7 @@ sbread(struct uufsd *disk)
 		size = fs->fs_bsize;
 		if (i + fs->fs_frag > blks)
 			size = (blks - i) * fs->fs_fsize;
-		if (bread(disk, fsbtodb(fs, fs->fs_csaddr + i), block, size)
+		if (bread(disk, FFS_FSBTODB(fs, fs->fs_csaddr + i), block, size)
 		    == -1) {
 			ERROR(disk, "Failed to read sb summary information");
 			free(fs->fs_csp);
@@ -150,7 +150,7 @@ sbwrite(struct uufsd *disk, int all)
 		size = fs->fs_bsize;
 		if (i + fs->fs_frag > blks)
 			size = (blks - i) * fs->fs_fsize;
-		if (bwrite(disk, fsbtodb(fs, fs->fs_csaddr + i), space, size)
+		if (bwrite(disk, FFS_FSBTODB(fs, fs->fs_csaddr + i), space, size)
 		    == -1) {
 			ERROR(disk, "Failed to write sb summary information");
 			return (-1);
@@ -159,7 +159,7 @@ sbwrite(struct uufsd *disk, int all)
 	}
 	if (all) {
 		for (i = 0; i < fs->fs_ncg; i++)
-			if (bwrite(disk, fsbtodb(fs, cgsblock(fs, i)),
+			if (bwrite(disk, FFS_FSBTODB(fs, cgsblock(fs, i)),
 			    fs, SBLOCKSIZE) == -1) {
 				ERROR(disk, "failed to update a superblock");
 				return (-1);

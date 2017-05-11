@@ -454,13 +454,13 @@ CMDFUNCSTART(findblk)
 	if (wantedblk64 == NULL)
 	    err(1, "malloc");
 	for (i = 1; i < argc; i++)
-	    wantedblk64[i - 1] = dbtofsb(&sblock, strtoull(argv[i], NULL, 0));
+	    wantedblk64[i - 1] = FFS_DBTOFSB(&sblock, strtoull(argv[i], NULL, 0));
     } else {
 	wantedblk32 = calloc(wantedblksize, sizeof(uint32_t));
 	if (wantedblk32 == NULL)
 	    err(1, "malloc");
 	for (i = 1; i < argc; i++)
-	    wantedblk32[i - 1] = dbtofsb(&sblock, strtoull(argv[i], NULL, 0));
+	    wantedblk32[i - 1] = FFS_DBTOFSB(&sblock, strtoull(argv[i], NULL, 0));
     }
     findblk_numtofind = wantedblksize;
     /*
@@ -499,7 +499,7 @@ CMDFUNCSTART(findblk)
 		compare_blk64(wantedblk64, ino_to_fsba(&sblock, inum)) :
 		compare_blk32(wantedblk32, ino_to_fsba(&sblock, inum))) {
 		printf("block %llu: inode block (%ju-%ju)\n",
-		    (unsigned long long)fsbtodb(&sblock,
+		    (unsigned long long)FFS_FSBTODB(&sblock,
 			ino_to_fsba(&sblock, inum)),
 		    (uintmax_t)(inum / FFS_INOPB(&sblock)) * FFS_INOPB(&sblock),
 		    (uintmax_t)(inum / FFS_INOPB(&sblock) + 1) * FFS_INOPB(&sblock));
@@ -599,7 +599,7 @@ founddatablk(uint64_t blk)
 {
 
     printf("%llu: data block of inode %ju\n",
-	(unsigned long long)fsbtodb(&sblock, blk), (uintmax_t)curinum);
+	(unsigned long long)FFS_FSBTODB(&sblock, blk), (uintmax_t)curinum);
     findblk_numtofind--;
     if (findblk_numtofind == 0)
 	return 1;
@@ -628,7 +628,7 @@ find_indirblks32(uint32_t blk, int ind_level, uint32_t *wantedblk)
     uint32_t idblk[MAXNINDIR];
     int i;
 
-    blread(fsreadfd, (char *)idblk, fsbtodb(&sblock, blk), (int)sblock.fs_bsize);
+    blread(fsreadfd, (char *)idblk, FFS_FSBTODB(&sblock, blk), (int)sblock.fs_bsize);
     if (ind_level <= 0) {
 	if (find_blks32(idblk, sblock.fs_bsize / sizeof(uint32_t), wantedblk))
 	    return 1;
@@ -670,7 +670,7 @@ find_indirblks64(uint64_t blk, int ind_level, uint64_t *wantedblk)
     uint64_t idblk[MAXNINDIR];
     int i;
 
-    blread(fsreadfd, (char *)idblk, fsbtodb(&sblock, blk), (int)sblock.fs_bsize);
+    blread(fsreadfd, (char *)idblk, FFS_FSBTODB(&sblock, blk), (int)sblock.fs_bsize);
     if (ind_level <= 0) {
 	if (find_blks64(idblk, sblock.fs_bsize / sizeof(uint64_t), wantedblk))
 	    return 1;

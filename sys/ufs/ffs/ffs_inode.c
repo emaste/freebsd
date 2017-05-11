@@ -111,7 +111,7 @@ ffs_update(vp, waitfor)
 		flags = GB_LOCK_NOWAIT;
 loop:
 	error = breadn_flags(ITODEVVP(ip),
-	     fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
+	     FFS_FSBTODB(fs, ino_to_fsba(fs, ip->i_number)),
 	     (int) fs->fs_bsize, 0, 0, 0, NOCRED, flags, &bp);
 	if (error != 0) {
 		if (error != EBUSY)
@@ -513,7 +513,7 @@ ffs_truncate(vp, length, flags, cred)
 		bn = DIP(ip, i_ib[level]);
 		if (bn != 0) {
 			error = ffs_indirtrunc(ip, indir_lbn[level],
-			    fsbtodb(fs, bn), lastiblock[level], level, &count);
+			    FFS_FSBTODB(fs, bn), lastiblock[level], level, &count);
 			if (error)
 				allerror = error;
 			blocksreleased += count;
@@ -723,7 +723,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 		if (nb == 0)
 			continue;
 		if (level > SINGLE) {
-			if ((error = ffs_indirtrunc(ip, nlbn, fsbtodb(fs, nb),
+			if ((error = ffs_indirtrunc(ip, nlbn, FFS_FSBTODB(fs, nb),
 			    (ufs2_daddr_t)-1, level - 1, &blkcount)) != 0)
 				allerror = error;
 			blocksreleased += blkcount;
@@ -740,7 +740,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 		last = lastbn % factor;
 		nb = BAP(ip, i);
 		if (nb != 0) {
-			error = ffs_indirtrunc(ip, nlbn, fsbtodb(fs, nb),
+			error = ffs_indirtrunc(ip, nlbn, FFS_FSBTODB(fs, nb),
 			    last, level - 1, &blkcount);
 			if (error)
 				allerror = error;
