@@ -882,6 +882,7 @@ ffs_write_file(union dinode *din, uint32_t ino, void *buf, fsinfo_t *fsopts)
 	struct inode	in;
 	struct buf *	bp;
 	ffs_opt_t	*ffs_opts = fsopts->fs_specific;
+	struct vnode vp = { fsopts, NULL };
 
 	assert (din != NULL);
 	assert (buf != NULL);
@@ -894,6 +895,7 @@ ffs_write_file(union dinode *din, uint32_t ino, void *buf, fsinfo_t *fsopts)
 	p = NULL;
 
 	in.i_fs = (struct fs *)fsopts->superblock;
+	in.i_vp = &vp;
 
 	if (debug & DEBUG_FS_WRITE_FILE) {
 		printf(
@@ -914,7 +916,6 @@ ffs_write_file(union dinode *din, uint32_t ino, void *buf, fsinfo_t *fsopts)
 	else
 		memcpy(&in.i_din.ffs2_din, &din->ffs2_din,
 		    sizeof(in.i_din.ffs2_din));
-	in.i_fd = fsopts->fd;
 
 	if (DIP(din, size) == 0)
 		goto write_inode_and_leave;		/* mmm, cheating */
