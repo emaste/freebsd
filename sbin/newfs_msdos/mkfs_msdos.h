@@ -61,6 +61,8 @@ struct msdos_options {
 #define AOPT(_opt, _type, _name, _min, _desc) _type _name;
 ALLOPTS
 #undef AOPT	
+	time_t timestamp;
+	uint32_t timestamp_set:1;
 	uint32_t volume_id_set:1;
 	uint32_t media_descriptor_set:1;
 	uint32_t hidden_sectors_set:1;
