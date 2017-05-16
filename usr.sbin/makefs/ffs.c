@@ -882,7 +882,7 @@ ffs_write_file(union dinode *din, uint32_t ino, void *buf, fsinfo_t *fsopts)
 	struct inode	in;
 	struct buf *	bp;
 	ffs_opt_t	*ffs_opts = fsopts->fs_specific;
-	struct vnode vp = { fsopts, NULL };
+	struct vnode vp = { fsopts };
 
 	assert (din != NULL);
 	assert (buf != NULL);
@@ -895,7 +895,7 @@ ffs_write_file(union dinode *din, uint32_t ino, void *buf, fsinfo_t *fsopts)
 	p = NULL;
 
 	in.i_fs = (struct fs *)fsopts->superblock;
-	in.i_vp = &vp;
+	in.i_vnode = &vp;
 
 	if (debug & DEBUG_FS_WRITE_FILE) {
 		printf(

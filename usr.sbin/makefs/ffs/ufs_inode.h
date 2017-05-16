@@ -45,7 +45,7 @@ union dinode {
 
 struct inode {
 	ino_t		i_number;	/* The identity of the inode. */
-	struct vnode	*i_vp;		/* vnode pointer (contains fsopts) */
+	struct vnode	*i_vnode;	/* vnode pointer (contains fsopts) */
 	struct fs	*i_fs;		/* File system */
 	union dinode	i_din;
 	uint64_t	i_size;
