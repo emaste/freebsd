@@ -48,14 +48,15 @@ struct ucred;
 
 struct vnode {
 	struct makefs_fsinfo *v_fsinfo;
+	void *v_data;
 };
 
 struct buf {
-	void    *b_data;
-	long    b_bufsize;
-	long    b_bcount;
-	daddr_t b_blkno;
-	daddr_t b_lblkno;
+	void	*b_data;
+	long	b_bufsize;
+	long	b_bcount;
+	daddr_t	b_blkno;
+	daddr_t	b_lblkno;
 	struct makefs_fsinfo *b_fsinfo;
 
 	TAILQ_ENTRY(buf) b_tailq;
