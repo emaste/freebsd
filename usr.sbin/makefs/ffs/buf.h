@@ -43,25 +43,23 @@
 #include <sys/param.h>
 #include <sys/queue.h>
 
+struct makefs_fsinfo;
 struct ucred;
 
 struct vnode {
-	int fd;
-	void *fs;
+	struct makefs_fsinfo *v_fsinfo;
 	void *v_data;
-	int offset;
 };
 
 struct buf {
-	void *		b_data;
-	long		b_bufsize;
-	long		b_bcount;
-	daddr_t		b_blkno;
-	daddr_t		b_lblkno;
-	int		b_fd;
-	void *		b_fs;
+	void	*b_data;
+	long	b_bufsize;
+	long	b_bcount;
+	daddr_t	b_blkno;
+	daddr_t	b_lblkno;
+	struct makefs_fsinfo *b_fsinfo;
 
-	TAILQ_ENTRY(buf)	b_tailq;
+	TAILQ_ENTRY(buf) b_tailq;
 };
 
 void		bcleanup(void);

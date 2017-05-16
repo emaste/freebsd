@@ -89,7 +89,6 @@ ffs_balloc_ufs1(struct inode *ip, off_t offset, int bufsize, struct buf **bpp)
 	int32_t *allocblk, allociblk[UFS_NIADDR + 1];
 	int32_t *allocib;
 	const int needswap = UFS_FSNEEDSWAP(fs);
-	struct vnode vp = { ip->i_fd, ip->i_fs, NULL, 0 };
 
 	lbn = ffs_lblkno(fs, offset);
 	size = ffs_blkoff(fs, offset) + bufsize;
@@ -133,7 +132,7 @@ ffs_balloc_ufs1(struct inode *ip, off_t offset, int bufsize, struct buf **bpp)
 			 */
 
 			if (bpp != NULL) {
-				error = bread(&vp, lbn, fs->fs_bsize, NULL,
+				error = bread(ip->i_vnode, lbn, fs->fs_bsize, NULL,
 				    bpp);
 				if (error) {
 					brelse(*bpp, 0);
@@ -159,7 +158,7 @@ ffs_balloc_ufs1(struct inode *ip, off_t offset, int bufsize, struct buf **bpp)
 				 */
 
 				if (bpp != NULL) {
-					error = bread(&vp, lbn, osize, NULL,
+					error = bread(ip->i_vnode, lbn, osize, NULL,
 					    bpp);
 					if (error) {
 						brelse(*bpp, 0);
@@ -189,7 +188,7 @@ ffs_balloc_ufs1(struct inode *ip, off_t offset, int bufsize, struct buf **bpp)
 			if (error)
 				return (error);
 			if (bpp != NULL) {
-				bp = getblk(&vp, lbn, nsize, 0, 0, 0);
+				bp = getblk(ip->i_vnode, lbn, nsize, 0, 0, 0);
 				bp->b_blkno = fsbtodb(fs, newb);
 				clrbuf(bp);
 				*bpp = bp;
@@ -227,7 +226,7 @@ ffs_balloc_ufs1(struct inode *ip, off_t offset, int bufsize, struct buf **bpp)
 			return error;
 		nb = newb;
 		*allocblk++ = nb;
-		bp = getblk(&vp, indirs[1].in_lbn, fs->fs_bsize, 0, 0, 0);
+		bp = getblk(ip->i_vnode, indirs[1].in_lbn, fs->fs_bsize, 0, 0, 0);
 		bp->b_blkno = fsbtodb(fs, nb);
 		clrbuf(bp);
 		/*
@@ -245,7 +244,7 @@ ffs_balloc_ufs1(struct inode *ip, off_t offset, int bufsize, struct buf **bpp)
 	 */
 
 	for (i = 1;;) {
-		error = bread(&vp, indirs[i].in_lbn, fs->fs_bsize, NULL, &bp);
+		error = bread(ip->i_vnode, indirs[i].in_lbn, fs->fs_bsize, NULL, &bp);
 		if (error) {
 			brelse(bp, 0);
 			return error;
@@ -268,7 +267,7 @@ ffs_balloc_ufs1(struct inode *ip, off_t offset, int bufsize, struct buf **bpp)
 		}
 		nb = newb;
 		*allocblk++ = nb;
-		nbp = getblk(&vp, indirs[i].in_lbn, fs->fs_bsize, 0, 0, 0);
+		nbp = getblk(ip->i_vnode, indirs[i].in_lbn, fs->fs_bsize, 0, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
 		clrbuf(nbp);
 		/*
@@ -299,7 +298,7 @@ ffs_balloc_ufs1(struct inode *ip, off_t offset, int bufsize, struct buf **bpp)
 		nb = newb;
 		*allocblk++ = nb;
 		if (bpp != NULL) {
-			nbp = getblk(&vp, lbn, fs->fs_bsize, 0, 0, 0);
+			nbp = getblk(ip->i_vnode, lbn, fs->fs_bsize, 0, 0, 0);
 			nbp->b_blkno = fsbtodb(fs, nb);
 			clrbuf(nbp);
 			*bpp = nbp;
@@ -315,7 +314,7 @@ ffs_balloc_ufs1(struct inode *ip, off_t offset, int bufsize, struct buf **bpp)
 	}
 	brelse(bp, 0);
 	if (bpp != NULL) {
-		error = bread(&vp, lbn, (int)fs->fs_bsize, NULL, &nbp);
+		error = bread(ip->i_vnode, lbn, (int)fs->fs_bsize, NULL, &nbp);
 		if (error) {
 			brelse(nbp, 0);
 			return error;
@@ -340,7 +339,6 @@ ffs_balloc_ufs2(struct inode *ip, off_t offset, int bufsize, struct buf **bpp)
 	int64_t *allocblk, allociblk[UFS_NIADDR + 1];
 	int64_t *allocib;
 	const int needswap = UFS_FSNEEDSWAP(fs);
-	struct vnode vp = { ip->i_fd, ip->i_fs, NULL, 0 };
 
 	lbn = ffs_lblkno(fs, offset);
 	size = ffs_blkoff(fs, offset) + bufsize;
@@ -384,7 +382,7 @@ ffs_balloc_ufs2(struct inode *ip, off_t offset, int bufsize, struct buf **bpp)
 			 */
 
 			if (bpp != NULL) {
-				error = bread(&vp, lbn, fs->fs_bsize, NULL,
+				error = bread(ip->i_vnode, lbn, fs->fs_bsize, NULL,
 				    bpp);
 				if (error) {
 					brelse(*bpp, 0);
@@ -410,7 +408,7 @@ ffs_balloc_ufs2(struct inode *ip, off_t offset, int bufsize, struct buf **bpp)
 				 */
 
 				if (bpp != NULL) {
-					error = bread(&vp, lbn, osize, NULL,
+					error = bread(ip->i_vnode, lbn, osize, NULL,
 					    bpp);
 					if (error) {
 						brelse(*bpp, 0);
@@ -440,7 +438,7 @@ ffs_balloc_ufs2(struct inode *ip, off_t offset, int bufsize, struct buf **bpp)
 			if (error)
 				return (error);
 			if (bpp != NULL) {
-				bp = getblk(&vp, lbn, nsize, 0, 0, 0);
+				bp = getblk(ip->i_vnode, lbn, nsize, 0, 0, 0);
 				bp->b_blkno = fsbtodb(fs, newb);
 				clrbuf(bp);
 				*bpp = bp;
@@ -478,7 +476,7 @@ ffs_balloc_ufs2(struct inode *ip, off_t offset, int bufsize, struct buf **bpp)
 			return error;
 		nb = newb;
 		*allocblk++ = nb;
-		bp = getblk(&vp, indirs[1].in_lbn, fs->fs_bsize, 0, 0, 0);
+		bp = getblk(ip->i_vnode, indirs[1].in_lbn, fs->fs_bsize, 0, 0, 0);
 		bp->b_blkno = fsbtodb(fs, nb);
 		clrbuf(bp);
 		/*
@@ -496,7 +494,7 @@ ffs_balloc_ufs2(struct inode *ip, off_t offset, int bufsize, struct buf **bpp)
 	 */
 
 	for (i = 1;;) {
-		error = bread(&vp, indirs[i].in_lbn, fs->fs_bsize, NULL, &bp);
+		error = bread(ip->i_vnode, indirs[i].in_lbn, fs->fs_bsize, NULL, &bp);
 		if (error) {
 			brelse(bp, 0);
 			return error;
@@ -519,7 +517,7 @@ ffs_balloc_ufs2(struct inode *ip, off_t offset, int bufsize, struct buf **bpp)
 		}
 		nb = newb;
 		*allocblk++ = nb;
-		nbp = getblk(&vp, indirs[i].in_lbn, fs->fs_bsize, 0, 0, 0);
+		nbp = getblk(ip->i_vnode, indirs[i].in_lbn, fs->fs_bsize, 0, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
 		clrbuf(nbp);
 		/*
@@ -550,7 +548,7 @@ ffs_balloc_ufs2(struct inode *ip, off_t offset, int bufsize, struct buf **bpp)
 		nb = newb;
 		*allocblk++ = nb;
 		if (bpp != NULL) {
-			nbp = getblk(&vp, lbn, fs->fs_bsize, 0, 0, 0);
+			nbp = getblk(ip->i_vnode, lbn, fs->fs_bsize, 0, 0, 0);
 			nbp->b_blkno = fsbtodb(fs, nb);
 			clrbuf(nbp);
 			*bpp = nbp;
@@ -566,7 +564,7 @@ ffs_balloc_ufs2(struct inode *ip, off_t offset, int bufsize, struct buf **bpp)
 	}
 	brelse(bp, 0);
 	if (bpp != NULL) {
-		error = bread(&vp, lbn, (int)fs->fs_bsize, NULL, &nbp);
+		error = bread(ip->i_vnode, lbn, (int)fs->fs_bsize, NULL, &nbp);
 		if (error) {
 			brelse(nbp, 0);
 			return error;
