@@ -584,7 +584,6 @@ ttydev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	case TIOCSPGRP:
 	case TIOCSTART:
 	case TIOCSTAT:
-	case TIOCSTI:
 	case TIOCSTOP:
 	case TIOCSWINSZ:
 #if 0
@@ -1987,14 +1986,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 		tty_info(tp);
 		return (0);
 	case TIOCSTI:
-		if ((fflag & FREAD) == 0 && priv_check(td, PRIV_TTY_STI))
-			return (EPERM);
-		if (!tty_is_ctty(tp, td->td_proc) &&
-		    priv_check(td, PRIV_TTY_STI))
-			return (EACCES);
-		ttydisc_rint(tp, *(char *)data, 0);
-		ttydisc_rint_done(tp);
-		return (0);
+		return (EIO);
 	}
 
 #ifdef COMPAT_43TTY
