@@ -239,8 +239,9 @@ MALLOC_TSD
 
 JEMALLOC_ALWAYS_INLINE void
 tsd_assert_fast(tsd_t *tsd) {
-	assert(!malloc_slow && tsd_tcache_enabled_get(tsd) &&
-	    tsd_reentrancy_level_get(tsd) == 0);
+	assert(!malloc_slow);
+	assert(tsd_tcache_enabled_get(tsd));
+	assert(tsd_reentrancy_level_get(tsd) == 0);
 }
 
 JEMALLOC_ALWAYS_INLINE bool
