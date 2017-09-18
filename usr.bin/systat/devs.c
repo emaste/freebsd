@@ -197,6 +197,9 @@ dsmatchselect(const char *args, devstat_select_mode select_mode, int maxshowdevs
 	 * Break the (pipe delimited) input string out into separate
 	 * strings.
 	 */
+    if (!args)
+        err(1, "missing argument to match");
+
 	tmpstr = tmpstr1 = strdup(args);
 	for (tempstr = tstr, num_args  = 0;
 	     (*tempstr = strsep(&tmpstr1, "|")) != NULL && (num_args < 100);
@@ -265,6 +268,11 @@ dsselect(const char *args, devstat_select_mode select_mode, int maxshowdevs,
 
 	/* do an initial malloc */
 	specified_devices = (char **)malloc(sizeof(char *));
+
+    if (!args) {
+        error("missing arguement for option");
+        return(0);
+    }
 
 	tmpstr = tmpstr1 = strdup(args);
 	cp = strchr(tmpstr1, '\n');
