@@ -4,7 +4,6 @@
 
 SUBDIR=
 SUBDIR.${MK_DIALOG}+=	libdialog
-SUBDIR.${MK_GCC}+=	libgcov
 .if ${MK_GCC} != "no" && ${MK_OPENMP} == "no"
 SUBDIR+=		libgomp
 .endif
