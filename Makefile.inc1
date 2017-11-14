@@ -578,6 +578,7 @@ BUILD_ARCH!=	uname -p
 .endif
 .endif
 WORLDTMP?=	${OBJTOP}/tmp
+WORLDTMPSR?=	${OBJTOP}/sysroot
 BPATH=		${CCACHE_WRAPPER_PATH_PFX}${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/bin
 XPATH=		${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin
 
@@ -742,7 +743,7 @@ KTMAKE=		\
 WMAKEENV=	${CROSSENV} \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
-		SYSROOT=${WORLDTMP}
+		SYSROOT=${WORLDTMPSR}
 
 # make hierarchy
 HMAKE=		PATH=${TMPPATH} ${MAKE} LOCAL_MTREE=${LOCAL_MTREE:Q}
@@ -785,7 +786,7 @@ BFLAGS+=	-B${WORLDTMP}/usr/bin
     (defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == clang)
 XCFLAGS+=	-target ${TARGET_TRIPLE}
 .endif
-XCFLAGS+=	--sysroot=${WORLDTMP}
+XCFLAGS+=	--sysroot=${WORLDTMPSR}
 
 .if !empty(BFLAGS)
 XCFLAGS+=	${BFLAGS}
@@ -815,7 +816,7 @@ META_MODE_BAD_ABI_VERS+=	1200031
 OBJDIR_HOST_OSRELDATE!=	\
     awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
     ${OBJTOP}/host-osreldate.h
-.elif exists(${WORLDTMP}/usr/include/osreldate.h)
+.elif exists(${WORLDTMPSR}/usr/include/osreldate.h)
 OBJDIR_HOST_OSRELDATE=	0
 .endif
 .export OBJDIR_HOST_OSRELDATE
@@ -850,7 +851,7 @@ host-osreldate.h: # DO NOT ADD /usr/include/osreldate.h here
 
 WMAKE=		${WMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
 		BWPHASE=${.TARGET:C,^_,,} \
-		DESTDIR=${WORLDTMP}
+		DESTDIR=${WORLDTMPSR}
 
 IMAKEENV=	${CROSSENV}
 IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1 \
@@ -992,12 +993,13 @@ _worldtmp: .PHONY
 	@echo "--------------------------------------------------------------"
 .if !defined(NO_CLEAN)
 	rm -rf ${WORLDTMP}
+	rm -rf ${WORLDTMPSR}
 .else
 # Note: for delete-old we need to set $PATH to also include the host $PATH
 # since otherwise a partial build with missing symlinks in ${WORLDTMP}/legacy/
 # will fail to run due to missing binaries. $WMAKE sets PATH to only ${TMPPATH}
 # so we remove that assingnment from $WMAKE and prepend the new $PATH
-	${_+_}@if [ -e "${WORLDTMP}" ]; then \
+	${_+_}@if [ -e "${WORLDTMPSR}" ]; then \
 		echo ">>> Deleting stale files in build tree..."; \
 		cd ${.CURDIR}; env PATH=${TMPPATH}:${PATH} ${WMAKE:NPATH=*} \
 		    _NO_INCLUDE_COMPILERMK=t -DBATCH_DELETE_OLD_FILES delete-old \
@@ -1017,6 +1019,7 @@ _worldtmp: .PHONY
 .endif	# ${USING_SYSTEM_LINKER} == "yes"
 .endif	# !defined(NO_CLEAN)
 	@mkdir -p ${WORLDTMP}
+	@mkdir -p ${WORLDTMPSR}
 	@touch ${WORLDTMP}/${.TARGET}
 # We can't use mtree to create the worldtmp directories since it may not be
 # available on the target system (this happens e.g. when building on non-FreeBSD)
@@ -1027,6 +1030,16 @@ _worldtmp: .PHONY
 	cd ${.CURDIR}/tools/build; \
 	    ${MAKE} DIRPRFX=tools/build/ DESTDIR=${WORLDTMP}/legacy host-symlinks
 
+	mkdir -p ${WORLDTMPSR}/${_dir}
+.endfor
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
+	    -p ${WORLDTMPSR}/usr >/dev/null
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
+	    -p ${WORLDTMPSR}/usr/include >/dev/null
+	ln -sf ${.CURDIR}/sys ${WORLDTMPSR}
+
+.for _dir in \
+    usr legacy/bin legacy/usr
 _legacy:
 	@echo
 	@echo "--------------------------------------------------------------"
