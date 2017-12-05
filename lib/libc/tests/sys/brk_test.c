@@ -23,26 +23,33 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
+
+// Assume ATF_REQUIRE would not use malloc with positive assertion case.
+
 __FBSDID("$FreeBSD$");
 
 #include <unistd.h>
 #include <assert.h>
-
 #include <atf-c.h>
 
-#define OFFSET 16
+int[] test_data = {1, 8, 1024, 4096, 1024*1024};
+
 static void
 test_brk()
 {
   void * origin_brk;
-  int i;
+  int i , data, len;
+  len = sizeof(test_data) / sizeof(int);
   origin_brk = sbrk(0);
 
-  for (i = 0; i < 100; i++) {
-    assert(brk(origin_brk + i * OFFSET) == 0);
-    assert(sbrk(0) == origin_brk + i * OFFSET);
-    assert(brk(origin_brk) == 0);
-    assert(sbrk(0) == origin_brk);
+  for (i = 0; i < len; i++) {
+    data = test_data[i];
+
+    ATF_REQUIRE(brk(origin_brk + data) == 0);
+    ATF_REQUIRE(sbrk(0) == origin_brk + data);
+    ATF_REQUIRE(brk(origin_brk) == 0);
+    ATF_REQUIRE(sbrk(0) == origin_brk);
   }
 }
 
@@ -50,15 +57,16 @@ static void
 test_sbrk()
 {
   void * origin_brk;
-  int i;
-
+  int i , data, len;
+  len = sizeof(test_data) / sizeof(int);
   origin_brk = sbrk(0);
 
-  for (i = 0; i < 100; i++) {
-    assert(sbrk(i * OFFSET) == origin_brk);
-    assert(sbrk(0) == origin_brk + i * OFFSET);
-    assert(sbrk(-i * OFFSET) == origin_brk + i * OFFSET);
-    assert(sbrk(0) == origin_brk);
+  for (i = 0; i < len; i++) {
+    data = test_data[i];
+    ATF_REQUIRE(sbrk(data) == origin_brk);
+    ATF_REQUIRE(sbrk(0) == origin_brk + data);
+    ATF_REQUIRE(sbrk(-data) == origin_brk + data);
+    ATF_REQUIRE(sbrk(0) == origin_brk);
   }
 }
 
