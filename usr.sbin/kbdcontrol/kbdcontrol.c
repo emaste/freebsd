@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include "path.h"
 #include "lex.h"
 
+#include <errno.h>
+
 /*
  * HALT, PDWN, and PASTE aren't defined in 4.x, but we need them to bridge
  * to 5.0-current so define them here as a stop gap transition measure.
@@ -958,19 +960,20 @@ set_functionkey(char *keynumstr, char *string)
 static void
 set_bell_values(char *opt)
 {
-	int bell, duration, pitch;
+	long bell, duration, pitch, data;
 
 	bell = 0;
 	if (!strncmp(opt, "quiet.", 6)) {
 		bell = CONS_QUIET_BELL;
 		opt += 6;
+		duration = 0, pitch = 800;
 	}
 	if (!strcmp(opt, "visual"))
 		bell |= CONS_VISUAL_BELL;
 	else if (!strcmp(opt, "normal"))
 		duration = 5, pitch = 800;
 	else if (!strcmp(opt, "off"))
-		duration = 0, pitch = 0;
+		duration = 0, pitch = 800;
 	else {
 		char		*v1;
 
@@ -990,9 +993,15 @@ badopt:
 		duration /= 10;	/* in 10 m sec */
 	}
 
-	ioctl(0, CONS_BELLTYPE, &bell);
+  data = (bell << 32) | ((pitch << 16) & 0xffff0000) | duration;
+  printf("DATA sent: %ld\n",data);
+  printf("BELL sent: %ld\n",bell);
+  printf("PITCH sent: %ld\n",pitch);
+  printf("DURATION sent: %ld\n",duration);
+
+	ioctl(0, CONS_BELLTYPE, &data);
 	if (!(bell & CONS_VISUAL_BELL))
-		fprintf(stderr, "[=%d;%dB", pitch, duration);
+		fprintf(stderr, "[=%ld;%ldB", pitch, duration);
 }
 
 static void
@@ -1270,5 +1279,5 @@ main(int argc, char **argv)
 		}
 	if ((optind != argc) || (argc == 1))
 		usage();
-	exit(0);
+	exit(errno);
 }

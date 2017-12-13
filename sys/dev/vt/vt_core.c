@@ -983,13 +983,23 @@ vtterm_bell(struct terminal *tm)
 	struct vt_window *vw = tm->tm_softc;
 	struct vt_device *vd = vw->vw_device;
 
+  u_short pitch, duration;
+
 	if (!vt_enable_bell)
 		return;
 
 	if (vd->vd_flags & VDF_QUIET_BELL)
 		return;
 
-	sysbeep(1193182 / VT_BELLPITCH, VT_BELLDURATION);
+  pitch = vd->bell_pitch;
+  duration = vd->bell_duration;
+
+  if (pitch <= 0) 
+    pitch = VT_BELLPITCH;
+  if (duration < 0 || duration > 1000)
+    duration = VT_BELLDURATION;
+
+	sysbeep(1193182 / pitch, duration);
 }
 
 static void
@@ -2232,7 +2242,13 @@ skip_thunk:
 		*(int *)data = M_CG640x480;
 		return (0);
 	case CONS_BELLTYPE: 	/* set bell type sound */
-		if ((*(int *)data) & CONS_QUIET_BELL)
+    // flags 32 bits | pitch 16 bits| duration 16 bits
+    printf("DATA::::%ld\n",*(long *) data);
+    printf("PITCH::::%ld\n",(((*(long *) data) >> 16) & 0xffff));
+    printf("DURATION::::%ld\n",((*(long *) data)  & 0xffff));
+    vd->bell_pitch = (((*(long *) data) >> 16) & 0xffff);
+    vd->bell_duration = ((*(long *) data)  & 0xffff);
+		if ((((*(long *)data) >> 32) & 0xfffffff) & CONS_QUIET_BELL)
 			vd->vd_flags |= VDF_QUIET_BELL;
 		else
 			vd->vd_flags &= ~VDF_QUIET_BELL;
@@ -2360,6 +2376,7 @@ skip_thunk:
 		return (0);
 	case KIOCSOUND:     	/* make tone (*data) hz */
 		/* TODO */
+    //vt_setfreq(*(int *) data);
 		return (0);
 	case CONS_SETKBD: 		/* set the new keyboard */
 		mtx_lock(&Giant);
@@ -2866,3 +2883,5 @@ vt_resume(struct vt_device *vd)
 	vt_proc_window_switch(vd->vd_savedwindow);
 	vd->vd_savedwindow = NULL;
 }
+
+

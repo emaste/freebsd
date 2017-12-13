@@ -161,6 +161,8 @@ struct vt_device {
 	unsigned int		 vd_kbstate;	/* (?) Device unit. */
 	unsigned int		 vd_unit;	/* (c) Device unit. */
 	int			 vd_altbrk;	/* (?) Alt break seq. state */
+  u_short bell_pitch;
+  u_short bell_duration;
 };
 
 #define	VD_PASTEBUF(vd)	((vd)->vd_pastebuf.vpb_buf)
