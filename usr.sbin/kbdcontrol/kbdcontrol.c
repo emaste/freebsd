@@ -960,48 +960,48 @@ set_functionkey(char *keynumstr, char *string)
 static void
 set_bell_values(char *opt)
 {
-	long bell, duration, pitch, data;
+  long input;
+	unsigned long long bell, duration, pitch, data;
 
 	bell = 0;
 	if (!strncmp(opt, "quiet.", 6)) {
 		bell = CONS_QUIET_BELL;
 		opt += 6;
-		duration = 0, pitch = 800;
 	}
 	if (!strcmp(opt, "visual"))
 		bell |= CONS_VISUAL_BELL;
 	else if (!strcmp(opt, "normal"))
 		duration = 5, pitch = 800;
 	else if (!strcmp(opt, "off"))
-		duration = 0, pitch = 800;
+		duration = 0, pitch = 0;
 	else {
 		char		*v1;
 
 		bell = 0;
-		duration = strtol(opt, &v1, 0);
-		if ((duration < 0) || (*v1 != '.'))
+		input = strtol(opt, &v1, 0);
+		if ((input < 0) || (*v1 != '.'))
 			goto badopt;
+    duration = input;
 		opt = ++v1;
-		pitch = strtol(opt, &v1, 0);
-		if ((pitch < 0) || (*opt == '\0') || (*v1 != '\0')) {
+		input = strtol(opt, &v1, 0);
+		if ((input < 0) || (*opt == '\0') || (*v1 != '\0')) {
 badopt:
 			warnx("argument to -b must be duration.pitch or [quiet.]visual|normal|off");
 			return;
 		}
-		if (pitch != 0)
-			pitch = 1193182 / pitch;	/* in Hz */
-		duration /= 10;	/* in 10 m sec */
+    pitch = input;
 	}
 
-  data = (bell << 32) | ((pitch << 16) & 0xffff0000) | duration;
-  printf("DATA sent: %ld\n",data);
-  printf("BELL sent: %ld\n",bell);
-  printf("PITCH sent: %ld\n",pitch);
-  printf("DURATION sent: %ld\n",duration);
+  data = (bell << 32) | (pitch << 16) | duration;
+  //data = (pitch << 48) | (duration << 32) | bell;
+  printf("DATA sent: %llu\n",data);
+  printf("BELL sent: %llu\n",bell);
+  printf("PITCH sent: %llu\n",pitch);
+  printf("DURATION sent: %llu\n",duration);
 
 	ioctl(0, CONS_BELLTYPE, &data);
 	if (!(bell & CONS_VISUAL_BELL))
-		fprintf(stderr, "[=%ld;%ldB", pitch, duration);
+		fprintf(stderr, "[=%llu;%lluB", pitch, duration);
 }
 
 static void

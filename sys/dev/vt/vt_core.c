@@ -994,9 +994,9 @@ vtterm_bell(struct terminal *tm)
   pitch = vd->bell_pitch;
   duration = vd->bell_duration;
 
-  if (pitch <= 0) 
+  if (pitch == 0) 
     pitch = VT_BELLPITCH;
-  if (duration < 0 || duration > 1000)
+  if (duration > 1000)
     duration = VT_BELLDURATION;
 
 	sysbeep(1193182 / pitch, duration);
@@ -2243,12 +2243,13 @@ skip_thunk:
 		return (0);
 	case CONS_BELLTYPE: 	/* set bell type sound */
     // flags 32 bits | pitch 16 bits| duration 16 bits
-    printf("DATA::::%ld\n",*(long *) data);
-    printf("PITCH::::%ld\n",(((*(long *) data) >> 16) & 0xffff));
-    printf("DURATION::::%ld\n",((*(long *) data)  & 0xffff));
-    vd->bell_pitch = (((*(long *) data) >> 16) & 0xffff);
-    vd->bell_duration = ((*(long *) data)  & 0xffff);
-		if ((((*(long *)data) >> 32) & 0xfffffff) & CONS_QUIET_BELL)
+    printf("DATA::::%llu\n",(*(unsigned long long *) data));
+    printf("BELL::::%llu\n",(((*(unsigned long long *) data) >> 32) & 0xffffffffULL));
+    printf("PITCH::::%llu\n",(((*(unsigned long long *) data) >> 16) & 0xffffULL));
+    printf("DURATION::::%llu\n",((*(unsigned long long *) data)  & 0xffffULL));
+    vd->bell_pitch = (((*(unsigned long long *) data) >> 16) & 0xffffULL);
+    vd->bell_duration = ((*(unsigned long long *) data)  & 0xffffULL);
+		if ((((*(unsigned long long *)data) >> 32) & 0xfffffffULL) & CONS_QUIET_BELL)
 			vd->vd_flags |= VDF_QUIET_BELL;
 		else
 			vd->vd_flags &= ~VDF_QUIET_BELL;
