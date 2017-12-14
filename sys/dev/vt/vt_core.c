@@ -180,6 +180,8 @@ static void vt_mouse_paste(void);
 #endif
 static void vt_suspend_handler(void *priv);
 static void vt_resume_handler(void *priv);
+static void vt_blink_screen(struct vt_window *);
+static void vt_flush_helper(void *);
 
 SET_DECLARE(vt_drv_set, struct vt_driver);
 
@@ -987,6 +989,10 @@ vtterm_bell(struct terminal *tm)
 
 	if (!vt_enable_bell)
 		return;
+
+	if (vd->vd_flags & VDF_VISUAL_BELL) {
+     vt_blink_screen(vw);
+  }
 
 	if (vd->vd_flags & VDF_QUIET_BELL)
 		return;
@@ -2253,6 +2259,10 @@ skip_thunk:
 			vd->vd_flags |= VDF_QUIET_BELL;
 		else
 			vd->vd_flags &= ~VDF_QUIET_BELL;
+		if ((((*(unsigned long long *)data) >> 32) & 0xfffffffULL) & CONS_QUIET_BELL)
+			vd->vd_flags |= VDF_VISUAL_BELL;
+		else
+			vd->vd_flags &= ~VDF_VISUAL_BELL;
 		return (0);
 	case CONS_GETINFO: {
 		vid_info_t *vi = (vid_info_t *)data;
@@ -2885,4 +2895,28 @@ vt_resume(struct vt_device *vd)
 	vd->vd_savedwindow = NULL;
 }
 
+static void
+vt_blink_screen(struct vt_window *vw) {
+  struct callout flush;
+  callout_init(&flush, 0);
 
+  //set blink
+  if(vw->vw_buf.vb_visual_attr & VT_BLINK_SCREEN) 
+    vw->vw_buf.vb_visual_attr &= ~VT_BLINK_SCREEN;
+  else
+    vw->vw_buf.vb_visual_attr |= VT_BLINK_SCREEN;
+  callout_reset(&flush, hz, &vt_flush_helper, vw);
+  //printf("VISUAL ATTR: %ud\n",vw->vw_buf.vb_visual_attr);
+  ////unset blink
+  //vw->vw_buf.vb_visual_attr &= ~VT_BLINK_SCREEN;
+  //printf("VISUAL ATTR: %ud\n",vw->vw_buf.vb_visual_attr);
+  //callout_schedule(&flush, hz);
+  callout_stop(&flush);
+}
+
+static void vt_flush_helper(void * arg) {
+  struct vt_window *vw = arg;
+  //hack to force refresh
+  vtbuf_cursor_visibility(&vw->vw_buf,1);
+  vt_flush(vw->vw_device);
+}

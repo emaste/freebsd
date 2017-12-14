@@ -65,6 +65,7 @@
 #endif
 
 #define	VT_CONSWINDOW	0
+#define VT_BLINK_SCREEN 0x2222
 
 #if defined(SC_TWOBUTTON_MOUSE) || defined(VT_TWOBUTTON_MOUSE)
 #define VT_MOUSE_PASTEBUTTON	MOUSE_BUTTON3DOWN	/* right button */
@@ -156,6 +157,7 @@ struct vt_device {
 #define	VDF_INITIALIZED	0x20	/* vtterm_cnprobe already done. */
 #define	VDF_MOUSECURSOR	0x40	/* Mouse cursor visible. */
 #define	VDF_QUIET_BELL	0x80	/* Disable bell. */
+#define	VDF_VISUAL_BELL	0xC0	/* Visual bell. */
 #define	VDF_DOWNGRADE	0x8000	/* The driver is being downgraded. */
 	int			 vd_keyboard;	/* (G) Keyboard index. */
 	unsigned int		 vd_kbstate;	/* (?) Device unit. */
@@ -207,6 +209,7 @@ struct vt_buf {
 	term_rect_t		 vb_dirtyrect;	/* (b) Dirty rectangle. */
 	term_char_t		*vb_buffer;	/* (u) Data buffer. */
 	term_char_t		**vb_rows;	/* (u) Array of rows */
+  unsigned int vb_visual_attr; /*(?) Visual(blink) attr */
 };
 
 #ifdef SC_HISTORY_SIZE

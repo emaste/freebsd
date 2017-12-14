@@ -349,7 +349,7 @@ vt_fb_bitblt_text(struct vt_device *vd, const struct vt_window *vw,
 			c = VTBUF_GET_FIELD(&vw->vw_buf, row, col);
 			pattern = vtfont_lookup(vf, c);
 			vt_determine_colors(c,
-			    VTBUF_ISCURSOR(&vw->vw_buf, row, col), &fg, &bg);
+			    VTBUF_ISCURSOR(&vw->vw_buf, row, col) || (vw->vw_buf.vb_visual_attr & VT_BLINK_SCREEN), &fg, &bg);
 
 			vt_fb_bitblt_bitmap(vd, vw,
 			    pattern, NULL, vf->vf_width, vf->vf_height,
