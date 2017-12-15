@@ -961,47 +961,47 @@ set_functionkey(char *keynumstr, char *string)
 static void
 set_bell_values(char *opt)
 {
-  int bell;
-  bell = 0;
-  if (!strncmp(opt,"visual.", 7))  {
-    bell = CONS_VISUAL_BELL;
-    opt += 7;
-  }
-  if (!strcmp(opt,"off")) {
-    bell |= CONS_QUIET_BELL;
-  } else if (strcmp(opt,"on")) {
-    //neither on or off
+	int bell;
+	bell = 0;
+	if (!strncmp(opt,"visual.", 7)) {
+		bell = CONS_VISUAL_BELL;
+		opt += 7;
+	}
+	if (!strcmp(opt,"off")) {
+		bell |= CONS_QUIET_BELL;
+	} else if (strcmp(opt,"on")) {
+		//neither on or off
 		warnx("argument to -b must be [visual.]on|off");
 		return;
-  }
+	}
 
-  ioctl(0, CONS_BELLTYPE, &bell);
+	ioctl(0, CONS_BELLTYPE, &bell);
 }
 
 static void set_bell_tone(char *opt) {
-  int data, pitch, duration, input;
-  data = 0;
-  
-  if (!strncmp(opt, "normal", 7)) {
-    pitch = 800;
-    duration = 50;
-  } else {
-    char * v1;
-    input = strtol(opt, &v1, 0);
-    if ((input <= 0) || (*v1 != '.'))
-      goto badopt;
-    duration = input;
-    opt = ++v1;
-    input = strtol(opt, &v1, 0);
+	int data, pitch, duration, input;
+	data = 0;
+	
+	if (!strncmp(opt, "normal", 7)) {
+		pitch = 800;
+		duration = 50;
+	} else {
+		char * v1;
+		input = strtol(opt, &v1, 0);
+		if ((input <= 0) || (*v1 != '.'))
+			goto badopt;
+		duration = input;
+		opt = ++v1;
+		input = strtol(opt, &v1, 0);
 		if ((input <= 0) || (*opt == '\0') || (*v1 != '\0')) {
 badopt:
 			warnx("argument to -t must be normal or duration.pitch");
-    }
-    pitch = input;
-  }
-  data = (duration << 16) | pitch;
+		}
+		pitch = input;
+	}
+	data = (duration << 16) | pitch;
 
-  ioctl(0, CONS_BELLTONE, &data);
+	ioctl(0, CONS_BELLTONE, &data);
 }
 
 static void
@@ -1215,7 +1215,7 @@ usage(void)
 	fprintf(stderr, "%s\n%s\n%s\n",
 "usage: kbdcontrol [-dFKix] [-A name] [-a name] [-b [visual.]on|off]",
 "                  [-r delay.repeat | speed] [-l mapfile] [-f # string]",
-"                  [-k device] [-L mapfile] [-P path]");
+"                  [-k device] [-L mapfile] [-P path] [-t normal|duration.pitch");
 	exit(1);
 }
 
@@ -1254,7 +1254,7 @@ main(int argc, char **argv)
 			break;
 		case 'f':
 			set_functionkey(optarg,
-			    nextarg(argc, argv, &optind, 'f'));
+			nextarg(argc, argv, &optind, 'f'));
 			break;
 		case 'F':
 			load_default_functionkeys();
@@ -1267,13 +1267,13 @@ main(int argc, char **argv)
 			break;
 		case 'k':
 			set_keyboard(optarg);
-			break;
+		break;
 		case 'r':
 			set_keyrates(optarg);
 			break;
-    case 't':
-      set_bell_tone(optarg);
-      break;
+		case 't':
+			set_bell_tone(optarg);
+			break;
 		case 'x':
 			hex = 1;
 			break;

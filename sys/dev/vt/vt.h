@@ -163,8 +163,8 @@ struct vt_device {
 	unsigned int		 vd_kbstate;	/* (?) Device unit. */
 	unsigned int		 vd_unit;	/* (c) Device unit. */
 	int			 vd_altbrk;	/* (?) Alt break seq. state */
-  unsigned short  vd_bell_pitch;
-  unsigned short  vd_bell_duration;
+	unsigned short	vd_bell_pitch;
+	unsigned short	vd_bell_duration;
 };
 
 #define	VD_PASTEBUF(vd)	((vd)->vd_pastebuf.vpb_buf)
@@ -209,7 +209,7 @@ struct vt_buf {
 	term_rect_t		 vb_dirtyrect;	/* (b) Dirty rectangle. */
 	term_char_t		*vb_buffer;	/* (u) Data buffer. */
 	term_char_t		**vb_rows;	/* (u) Array of rows */
-  unsigned int vb_visual_attr; /*(?) Visual(blink) attr */
+	unsigned int vb_visual_attr; /*(?) Visual(blink) attr */
 };
 
 #ifdef SC_HISTORY_SIZE

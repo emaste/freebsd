@@ -210,8 +210,8 @@ struct vt_device	vt_consdev = {
 	.vd_mcursor_fg = TC_WHITE,
 	.vd_mcursor_bg = TC_BLACK,
 #endif
-  .vd_bell_pitch = VT_BELLPITCH,
-  .vd_bell_duration = 50, // VT_BELLDURATION is not compile time constant
+	.vd_bell_pitch = VT_BELLPITCH,
+	.vd_bell_duration = 50, // VT_BELLDURATION is not compile time constant
 };
 static term_char_t vt_constextbuf[(_VTDEFW) * (VBF_DEFAULT_HISTORY_SIZE)];
 static term_char_t *vt_constextbufrows[VBF_DEFAULT_HISTORY_SIZE];
@@ -991,8 +991,8 @@ vtterm_bell(struct terminal *tm)
 		return;
 
 	if (vd->vd_flags & VDF_VISUAL_BELL) {
-    vt_blink_screen(vw);
-  }
+		vt_blink_screen(vw);
+	}
 
 	if (vd->vd_flags & VDF_QUIET_BELL)
 		return;
@@ -2893,16 +2893,16 @@ vt_resume(struct vt_device *vd)
 
 static void
 vt_blink_screen(struct vt_window *vw) {
-  vw->vw_buf.vb_visual_attr |= VT_BLINK_SCREEN;
-  callout_reset(&vw->vw_blink_timer, vw->vw_device->vd_bell_duration * hz / 2000 , &vt_flush_helper, vw);
+	vw->vw_buf.vb_visual_attr |= VT_BLINK_SCREEN;
+	callout_reset(&vw->vw_blink_timer, vw->vw_device->vd_bell_duration * hz / 2000 , &vt_flush_helper, vw);
 }
 
 static void vt_flush_helper(void * arg) {
-  struct vt_window *vw = arg;
+	struct vt_window *vw = arg;
 	vw->vw_device->vd_flags |= VDF_INVALID;
-  vt_flush(vw->vw_device);
-  if(vw->vw_buf.vb_visual_attr & VT_BLINK_SCREEN) {
-    vw->vw_buf.vb_visual_attr &= ~VT_BLINK_SCREEN;
-    callout_schedule(&vw->vw_blink_timer, vw->vw_device->vd_bell_duration * hz / 2000);
-  }
+	vt_flush(vw->vw_device);
+	if(vw->vw_buf.vb_visual_attr & VT_BLINK_SCREEN) {
+		vw->vw_buf.vb_visual_attr &= ~VT_BLINK_SCREEN;
+		callout_schedule(&vw->vw_blink_timer, vw->vw_device->vd_bell_duration * hz / 2000);
+	}
 }
