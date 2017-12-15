@@ -210,6 +210,8 @@ struct vt_device	vt_consdev = {
 	.vd_mcursor_fg = TC_WHITE,
 	.vd_mcursor_bg = TC_BLACK,
 #endif
+  .vd_bell_pitch = VT_BELLPITCH,
+  .vd_bell_duration = 50, // VT_BELLDURATION is not compile time constant
 };
 static term_char_t vt_constextbuf[(_VTDEFW) * (VBF_DEFAULT_HISTORY_SIZE)];
 static term_char_t *vt_constextbufrows[VBF_DEFAULT_HISTORY_SIZE];
@@ -985,27 +987,17 @@ vtterm_bell(struct terminal *tm)
 	struct vt_window *vw = tm->tm_softc;
 	struct vt_device *vd = vw->vw_device;
 
-  u_short pitch, duration;
-
 	if (!vt_enable_bell)
 		return;
 
 	if (vd->vd_flags & VDF_VISUAL_BELL) {
-     vt_blink_screen(vw);
+    vt_blink_screen(vw);
   }
 
 	if (vd->vd_flags & VDF_QUIET_BELL)
 		return;
 
-  pitch = vd->bell_pitch;
-  duration = vd->bell_duration;
-
-  if (pitch == 0) 
-    pitch = VT_BELLPITCH;
-  if (duration > 1000)
-    duration = VT_BELLDURATION;
-
-	sysbeep(1193182 / pitch, duration);
+	sysbeep(1193182 / vd->vd_bell_pitch, vd->vd_bell_duration);
 }
 
 static void
@@ -2247,23 +2239,26 @@ skip_thunk:
 		/* XXX */
 		*(int *)data = M_CG640x480;
 		return (0);
-	case CONS_BELLTYPE: 	/* set bell type sound */
-    // flags 32 bits | pitch 16 bits| duration 16 bits
-    printf("DATA::::%llu\n",(*(unsigned long long *) data));
-    printf("BELL::::%llu\n",(((*(unsigned long long *) data) >> 32) & 0xffffffffULL));
-    printf("PITCH::::%llu\n",(((*(unsigned long long *) data) >> 16) & 0xffffULL));
-    printf("DURATION::::%llu\n",((*(unsigned long long *) data)  & 0xffffULL));
-    vd->bell_pitch = (((*(unsigned long long *) data) >> 16) & 0xffffULL);
-    vd->bell_duration = ((*(unsigned long long *) data)  & 0xffffULL);
-		if ((((*(unsigned long long *)data) >> 32) & 0xfffffffULL) & CONS_QUIET_BELL)
+	case CONS_BELLTYPE: { 	/* set bell type sound */
+    int bell;
+    bell = *(int *) data;
+
+		if (bell & CONS_QUIET_BELL)
 			vd->vd_flags |= VDF_QUIET_BELL;
 		else
 			vd->vd_flags &= ~VDF_QUIET_BELL;
-		if ((((*(unsigned long long *)data) >> 32) & 0xfffffffULL) & CONS_QUIET_BELL)
+
+		if (bell & CONS_VISUAL_BELL)
 			vd->vd_flags |= VDF_VISUAL_BELL;
 		else
 			vd->vd_flags &= ~VDF_VISUAL_BELL;
+
 		return (0);
+  }
+  case CONS_BELLTONE: 
+    vd->vd_bell_duration = ((*(int *) data) >> 16) & 0xffff;
+    vd->vd_bell_pitch = (*(int *) data) & 0xffff;
+    return (0);
 	case CONS_GETINFO: {
 		vid_info_t *vi = (vid_info_t *)data;
 		if (vi->size != sizeof(struct vid_info))
@@ -2614,6 +2609,7 @@ vt_allocate_window(struct vt_device *vd, unsigned int window)
 	terminal_set_winsize(tm, &wsz);
 	vd->vd_windows[window] = vw;
 	callout_init(&vw->vw_proc_dead_timer, 0);
+	callout_init(&vw->vw_blink_timer, 0);
 
 	return (vw);
 }
@@ -2897,26 +2893,16 @@ vt_resume(struct vt_device *vd)
 
 static void
 vt_blink_screen(struct vt_window *vw) {
-  struct callout flush;
-  callout_init(&flush, 0);
-
-  //set blink
-  if(vw->vw_buf.vb_visual_attr & VT_BLINK_SCREEN) 
-    vw->vw_buf.vb_visual_attr &= ~VT_BLINK_SCREEN;
-  else
-    vw->vw_buf.vb_visual_attr |= VT_BLINK_SCREEN;
-  callout_reset(&flush, hz, &vt_flush_helper, vw);
-  //printf("VISUAL ATTR: %ud\n",vw->vw_buf.vb_visual_attr);
-  ////unset blink
-  //vw->vw_buf.vb_visual_attr &= ~VT_BLINK_SCREEN;
-  //printf("VISUAL ATTR: %ud\n",vw->vw_buf.vb_visual_attr);
-  //callout_schedule(&flush, hz);
-  callout_stop(&flush);
+  vw->vw_buf.vb_visual_attr |= VT_BLINK_SCREEN;
+  callout_reset(&vw->vw_blink_timer, vw->vw_device->vd_bell_duration * hz / 2000 , &vt_flush_helper, vw);
 }
 
 static void vt_flush_helper(void * arg) {
   struct vt_window *vw = arg;
-  //hack to force refresh
-  vtbuf_cursor_visibility(&vw->vw_buf,1);
+	vw->vw_device->vd_flags |= VDF_INVALID;
   vt_flush(vw->vw_device);
+  if(vw->vw_buf.vb_visual_attr & VT_BLINK_SCREEN) {
+    vw->vw_buf.vb_visual_attr &= ~VT_BLINK_SCREEN;
+    callout_schedule(&vw->vw_blink_timer, vw->vw_device->vd_bell_duration * hz / 2000);
+  }
 }

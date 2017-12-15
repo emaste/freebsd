@@ -157,14 +157,14 @@ struct vt_device {
 #define	VDF_INITIALIZED	0x20	/* vtterm_cnprobe already done. */
 #define	VDF_MOUSECURSOR	0x40	/* Mouse cursor visible. */
 #define	VDF_QUIET_BELL	0x80	/* Disable bell. */
-#define	VDF_VISUAL_BELL	0xC0	/* Visual bell. */
+#define	VDF_VISUAL_BELL	0x100	/* Visual bell. */
 #define	VDF_DOWNGRADE	0x8000	/* The driver is being downgraded. */
 	int			 vd_keyboard;	/* (G) Keyboard index. */
 	unsigned int		 vd_kbstate;	/* (?) Device unit. */
 	unsigned int		 vd_unit;	/* (c) Device unit. */
 	int			 vd_altbrk;	/* (?) Alt break seq. state */
-  u_short bell_pitch;
-  u_short bell_duration;
+  unsigned short  vd_bell_pitch;
+  unsigned short  vd_bell_duration;
 };
 
 #define	VD_PASTEBUF(vd)	((vd)->vd_pastebuf.vpb_buf)
@@ -263,6 +263,8 @@ void vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz);
 #define	VTBUF_DIRTYCOL(mask, col) \
 	((mask)->vbm_col & ((uint64_t)1 << ((col) % 64)))
 #define	VTBUF_SPACE_CHAR(attr)	(' ' | (attr))
+#define	VT_IS_BLINKING(vb) \
+	(!!(vb->vb_visual_attr & VT_BLINK_SCREEN))
 
 #define	VHS_SET	0
 #define	VHS_CUR	1
@@ -303,6 +305,7 @@ struct vt_window {
 	struct proc		*vw_proc;
 	struct vt_mode		 vw_smode;	/* switch mode */
 	struct callout		 vw_proc_dead_timer;
+	struct callout		 vw_blink_timer;
 	struct vt_window	*vw_switch_to;
 };
 

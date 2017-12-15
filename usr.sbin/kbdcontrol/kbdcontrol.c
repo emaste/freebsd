@@ -143,6 +143,7 @@ static void	print_keymap(void);
 static void	release_keyboard(void);
 static void	mux_keyboard(u_int op, char *kbd);
 static void	set_bell_values(char *opt);
+static void set_bell_tone(char *opt);
 static void	set_functionkey(char *keynumstr, char *string);
 static void	set_keyboard(char *device);
 static void	set_keyrates(char *opt);
@@ -960,48 +961,47 @@ set_functionkey(char *keynumstr, char *string)
 static void
 set_bell_values(char *opt)
 {
-  long input;
-	unsigned long long bell, duration, pitch, data;
+  int bell;
+  bell = 0;
+  if (!strncmp(opt,"visual.", 7))  {
+    bell = CONS_VISUAL_BELL;
+    opt += 7;
+  }
+  if (!strcmp(opt,"off")) {
+    bell |= CONS_QUIET_BELL;
+  } else if (strcmp(opt,"on")) {
+    //neither on or off
+		warnx("argument to -b must be [visual.]on|off");
+		return;
+  }
 
-	bell = 0;
-	if (!strncmp(opt, "quiet.", 6)) {
-		bell = CONS_QUIET_BELL;
-		opt += 6;
-	}
-	if (!strcmp(opt, "visual"))
-		bell |= CONS_VISUAL_BELL;
-	else if (!strcmp(opt, "normal"))
-		duration = 5, pitch = 800;
-	else if (!strcmp(opt, "off"))
-		duration = 0, pitch = 0;
-	else {
-		char		*v1;
+  ioctl(0, CONS_BELLTYPE, &bell);
+}
 
-		bell = 0;
-		input = strtol(opt, &v1, 0);
-		if ((input < 0) || (*v1 != '.'))
-			goto badopt;
+static void set_bell_tone(char *opt) {
+  int data, pitch, duration, input;
+  data = 0;
+  
+  if (!strncmp(opt, "normal", 7)) {
+    pitch = 800;
+    duration = 50;
+  } else {
+    char * v1;
+    input = strtol(opt, &v1, 0);
+    if ((input <= 0) || (*v1 != '.'))
+      goto badopt;
     duration = input;
-		opt = ++v1;
-		input = strtol(opt, &v1, 0);
-		if ((input < 0) || (*opt == '\0') || (*v1 != '\0')) {
+    opt = ++v1;
+    input = strtol(opt, &v1, 0);
+		if ((input <= 0) || (*opt == '\0') || (*v1 != '\0')) {
 badopt:
-			warnx("argument to -b must be duration.pitch or [quiet.]visual|normal|off");
-			return;
-		}
+			warnx("argument to -t must be normal or duration.pitch");
+    }
     pitch = input;
-	}
+  }
+  data = (duration << 16) | pitch;
 
-  data = (bell << 32) | (pitch << 16) | duration;
-  //data = (pitch << 48) | (duration << 32) | bell;
-  printf("DATA sent: %llu\n",data);
-  printf("BELL sent: %llu\n",bell);
-  printf("PITCH sent: %llu\n",pitch);
-  printf("DURATION sent: %llu\n",duration);
-
-	ioctl(0, CONS_BELLTYPE, &data);
-	if (!(bell & CONS_VISUAL_BELL))
-		fprintf(stderr, "[=%llu;%lluB", pitch, duration);
+  ioctl(0, CONS_BELLTONE, &data);
 }
 
 static void
@@ -1213,7 +1213,7 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
-"usage: kbdcontrol [-dFKix] [-A name] [-a name] [-b duration.pitch | [quiet.]belltype]",
+"usage: kbdcontrol [-dFKix] [-A name] [-a name] [-b [visual.]on|off]",
 "                  [-r delay.repeat | speed] [-l mapfile] [-f # string]",
 "                  [-k device] [-L mapfile] [-P path]");
 	exit(1);
@@ -1223,7 +1223,7 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-	const char	*optstring = "A:a:b:df:iKk:Fl:L:P:r:x";
+	const char	*optstring = "A:a:b:df:iKk:Fl:L:P:r:t:x";
 	int		opt;
 
 	/* Collect any -P arguments, regardless of where they appear. */
@@ -1271,6 +1271,9 @@ main(int argc, char **argv)
 		case 'r':
 			set_keyrates(optarg);
 			break;
+    case 't':
+      set_bell_tone(optarg);
+      break;
 		case 'x':
 			hex = 1;
 			break;
