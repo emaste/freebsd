@@ -2314,6 +2314,12 @@ skip_thunk:
 			return (EINVAL);
 		}
 	}
+	case CONS_CLRHIST: {
+		unsigned int temp = vd->vd_curwindow->vw_buf.vb_history_size;
+		vtbuf_sethistory_size(&vd->vd_curwindow->vw_buf, 0);
+		vtbuf_sethistory_size(&vd->vd_curwindow->vw_buf, temp);
+		return (0);
+	}
 	case PIO_VFONT: {
 		struct vt_font *vf;
 
