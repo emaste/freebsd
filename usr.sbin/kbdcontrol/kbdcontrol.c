@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include "path.h"
 #include "lex.h"
 
+#include <errno.h>
+
 /*
  * HALT, PDWN, and PASTE aren't defined in 4.x, but we need them to bridge
  * to 5.0-current so define them here as a stop gap transition measure.
@@ -141,6 +143,7 @@ static void	print_keymap(void);
 static void	release_keyboard(void);
 static void	mux_keyboard(u_int op, char *kbd);
 static void	set_bell_values(char *opt);
+static void set_bell_tone(char *opt);
 static void	set_functionkey(char *keynumstr, char *string);
 static void	set_keyboard(char *device);
 static void	set_keyrates(char *opt);
@@ -958,41 +961,47 @@ set_functionkey(char *keynumstr, char *string)
 static void
 set_bell_values(char *opt)
 {
-	int bell, duration, pitch;
-
+	int bell;
 	bell = 0;
-	if (!strncmp(opt, "quiet.", 6)) {
-		bell = CONS_QUIET_BELL;
-		opt += 6;
+	if (!strncmp(opt,"visual.", 7)) {
+		bell = CONS_VISUAL_BELL;
+		opt += 7;
 	}
-	if (!strcmp(opt, "visual"))
-		bell |= CONS_VISUAL_BELL;
-	else if (!strcmp(opt, "normal"))
-		duration = 5, pitch = 800;
-	else if (!strcmp(opt, "off"))
-		duration = 0, pitch = 0;
-	else {
-		char		*v1;
-
-		bell = 0;
-		duration = strtol(opt, &v1, 0);
-		if ((duration < 0) || (*v1 != '.'))
-			goto badopt;
-		opt = ++v1;
-		pitch = strtol(opt, &v1, 0);
-		if ((pitch < 0) || (*opt == '\0') || (*v1 != '\0')) {
-badopt:
-			warnx("argument to -b must be duration.pitch or [quiet.]visual|normal|off");
-			return;
-		}
-		if (pitch != 0)
-			pitch = 1193182 / pitch;	/* in Hz */
-		duration /= 10;	/* in 10 m sec */
+	if (!strcmp(opt,"off")) {
+		bell |= CONS_QUIET_BELL;
+	} else if (strcmp(opt,"on")) {
+		//neither on or off
+		warnx("argument to -b must be [visual.]on|off");
+		return;
 	}
 
 	ioctl(0, CONS_BELLTYPE, &bell);
-	if (!(bell & CONS_VISUAL_BELL))
-		fprintf(stderr, "[=%d;%dB", pitch, duration);
+}
+
+static void set_bell_tone(char *opt) {
+	int data, pitch, duration, input;
+	data = 0;
+	
+	if (!strncmp(opt, "normal", 7)) {
+		pitch = 800;
+		duration = 50;
+	} else {
+		char * v1;
+		input = strtol(opt, &v1, 0);
+		if ((input <= 0) || (*v1 != '.'))
+			goto badopt;
+		duration = input;
+		opt = ++v1;
+		input = strtol(opt, &v1, 0);
+		if ((input <= 0) || (*opt == '\0') || (*v1 != '\0')) {
+badopt:
+			warnx("argument to -t must be normal or duration.pitch");
+		}
+		pitch = input;
+	}
+	data = (duration << 16) | pitch;
+
+	ioctl(0, CONS_BELLTONE, &data);
 }
 
 static void
@@ -1204,9 +1213,9 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
-"usage: kbdcontrol [-dFKix] [-A name] [-a name] [-b duration.pitch | [quiet.]belltype]",
+"usage: kbdcontrol [-dFKix] [-A name] [-a name] [-b [visual.]on|off]",
 "                  [-r delay.repeat | speed] [-l mapfile] [-f # string]",
-"                  [-k device] [-L mapfile] [-P path]");
+"                  [-k device] [-L mapfile] [-P path] [-t normal|duration.pitch");
 	exit(1);
 }
 
@@ -1214,7 +1223,7 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-	const char	*optstring = "A:a:b:df:iKk:Fl:L:P:r:x";
+	const char	*optstring = "A:a:b:df:iKk:Fl:L:P:r:t:x";
 	int		opt;
 
 	/* Collect any -P arguments, regardless of where they appear. */
@@ -1245,7 +1254,7 @@ main(int argc, char **argv)
 			break;
 		case 'f':
 			set_functionkey(optarg,
-			    nextarg(argc, argv, &optind, 'f'));
+			nextarg(argc, argv, &optind, 'f'));
 			break;
 		case 'F':
 			load_default_functionkeys();
@@ -1258,9 +1267,12 @@ main(int argc, char **argv)
 			break;
 		case 'k':
 			set_keyboard(optarg);
-			break;
+		break;
 		case 'r':
 			set_keyrates(optarg);
+			break;
+		case 't':
+			set_bell_tone(optarg);
 			break;
 		case 'x':
 			hex = 1;
@@ -1270,5 +1282,5 @@ main(int argc, char **argv)
 		}
 	if ((optind != argc) || (argc == 1))
 		usage();
-	exit(0);
+	exit(errno);
 }

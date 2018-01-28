@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fts.h>
 
 #include "setfacl.h"
 
@@ -59,34 +60,12 @@ struct sf_entry {
 };
 static TAILQ_HEAD(, sf_entry) entrylist;
 
-/* TAILQ entry for files */
-struct sf_file {
-	const char *filename;
-	TAILQ_ENTRY(sf_file) next;
-};
-static TAILQ_HEAD(, sf_file) filelist;
-
 uint have_mask;
 uint need_mask;
 uint have_stdin;
 uint n_flag;
 
-static void	add_filename(const char *filename);
 static void	usage(void);
-
-static void
-add_filename(const char *filename)
-{
-	struct sf_file *file;
-
-	if (strlen(filename) > PATH_MAX - 1) {
-		warn("illegal filename");
-		return;
-	}
-	file = zmalloc(sizeof(struct sf_file));
-	file->filename = filename;
-	TAILQ_INSERT_TAIL(&filelist, file, next);
-}
 
 static void
 usage(void)
@@ -104,22 +83,24 @@ main(int argc, char *argv[])
 	acl_type_t acl_type;
 	acl_entry_t unused_entry;
 	char filename[PATH_MAX];
-	int local_error, carried_error, ch, i, entry_number, ret;
-	int h_flag;
-	struct sf_file *file;
+	int local_error, carried_error, ch, entry_number, ret, fts_options;
+	int R_flag, h_flag;
 	struct sf_entry *entry;
-	const char *fn_dup;
+  char *fn_dup;
 	char *end;
 	struct stat sb;
+	FTS *ftsp;
+	FTSENT *p;
+  char ** filelist;
+  size_t size, len;
 
 	acl_type = ACL_TYPE_ACCESS;
 	carried_error = local_error = 0;
-	h_flag = have_mask = have_stdin = n_flag = need_mask = 0;
+	R_flag = h_flag = have_mask = have_stdin = n_flag = need_mask = 0;
 
 	TAILQ_INIT(&entrylist);
-	TAILQ_INIT(&filelist);
 
-	while ((ch = getopt(argc, argv, "M:X:a:bdhkm:nx:")) != -1)
+	while ((ch = getopt(argc, argv, "M:RX:a:bdhkm:nx:")) != -1)
 		switch(ch) {
 		case 'M':
 			entry = zmalloc(sizeof(struct sf_entry));
@@ -129,6 +110,9 @@ main(int argc, char *argv[])
 			entry->op = OP_MERGE_ACL;
 			TAILQ_INSERT_TAIL(&entrylist, entry, next);
 			break;
+    case 'R':
+      R_flag = 1;
+      break;
 		case 'X':
 			entry = zmalloc(sizeof(struct sf_entry));
 			entry->acl = get_acl_from_file(optarg);
@@ -213,43 +197,85 @@ main(int argc, char *argv[])
 			err(1, "cannot have more than one stdin");
 		have_stdin = 1;
 		bzero(&filename, sizeof(filename));
+    size = 16;
+    len = 0;
+    filelist = realloc(NULL, sizeof(char *) * size);
 		while (fgets(filename, (int)sizeof(filename), stdin)) {
 			/* remove the \n */
 			filename[strlen(filename) - 1] = '\0';
 			fn_dup = strdup(filename);
 			if (fn_dup == NULL)
 				err(1, "strdup() failed");
-			add_filename(fn_dup);
+      //filelist
+      filelist[len++] = fn_dup;
+      if (size == len) {
+        filelist = realloc(filelist, sizeof(char *) * (size += 16));
+        if (!filelist) {
+          err(1, "realloc() failed");
+        }
+      }
 		}
-	} else
-		for (i = 0; i < argc; i++)
-			add_filename(argv[i]);
+    filelist = realloc(filelist, sizeof(char *) * len);
+	} else {
+    filelist = argv;
+  }
 
-	/* cycle through each file */
-	TAILQ_FOREACH(file, &filelist, next) {
+  if (R_flag) {
+    if (h_flag) 
+			errx(1, "the -R and -h options may not be "
+			    "specified together.");
+    fts_options = FTS_PHYSICAL;
+  } else {
+    fts_options = FTS_LOGICAL;
+  }
+
+  if ((ftsp = fts_open(filelist, fts_options, 0)) == NULL)
+    err(1, "fts_open");
+  for (ret = 0;(p = fts_read(ftsp)) != NULL;) {
+    switch(p->fts_info) {
+      case FTS_D:
+        if (!R_flag)
+          fts_set(ftsp,p,FTS_SKIP);
+        break;
+      case FTS_DNR:
+        warnx("%s: %s", p->fts_accpath, strerror(p->fts_errno));
+        ret = 1;
+        break;
+      case FTS_DP:
+        continue;
+      case FTS_ERR:
+      case FTS_NS:
+        warnx("%s: %s", p->fts_accpath, strerror(p->fts_errno));
+        ret = 1;
+        continue;
+      default:
+        break;
+    }
+
+    /* cycle through each file */
 		local_error = 0;
 
-		if (stat(file->filename, &sb) == -1) {
-			warn("%s: stat() failed", file->filename);
+		if (stat(p->fts_accpath, &sb) == -1) {
+			warn("%s: stat() failed", p->fts_accpath);
 			carried_error++;
 			continue;
 		}
 
 		if (acl_type == ACL_TYPE_DEFAULT && S_ISDIR(sb.st_mode) == 0) {
 			warnx("%s: default ACL may only be set on a directory",
-			    file->filename);
+			    p->fts_accpath);
 			carried_error++;
 			continue;
 		}
 
 		if (h_flag)
-			ret = lpathconf(file->filename, _PC_ACL_NFS4);
+			ret = lpathconf(p->fts_accpath, _PC_ACL_NFS4);
 		else
-			ret = pathconf(file->filename, _PC_ACL_NFS4);
+			ret = pathconf(p->fts_accpath, _PC_ACL_NFS4);
 		if (ret > 0) {
 			if (acl_type == ACL_TYPE_DEFAULT) {
 				warnx("%s: there are no default entries "
-			           "in NFSv4 ACLs", file->filename);
+			           "in NFSv4 ACLs", p->fts_accpath);
 				carried_error++;
 				continue;
 			}
@@ -259,20 +285,20 @@ main(int argc, char *argv[])
 				acl_type = ACL_TYPE_ACCESS;
 		} else if (ret < 0 && errno != EINVAL) {
 			warn("%s: pathconf(..., _PC_ACL_NFS4) failed",
-			    file->filename);
+			    p->fts_accpath);
 		}
 
 		if (h_flag)
-			acl = acl_get_link_np(file->filename, acl_type);
+			acl = acl_get_link_np(p->fts_accpath, acl_type);
 		else
-			acl = acl_get_file(file->filename, acl_type);
+			acl = acl_get_file(p->fts_accpath, acl_type);
 		if (acl == NULL) {
 			if (h_flag)
 				warn("%s: acl_get_link_np() failed",
-				    file->filename);
+				    p->fts_accpath);
 			else
 				warn("%s: acl_get_file() failed",
-				    file->filename);
+				    p->fts_accpath);
 			carried_error++;
 			continue;
 		}
@@ -285,11 +311,11 @@ main(int argc, char *argv[])
 			switch(entry->op) {
 			case OP_ADD_ACL:
 				local_error += add_acl(entry->acl,
-				    entry->entry_number, &acl, file->filename);
+				    entry->entry_number, &acl, p->fts_accpath);
 				break;
 			case OP_MERGE_ACL:
 				local_error += merge_acl(entry->acl, &acl,
-				    file->filename);
+				    p->fts_accpath);
 				need_mask = 1;
 				break;
 			case OP_REMOVE_EXT:
@@ -301,37 +327,37 @@ main(int argc, char *argv[])
 				    acl_get_entry(acl, ACL_FIRST_ENTRY,
 				    &unused_entry) == 0) {
 					local_error += remove_default(&acl,
-					    file->filename);
+					    p->fts_accpath);
 					break;
 				}
-				remove_ext(&acl, file->filename);
+				remove_ext(&acl, p->fts_accpath);
 				need_mask = 0;
 				break;
 			case OP_REMOVE_DEF:
 				if (acl_type == ACL_TYPE_NFS4) {
 					warnx("%s: there are no default entries in NFSv4 ACLs; "
-					    "cannot remove", file->filename);
+					    "cannot remove", p->fts_accpath);
 					local_error++;
 					break;
 				}
-				if (acl_delete_def_file(file->filename) == -1) {
+				if (acl_delete_def_file(p->fts_accpath) == -1) {
 					warn("%s: acl_delete_def_file() failed",
-					    file->filename);
+					    p->fts_accpath);
 					local_error++;
 				}
 				if (acl_type == ACL_TYPE_DEFAULT)
 					local_error += remove_default(&acl,
-					    file->filename);
+					    p->fts_accpath);
 				need_mask = 0;
 				break;
 			case OP_REMOVE_ACL:
 				local_error += remove_acl(entry->acl, &acl,
-				    file->filename);
+				    p->fts_accpath);
 				need_mask = 1;
 				break;
 			case OP_REMOVE_BY_NUMBER:
 				local_error += remove_by_number(entry->entry_number,
-				    &acl, file->filename);
+				    &acl, p->fts_accpath);
 				need_mask = 1;
 				break;
 			}
@@ -343,9 +369,9 @@ main(int argc, char *argv[])
 		 */
 		if (acl_type == ACL_TYPE_DEFAULT &&
 		    acl_get_entry(acl, ACL_FIRST_ENTRY, &unused_entry) == 0) {
-			if (acl_delete_def_file(file->filename) == -1) {
+			if (acl_delete_def_file(p->fts_accpath) == -1) {
 				warn("%s: acl_delete_def_file() failed",
-				    file->filename);
+				    p->fts_accpath);
 				carried_error++;
 			}
 			continue;
@@ -358,22 +384,22 @@ main(int argc, char *argv[])
 		}
 
 		if (acl_type != ACL_TYPE_NFS4 && need_mask &&
-		    set_acl_mask(&acl, file->filename) == -1) {
-			warnx("%s: failed to set ACL mask", file->filename);
+		    set_acl_mask(&acl, p->fts_accpath) == -1) {
+			warnx("%s: failed to set ACL mask", p->fts_accpath);
 			carried_error++;
 		} else if (h_flag) {
-			if (acl_set_link_np(file->filename, acl_type,
+			if (acl_set_link_np(p->fts_accpath, acl_type,
 			    acl) == -1) {
 				carried_error++;
 				warn("%s: acl_set_link_np() failed",
-				    file->filename);
+				    p->fts_accpath);
 			}
 		} else {
-			if (acl_set_file(file->filename, acl_type,
+			if (acl_set_file(p->fts_accpath, acl_type,
 			    acl) == -1) {
 				carried_error++;
 				warn("%s: acl_set_file() failed",
-				    file->filename);
+				    p->fts_accpath);
 			}
 		}
 
