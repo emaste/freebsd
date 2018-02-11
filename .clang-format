@@ -1,0 +1,12 @@
+AlignAfterOpenBracket: DontAlign
+AlwaysBreakBeforeMultilineStrings: false
+BinPackArguments: false
+BinPackParameters: false
+BreakBeforeBinaryOperators: None
+BreakBeforeBraces: Linux
+ContinuationIndentWidth: 4
+IndentCaseLabels: false
+IndentWidth: 8
+KeepEmptyLinesAtTheStartOfBlocks: true
+PointerAlignment: Right
+UseTab: Always
