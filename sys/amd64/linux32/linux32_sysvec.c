@@ -110,8 +110,8 @@ static void	linux_exec_setregs(struct thread *td,
 				   struct image_params *imgp, uintptr_t stack);
 static void	linux32_fixlimit(struct rlimit *rl, int which);
 static bool	linux32_trans_osrel(const Elf_Note *note, int32_t *osrel);
-static void	linux_vdso_install(void *param);
-static void	linux_vdso_deinstall(void *param);
+static void	linux_vdso_install(const void *param);
+static void	linux_vdso_deinstall(const void *param);
 
 #define LINUX_T_UNKNOWN  255
 static int _bsd_to_linux_trapcode[] = {
@@ -918,7 +918,7 @@ struct sysentvec elf_linux_sysvec = {
 };
 
 static void
-linux_vdso_install(void *param)
+linux_vdso_install(const void *param)
 {
 
 	linux_szsigcode = (&_binary_linux32_locore_o_end -
@@ -945,7 +945,7 @@ SYSINIT(elf_linux_vdso_init, SI_SUB_EXEC, SI_ORDER_ANY,
     linux_vdso_install, NULL);
 
 static void
-linux_vdso_deinstall(void *param)
+linux_vdso_deinstall(const void *param)
 {
 
 	__elfN(linux_shared_page_fini)(linux_shared_page_obj);
