@@ -552,7 +552,8 @@ fetch(char *URL, const char *path)
 		goto signal;
 	if (f == NULL) {
 		warnx("%s: %s", URL, fetchLastErrString);
-		if (i_flag && strcmp(url->scheme, SCHEME_HTTP) == 0
+		if (i_flag && (strcmp(url->scheme, SCHEME_HTTP) == 0
+		    || strcmp(url->scheme, SCHEME_HTTPS) == 0)
 		    && fetchLastErrCode == FETCH_OK
 		    && strcmp(fetchLastErrString, "Not Modified") == 0) {
 			/* HTTP Not Modified Response, return OK. */

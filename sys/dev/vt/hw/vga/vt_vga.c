@@ -648,7 +648,7 @@ vga_bitblt_one_text_pixels_block(struct vt_device *vd,
 		c = VTBUF_GET_FIELD(vb, row, col);
 		src = vtfont_lookup(vf, c);
 
-		vt_determine_colors(c, VTBUF_ISCURSOR(vb, row, col), &fg, &bg);
+		vt_determine_colors(c, VTBUF_ISCURSOR(vb, row, col) ^ VT_IS_BLINKING(vb), &fg, &bg);
 		if ((used_colors_list[fg] & 0x1) != 0x1)
 			used_colors++;
 		if ((used_colors_list[bg] & 0x2) != 0x2)

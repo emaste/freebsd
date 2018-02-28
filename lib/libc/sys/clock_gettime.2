@@ -68,7 +68,7 @@ as well as the following values:
 .It Dv CLOCK_REALTIME
 .It Dv CLOCK_REALTIME_PRECISE
 .It Dv CLOCK_REALTIME_FAST
-Increments as a wall clock should.
+Increments with consideration of leap seconds and leap years.
 .It Dv CLOCK_MONOTONIC
 .It Dv CLOCK_MONOTONIC_PRECISE
 .It Dv CLOCK_MONOTONIC_FAST
@@ -116,6 +116,8 @@ struct timespec {
 	long	tv_nsec;	/* and nanoseconds */
 };
 .Ed
+.Pp
+Its time represents seconds and nanoseconds since the Epoch.
 .Pp
 Only the super-user may set the time of day, using only
 .Fa CLOCK_REALTIME .

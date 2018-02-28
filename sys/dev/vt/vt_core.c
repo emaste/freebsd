@@ -180,6 +180,8 @@ static void vt_mouse_paste(void);
 #endif
 static void vt_suspend_handler(void *priv);
 static void vt_resume_handler(void *priv);
+static void vt_blink_screen(struct vt_window *);
+static void vt_flush_helper(void *);
 
 SET_DECLARE(vt_drv_set, struct vt_driver);
 
@@ -208,6 +210,8 @@ struct vt_device	vt_consdev = {
 	.vd_mcursor_fg = TC_WHITE,
 	.vd_mcursor_bg = TC_BLACK,
 #endif
+	.vd_bell_pitch = VT_BELLPITCH,
+	.vd_bell_duration = 50, // VT_BELLDURATION is not compile time constant
 };
 static term_char_t vt_constextbuf[(_VTDEFW) * (VBF_DEFAULT_HISTORY_SIZE)];
 static term_char_t *vt_constextbufrows[VBF_DEFAULT_HISTORY_SIZE];
@@ -1007,10 +1011,14 @@ vtterm_bell(struct terminal *tm)
 	if (!vt_enable_bell)
 		return;
 
+	if (vd->vd_flags & VDF_VISUAL_BELL) {
+		vt_blink_screen(vw);
+	}
+
 	if (vd->vd_flags & VDF_QUIET_BELL)
 		return;
 
-	sysbeep(1193182 / VT_BELLPITCH, VT_BELLDURATION);
+	sysbeep(1193182 / vd->vd_bell_pitch, vd->vd_bell_duration);
 }
 
 static void
@@ -2252,12 +2260,26 @@ skip_thunk:
 		/* XXX */
 		*(int *)data = M_CG640x480;
 		return (0);
-	case CONS_BELLTYPE: 	/* set bell type sound */
-		if ((*(int *)data) & CONS_QUIET_BELL)
+	case CONS_BELLTYPE: { 	/* set bell type sound */
+    int bell;
+    bell = *(int *) data;
+
+		if (bell & CONS_QUIET_BELL)
 			vd->vd_flags |= VDF_QUIET_BELL;
 		else
 			vd->vd_flags &= ~VDF_QUIET_BELL;
+
+		if (bell & CONS_VISUAL_BELL)
+			vd->vd_flags |= VDF_VISUAL_BELL;
+		else
+			vd->vd_flags &= ~VDF_VISUAL_BELL;
+
 		return (0);
+  }
+  case CONS_BELLTONE: 
+    vd->vd_bell_duration = ((*(int *) data) >> 16) & 0xffff;
+    vd->vd_bell_pitch = (*(int *) data) & 0xffff;
+    return (0);
 	case CONS_GETINFO: {
 		vid_info_t *vi = (vid_info_t *)data;
 		if (vi->size != sizeof(struct vid_info))
@@ -2312,6 +2334,12 @@ skip_thunk:
 		default:
 			return (EINVAL);
 		}
+	}
+	case CONS_CLRHIST: {
+		unsigned int temp = vd->vd_curwindow->vw_buf.vb_history_size;
+		vtbuf_sethistory_size(&vd->vd_curwindow->vw_buf, 0);
+		vtbuf_sethistory_size(&vd->vd_curwindow->vw_buf, temp);
+		return (0);
 	}
 	case PIO_VFONT: {
 		struct vt_font *vf;
@@ -2381,6 +2409,7 @@ skip_thunk:
 		return (0);
 	case KIOCSOUND:     	/* make tone (*data) hz */
 		/* TODO */
+    //vt_setfreq(*(int *) data);
 		return (0);
 	case CONS_SETKBD: 		/* set the new keyboard */
 		mtx_lock(&Giant);
@@ -2607,6 +2636,7 @@ vt_allocate_window(struct vt_device *vd, unsigned int window)
 	terminal_set_winsize(tm, &wsz);
 	vd->vd_windows[window] = vw;
 	callout_init(&vw->vw_proc_dead_timer, 0);
+	callout_init(&vw->vw_blink_timer, 0);
 
 	return (vw);
 }
@@ -2886,4 +2916,20 @@ vt_resume(struct vt_device *vd)
 	/* Switch back to saved window, if any */
 	vt_proc_window_switch(vd->vd_savedwindow);
 	vd->vd_savedwindow = NULL;
+}
+
+static void
+vt_blink_screen(struct vt_window *vw) {
+	vw->vw_buf.vb_visual_attr |= VT_BLINK_SCREEN;
+	callout_reset(&vw->vw_blink_timer, vw->vw_device->vd_bell_duration * hz / 2000 , &vt_flush_helper, vw);
+}
+
+static void vt_flush_helper(void * arg) {
+	struct vt_window *vw = arg;
+	vw->vw_device->vd_flags |= VDF_INVALID;
+	vt_flush(vw->vw_device);
+	if(vw->vw_buf.vb_visual_attr & VT_BLINK_SCREEN) {
+		vw->vw_buf.vb_visual_attr &= ~VT_BLINK_SCREEN;
+		callout_schedule(&vw->vw_blink_timer, vw->vw_device->vd_bell_duration * hz / 2000);
+	}
 }

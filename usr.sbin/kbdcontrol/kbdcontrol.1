@@ -78,27 +78,48 @@ process should be redirected from the keyboard multiplexer keyboard device
 (if the keyboard multiplexer is the active keyboard and
 you are not working on the system console).
 .It Fl b Xo
-.Ar duration . Ns Ar pitch | Ar belltype
+.Ar belltype
 .Xc
-Set the bell duration in milliseconds and pitch in hertz.
 If a
 .Ar belltype
 argument is specified, it may be one of
-.Cm normal
-which sets sound parameters back to normal values,
+.Cm on
+which enables bell sound,
 .Cm off
-which disables the bell entirely, or
+which disables the bell entirely.
 .Cm visual
 which sets the bell to visual mode, i.e., flashes the screen instead.
 If
 .Ar belltype
 is preceded by the word
-.Cm quiet. ,
-the bell will not be rung when the ringing process is in the background vty.
+.Cm visual. ,
+the bell is set to visual mode, i.e., flashes the screen while ringing (if sets to
+.Cm on
+).
 The
 .Cm visual
 bell, when chosen, applies to all vtys; other bell types
 can be set individually for each vty.
+.It Fl t Xo
+.Ar tone
+.Xc
+If a 
+.Ar tone
+argument is specified, it may be one of
+.Cm normal
+which sets the tone to default duration and pitch, or
+.Cm duration . Ns Cm pitch,
+which would set the bell 
+.Ar duration
+in milliseconds and 
+.Ar pitch 
+in hertz. Both
+.Ar duration
+and
+.Ar pitch
+should not be set to 0. In such case use
+.Cm -b Cm off
+instead.
 .It Fl r Xo
 .Ar delay . Ns Ar repeat | Ar speed
 .Xc
@@ -253,11 +274,10 @@ The following command will make the function key 10 emit "telnet myhost".
 .Pp
 .Dl kbdcontrol -f 10 \&"telnet myhost\&"
 .Pp
-In order to get the visual effect for bell, but prevent the screen
-from flashing if the bell is to ring in the background screen,
-run the following command.
+In order to get the visual effect for bell, but prevent the bell
+from ringing, run the following command.
 .Pp
-.Dl kbdcontrol -b quiet.visual
+.Dl kbdcontrol -b visual.off
 .Pp
 To change the default console keyboard to another keyboard,
 for example the first USB keyboard (see

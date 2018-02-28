@@ -120,6 +120,7 @@ typedef struct ssaver	ssaver_t;
 #define CONS_VISUAL_BELL (1 << 0)
 #define CONS_QUIET_BELL	(1 << 1)
 #define CONS_BELLTYPE	_IOW('c', 8, int)
+#define CONS_BELLTONE	_IOW('c', 11, int)
 
 /* set the history (scroll back) buffer size (in lines) */
 #define CONS_HISTORY	_IOW('c', 9, int)
