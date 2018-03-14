@@ -636,3 +636,13 @@ ENTRY(mds_handler_silvermont)
 	movl	%eax, %cr0
 3:	ret
 END(mds_handler_silvermont)
+
+/* External retpoline thunk */
+ENTRY(__x86_indirect_thunk_eax)
+	calll	2f
+1:	pause
+	lfence
+	jmp	1b
+2:	movl	%eax, (%esp)
+	retl
+END(__x86_indirect_thunk_eax)
