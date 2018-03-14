@@ -472,3 +472,13 @@ ENTRY(handle_ibrs_exit)
 	movb	$0,PCPU(IBPB_SET)
 1:	ret
 END(handle_ibrs_exit)
+
+/* External retpoline thunk */
+ENTRY(__x86_indirect_thunk_eax)
+	calll	2f
+1:	pause
+	lfence
+	jmp	1b
+2:	movl	%eax, (%esp)
+	retl
+END(__x86_indirect_thunk_eax)
