@@ -1920,3 +1920,13 @@ ENTRY(mds_handler_silvermont)
 	popq	%rax
 	retq
 END(mds_handler_silvermont)
+
+/* External Retpoline thunk */
+ENTRY(__x86_indirect_thunk_r11)
+	callq	2f
+1:	pause
+	lfence
+	jmp	1b
+2:	movq	%r11, (%rsp)
+	retq
+END(__x86_indirect_thunk_r11)
