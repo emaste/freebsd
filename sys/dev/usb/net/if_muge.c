@@ -1005,6 +1005,7 @@ lan78xx_chip_init(struct muge_softc *sc)
 	sc->chiprev = buf & ETH_ID_REV_CHIP_REV_MASK_;
 	switch (sc->chipid) {
 	case ETH_ID_REV_CHIP_ID_7800_:
+	case ETH_ID_REV_CHIP_ID_7801_:
 	case ETH_ID_REV_CHIP_ID_7850_:
 		break;
 	default:
@@ -1108,6 +1109,9 @@ lan78xx_chip_init(struct muge_softc *sc)
 	    !lan78xx_eeprom_present(sc)) {
 		/* Set automatic duplex and speed on LAN7800 without EEPROM. */
 		buf |= ETH_MAC_CR_AUTO_DUPLEX_ | ETH_MAC_CR_AUTO_SPEED_;
+	} else if (sc->chipid == ETH_ID_REV_CHIP_ID_7801_) {
+		/* LAN7801 only supports RGMII. */
+		buf &= ~ETH_MAC_CR_GMII_EN_;
 	}
 	err = lan78xx_write_reg(sc, ETH_MAC_CR, buf);
 
