@@ -17,7 +17,7 @@ _PRIVATELIBS=	\
 		atf_cxx \
 		bsdstat \
 		devdctl \
-		event \
+		event1 \
 		gmock \
 		gtest \
 		gmock_main \
