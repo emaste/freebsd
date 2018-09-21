@@ -616,6 +616,9 @@ OLD_LIBS+=usr/lib32/libnuron.so
 OLD_LIBS+=usr/lib32/libsureware.so
 OLD_LIBS+=usr/lib32/libubsec.so
 OLD_LIBS+=usr/lib32/libssl.so.8
+# 201809xx: libevent renamed libevent1
+OLD_FILES+=usr/include/private/event/event.h
+OLD_DIRS+=usr/include/private/event
 # 20180824: libbe(3) SHLIBDIR fixed to reflect correct location
 OLD_LIBS+=usr/lib/libbe.so.1
 # 20180819: Remove deprecated arc4random(3) stir/addrandom interfaces

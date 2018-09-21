@@ -46,7 +46,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libdwarf \
 	libedit \
 	libelftc \
-	libevent \
+	libevent1 \
 	libexecinfo \
 	libexpat \
 	libfetch \
