@@ -241,13 +241,14 @@ sdhci_acpi_set_uhs_timing(device_t dev, struct sdhci_slot *slot)
 static const struct sdhci_acpi_device *
 sdhci_acpi_find_device(device_t dev)
 {
-	const char *hid;
+	char *hid;
 	int i, uid;
 	ACPI_HANDLE handle;
 	ACPI_STATUS status;
+	int rv;
 
-	hid = ACPI_ID_PROBE(device_get_parent(dev), dev, sdhci_ids);
-	if (hid == NULL)
+	rv =  ACPI_ID_PROBE(device_get_parent(dev), dev, sdhci_ids, &hid);
+	if (rv > 0)
 		return (NULL);
 
 	handle = acpi_get_handle(dev);
