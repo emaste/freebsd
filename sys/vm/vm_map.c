@@ -1485,6 +1485,63 @@ vm_map_fixed(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	return (result);
 }
 
+static const int aslr_pages_rnd_64[2] = {0x1000, 0x10};
+static const int aslr_pages_rnd_32[2] = {0x100, 0x4};
+
+static int aslr_sloppiness = 5;
+SYSCTL_INT(_vm, OID_AUTO, aslr_sloppiness, CTLFLAG_RW, &aslr_sloppiness, 0,
+    "Number of tries before unrestricted allocation performed");
+
+static int aslr_collapse_anon = 1;
+SYSCTL_INT(_vm, OID_AUTO, aslr_collapse_anon, CTLFLAG_RW,
+    &aslr_collapse_anon, 0,
+    "Coalesce anonymous mappings");
+
+#define	MAP_32BIT_MAX_ADDR	((vm_offset_t)1 << 31)
+
+static bool
+vm_map_find_collapse_anon(vm_object_t object, vm_prot_t prot, int cow)
+{
+
+	if (object != NULL || (cow & (MAP_INHERIT_SHARE | MAP_STACK_GROWS_UP |
+	    MAP_STACK_GROWS_DOWN)) != 0 || prot == PROT_NONE)
+		return (false);
+	return (aslr_collapse_anon != 0);
+}
+
+static int
+vm_map_find_aslr_rnd(vm_map_t map, vm_offset_t max_addr, int pidx)
+{
+
+	return (vm_map_max(map) > MAP_32BIT_MAX_ADDR && (max_addr == 0 ||
+	    max_addr > MAP_32BIT_MAX_ADDR) ? aslr_pages_rnd_64[pidx] :
+	    aslr_pages_rnd_32[pidx]);
+}
+
+static bool
+vm_map_find_aslr_adjust(vm_map_t map, vm_offset_t *addr, vm_size_t length,
+    vm_offset_t max_addr, int find_space)
+{
+	vm_map_entry_t prev_entry;
+	vm_offset_t rand_max, re;
+	int pidx;
+
+	vm_map_lookup_entry(map, *addr, &prev_entry);
+	pidx = MAXPAGESIZES > 1 && pagesizes[1] != 0 && (find_space ==
+	    VMFS_SUPER_SPACE || find_space == VMFS_OPTIMAL_SPACE) ? 1 : 0;
+	re = prev_entry->next == &map->header ? vm_map_max(map) :
+	    prev_entry->next->start;
+	rand_max = max_addr != 0 && re > max_addr ? max_addr : re;
+	rand_max -= *addr + length;
+	rand_max /= pagesizes[pidx];
+	if (rand_max < vm_map_find_aslr_rnd(map, max_addr, pidx)) {
+		*addr = re;
+		return (false);
+	}
+	*addr += (arc4random() % rand_max) * pagesizes[pidx];
+	return (true);
+}
+
 /*
  * Searches for the specified amount of free space in the given map with the
  * specified alignment.  Performs an address-ordered, first-fit search from
@@ -1565,7 +1622,8 @@ vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	    vm_prot_t prot, vm_prot_t max, int cow)
 {
 	vm_offset_t alignment, min_addr;
-	int rv;
+	int do_aslr, rv;
+	bool anon, en_aslr;
 
 	KASSERT((cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) == 0 ||
 	    object == NULL,
@@ -1578,19 +1636,52 @@ vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		alignment = (vm_offset_t)1 << (find_space >> 8);
 	} else
 		alignment = 0;
+	do_aslr = (map->flags & MAP_ASLR) != 0 ? aslr_sloppiness : 0;
+	en_aslr = do_aslr > 0;
+	anon = vm_map_find_collapse_anon(object, prot, cow);
+	min_addr = *addr;
+	if (en_aslr && min_addr == 0) {
+		if (anon)
+			*addr = map->anon_loc;
+		else if (find_space != VMFS_NO_SPACE && (map->flags &
+		    MAP_ASLR_IGNSTART) != 0)
+			*addr = vm_map_min(map);
+	}
 	vm_map_lock(map);
 	if (find_space != VMFS_NO_SPACE) {
 		KASSERT(find_space == VMFS_ANY_SPACE ||
 		    find_space == VMFS_OPTIMAL_SPACE ||
 		    find_space == VMFS_SUPER_SPACE ||
 		    alignment != 0, ("unexpected VMFS flag"));
-		min_addr = *addr;
 again:
+		if (en_aslr && (do_aslr == 0 || (anon &&
+		    do_aslr == aslr_sloppiness - 1))) {
+			/*
+			 * We are either at the last aslr iteration,
+			 * or anon coalescing failed on the first try.
+			 * Retry with free run.
+			 */
+			*addr = (map->flags & MAP_ASLR_IGNSTART) != 0 ?
+			    vm_map_min(map) : min_addr;
+		}
+
 		if (vm_map_findspace(map, min_addr, length, addr) ||
 		    (max_addr != 0 && *addr + length > max_addr)) {
 			rv = KERN_NO_SPACE;
 			goto done;
 		}
+
+		/*
+		 * Randomize the map address if ASLR is active, unless
+		 * we can coalesce an anon memory request.
+		 */
+		if (do_aslr > 0 && !(anon && do_aslr == aslr_sloppiness) &&
+		    !vm_map_find_aslr_adjust(map, addr, length, max_addr,
+		    find_space)) {
+			do_aslr--;
+			goto again;
+		}
+
 		if (find_space != VMFS_ANY_SPACE &&
 		    (rv = vm_map_alignspace(map, object, offset, addr, length,
 		    max_addr, alignment)) != KERN_SUCCESS) {
@@ -1609,6 +1700,8 @@ again:
 		    prot, max, cow);
 	}
 done:
+	if (rv == KERN_SUCCESS && anon)
+		map->anon_loc = *addr + length;
 	vm_map_unlock(map);
 	return (rv);
 }
@@ -3161,6 +3254,9 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 		if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) != 0 ||
 		    entry->object.vm_object != NULL)
 			pmap_remove(map->pmap, entry->start, entry->end);
+
+		if (entry->end == map->anon_loc)
+			map->anon_loc = entry->prev->end;
 
 		/*
 		 * Delete the entry only after removing all pmap
