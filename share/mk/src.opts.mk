@@ -319,10 +319,6 @@ __DEFAULT_NO_OPTIONS+=CLANG_BOOTSTRAP CLANG_IS_CC
 __DEFAULT_YES_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX GPL_DTC
 __DEFAULT_NO_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_IS_CC LLD
 .endif
-# In-tree binutils/gcc are older versions without modern architecture support.
-.if ${__T} == "aarch64" || ${__T:Mriscv*} != ""
-BROKEN_OPTIONS+=BINUTILS BINUTILS_BOOTSTRAP GCC GCC_BOOTSTRAP GDB
-.endif
 .if ${__T:Mriscv*} != ""
 BROKEN_OPTIONS+=OFED
 .endif
@@ -400,6 +396,15 @@ BROKEN_OPTIONS+=HYPERV
 .if ${__T} != "aarch64" && ${__T} != "amd64" && ${__T} != "i386" && ${__T} != "powerpc64"
 BROKEN_OPTIONS+=NVME
 .endif
+
+# GPL options are broken
+BROKEN_OPTIONS+=BINUTILS
+BROKEN_OPTIONS+=BINUTILS_BOOTSTRAP
+BROKEN_OPTIONS+=DIALOG
+BROKEN_OPTIONS+=GCC
+BROKEN_OPTIONS+=GCC_BOOTSTRAP
+BROKEN_OPTIONS+=SSP
+#BROKEN_OPTIONS+=
 
 # Sparc64 need extra crt*.o files
 .if ${__T:Msparc64}
