@@ -411,7 +411,7 @@ SUBDIR+=bin
 .if ${MK_CDDL} != "no"
 SUBDIR+=cddl
 .endif
-SUBDIR+=gnu include
+SUBDIR+=include
 .if ${MK_KERBEROS} != "no"
 SUBDIR+=kerberos5
 .endif
