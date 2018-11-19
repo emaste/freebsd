@@ -42,6 +42,12 @@
 extern void debug_printf(const char *, ...) __printflike(1, 2);
 extern int debug;
 
+// Enable DEBUG by default as we experiment with tool chain changes which may
+// break rtld.
+#if !defined(DEBUG)
+#define DEBUG
+#endif
+
 #ifdef DEBUG
 #define dbg(...)	debug_printf(__VA_ARGS__)
 #else
