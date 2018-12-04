@@ -7,5 +7,12 @@ env:
   CIRRUS_CLONE_DEPTH: 1
 
 task:
-  script: sh tools/tools/cirrus_ci/cirrus.sh
+  timeout_in: 90m
+  install_script:
+  - pkg install -y qemu-devel
+  - fetch https://people.freebsd.org/~emaste/OVMF.fd
+  script:
+  - make -j$(sysctl -n hw.ncpu) WITHOUT_TOOLCHAIN=yes buildworld buildkernel
+  test_script:
+  - sh tools/ci/qemu-test.sh
 
