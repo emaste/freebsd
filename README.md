@@ -23,6 +23,9 @@ https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html, and
 https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig.html
 for more information, including setting make(1) variables.
 
+CI status:
+![Build Status](https://api.cirrus-ci.com/github/emaste/freebsd.svg?branch=cirrus-ci)
+
 Source Roadmap:
 ---------------
 ```
