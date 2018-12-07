@@ -5366,7 +5366,7 @@ obj_disable_relro(Obj_Entry *obj)
 
 	return (obj_remap_relro(obj, PROT_READ | PROT_WRITE));
 }
-	
+
 static int
 obj_enforce_relro(Obj_Entry *obj)
 {
