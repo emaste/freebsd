@@ -980,6 +980,8 @@ _cleanobj_fast_depend_hack: .PHONY
 		rm -f ${OBJTOP}/usr.sbin/wpa/*/.depend*; \
 	fi
 
+	sh ${.CURDIR}/tools/build/clean_deps.sh ${OBJTOP}
+
 _worldtmp: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"
