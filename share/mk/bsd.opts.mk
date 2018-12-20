@@ -62,7 +62,6 @@ __DEFAULT_YES_OPTIONS = \
     NIS \
     NLS \
     OPENSSH \
-    PIE \
     PROFILE \
     SYMVER \
     TESTS \
@@ -73,6 +72,7 @@ __DEFAULT_NO_OPTIONS = \
     CCACHE_BUILD \
     CTF \
     INSTALL_AS_USER \
+    PIE \
     RETPOLINE \
     SSP \
     STALE_STAGED
