@@ -627,6 +627,10 @@ write_objs(struct bsdar *bsdar)
 			create_symtab_entry(bsdar, obj->maddr, obj->size);
 		if (strlen(obj->name) > _MAXNAMELEN_SVR4)
 			add_to_ar_str_table(bsdar, obj->name);
+		if (bsdar->rela_off > (off_t)(UINT32_MAX -
+		    (_ARHDR_LEN + obj->size + obj->size % 2)))
+			bsdar_errc(bsdar, EX_SOFTWARE, 0,
+			    "Symbol table offset overflow");
 		bsdar->rela_off += _ARHDR_LEN + obj->size + obj->size % 2;
 	}
 
