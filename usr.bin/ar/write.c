@@ -632,6 +632,9 @@ write_objs(struct bsdar *bsdar)
 			bsdar_errc(bsdar, EX_SOFTWARE, 0,
 			    "Symbol table offset overflow");
 		bsdar->rela_off += _ARHDR_LEN + obj->size + obj->size % 2;
+		if (bsdar->rela_off > UINT32_MAX)
+			bsdar_errc(bsdar, EX_SOFTWARE, 0,
+			    "Symbol table offset overflow");
 	}
 
 	/*
