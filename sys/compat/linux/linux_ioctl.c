@@ -2844,7 +2844,7 @@ linux_to_bsd_v4l_window(struct l_video_window *lvw, struct video_window *vw)
 static int
 bsd_to_linux_v4l_window(struct video_window *vw, struct l_video_window *lvw)
 {
-	memset(l_video_window, 0, sizeof(*l_video_window));
+	memset(lvw, 0, sizeof(*lvw));
 
 	lvw->x = vw->x;
 	lvw->y = vw->y;
