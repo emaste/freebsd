@@ -13,3 +13,6 @@ EOF
 
 echo "Building world with -j $cpus"
 make -j $cpus buildworld
+
+echo "Building kernel with -j $cpus"
+make -j $cpus buildkernel
