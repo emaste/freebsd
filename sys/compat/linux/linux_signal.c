@@ -646,7 +646,6 @@ void
 siginfo_to_lsiginfo(const siginfo_t *si, l_siginfo_t *lsi, l_int sig)
 {
 
-	memset(lsi, 0, sizeof(*lsi));
 	/* sig alredy converted */
 	lsi->lsi_signo = sig;
 	sicode_to_lsicode(si->si_code, &lsi->lsi_code);
