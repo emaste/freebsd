@@ -3,6 +3,8 @@ WIPBSD
 WIPBSD is Ed Maste's work-in-progress FreeBSD tree, including changes
 related to the build system and toolchain.
 
+[![CI status](https://api.cirrus-ci.com/github/emaste/freebsd.svg?branch=wipbsd.20200821)](http://cirrus-ci.com/github/emaste/freebsd/wipbsd.20200821)
+
 Default Options
 ---------------
 WIPBSD chooses a different default for a number of options.
