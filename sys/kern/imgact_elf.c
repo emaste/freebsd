@@ -801,9 +801,12 @@ __CONCAT(rnd_, __elfN(base))(vm_map_t map __unused, u_long minv, u_long maxv,
 	MPASS(vm_map_min(map) <= minv);
 	MPASS(maxv <= vm_map_max(map));
 	MPASS(minv < maxv);
+	MPASS(minv + align < maxv);
 	arc4rand(&rbase, sizeof(rbase), 0);
 	res = roundup(minv, (u_long)align) + rbase % (maxv - minv);
 	res &= ~((u_long)align - 1);
+	if (res >= maxv)
+		res -= align;
 	KASSERT(res >= minv,
 	    ("res %#lx < minv %#lx, maxv %#lx rbase %#lx",
 	    res, minv, maxv, rbase));
@@ -963,7 +966,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		 * non-zero for some reason.
 		 */
 		if (baddr == 0) {
-			if ((sv->sv_flags & SV_ASLR) == 0)
+			if ((sv->sv_flags & SV_ASLR) == 0 ||
+			    (fctl0 & NT_FREEBSD_FCTL_NO_ASLR) != 0)
 				et_dyn_addr = ET_DYN_LOAD_ADDR;
 			else if ((__elfN(pie_aslr_enabled) &&
 			    (imgp->proc->p_flag2 & P2_ASLR_DISABLE) == 0) ||
@@ -990,11 +994,11 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	VOP_UNLOCK(imgp->vp, 0);
 
 	/*
-	 * Decide to enable randomization of user mappings.  First,
-	 * reset user preferences for the setid binaries.  Then,
-	 * account for the support of the randomization by the ABI, by
-	 * user preferences, and make special treatment for PIE
-	 * binaries.
+	 * Decide whether to enable randomization of user mappings.
+	 * First, reset user preferences for the setid binaries.
+	 * Then, account for the support of the randomization by the
+	 * ABI, by user preferences, and make special treatment for
+	 * PIE binaries.
 	 */
 	if (imgp->credential_setid) {
 		PROC_LOCK(imgp->proc);
@@ -1002,7 +1006,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		PROC_UNLOCK(imgp->proc);
 	}
 	if ((sv->sv_flags & SV_ASLR) == 0 ||
-	    (imgp->proc->p_flag2 & P2_ASLR_DISABLE) != 0) {
+	    (imgp->proc->p_flag2 & P2_ASLR_DISABLE) != 0 ||
+	    (fctl0 & NT_FREEBSD_FCTL_NO_ASLR) != 0) {
 		KASSERT(et_dyn_addr != ET_DYN_ADDR_RAND,
 		    ("et_dyn_addr == RAND and !ASLR"));
 	} else if ((imgp->proc->p_flag2 & P2_ASLR_ENABLE) != 0 ||
@@ -1140,6 +1145,14 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 */
 	addr = round_page((vm_offset_t)vmspace->vm_daddr + lim_max(td,
 	    RLIMIT_DATA));
+	if ((map->flags & MAP_ASLR) != 0) {
+		maxv1 = maxv / 2 + addr / 2;
+		MPASS(maxv1 >= addr);	/* No overflow */
+		map->anon_loc = __CONCAT(rnd_, __elfN(base))(map, addr, maxv1,
+		    MAXPAGESIZES > 1 ? pagesizes[1] : pagesizes[0]);
+	} else {
+		map->anon_loc = addr;
+	}
 	PROC_UNLOCK(imgp->proc);
 
 	imgp->entry_addr = entry;
@@ -1149,9 +1162,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		VOP_UNLOCK(imgp->vp, 0);
 		if ((map->flags & MAP_ASLR) != 0) {
 			/* Assume that interpeter fits into 1/4 of AS */
-			maxv1 = (maxv + addr) / 2;
-			if (maxv1 <= addr)	/* Fix overflow */
-				maxv1 = maxv;
+			maxv1 = maxv / 2 + addr / 2;
+			MPASS(maxv1 >= addr);	/* No overflow */
 			addr = __CONCAT(rnd_, __elfN(base))(map, addr,
 			    maxv1, PAGE_SIZE);
 		}

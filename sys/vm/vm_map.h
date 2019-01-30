@@ -211,8 +211,9 @@ struct vm_map {
  */
 #define MAP_WIREFUTURE		0x01	/* wire all future pages */
 #define	MAP_BUSY_WAKEUP		0x02
-#define	MAP_ASLR		0x04	/* enabled ASLR */
-#define	MAP_ASLR_IGNSTART	0x08
+#define	MAP_IS_SUB_MAP		0x04	/* has parent */
+#define	MAP_ASLR		0x08	/* enabled ASLR */
+#define	MAP_ASLR_IGNSTART	0x10
 
 #ifdef	_KERNEL
 #if defined(KLD_MODULE) && !defined(KLD_TIED)
