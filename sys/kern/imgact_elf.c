@@ -1007,7 +1007,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	}
 	if ((sv->sv_flags & SV_ASLR) == 0 ||
 	    (imgp->proc->p_flag2 & P2_ASLR_DISABLE) != 0 ||
-	    (fctl0 & NT_FREEBSD_FCTL_NO_ASLR) != 0) {
+	    (fctl0 & NT_FREEBSD_FCTL_ASLR_DISABLE) != 0) {
 		KASSERT(et_dyn_addr != ET_DYN_ADDR_RAND,
 		    ("et_dyn_addr == RAND and !ASLR"));
 	} else if ((imgp->proc->p_flag2 & P2_ASLR_ENABLE) != 0 ||
