@@ -102,7 +102,7 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_elf_core_prepare_notes = __elfN(prepare_notes),
 	.sv_minsigstksz	= MINSIGSTKSZ,
 	.sv_minuser	= VM_MIN_ADDRESS,
-	.sv_stackprot	= VM_PROT_ALL,
+	.sv_stackprot	= VM_PROT_READ | VM_PROT_WRITE,
 #ifdef __powerpc64__
 	.sv_maxuser	= VM_MAXUSER_ADDRESS32,
 	.sv_usrstack	= FREEBSD32_USRSTACK,
