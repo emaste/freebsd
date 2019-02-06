@@ -271,7 +271,7 @@ _rtld_get_stack_prot(void)
 		return (r);
 
 	_once(&dl_phdr_info_once, dl_init_phdr_info);
-	r = PROT_EXEC | PROT_READ | PROT_WRITE;
+	r = PROT_READ | PROT_WRITE;
 	for (i = 0; i < phdr_info.dlpi_phnum; i++) {
 		if (phdr_info.dlpi_phdr[i].p_type != PT_GNU_STACK)
 			continue;
