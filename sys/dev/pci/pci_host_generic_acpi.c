@@ -357,12 +357,13 @@ generic_pcie_get_xref(device_t pci, device_t child)
 	int err;
 
 	sc = device_get_softc(pci);
-	pcib_get_id(pci, child, PCI_ID_RID, &rid);
-	/* XXX andrew check return */
+	err = pcib_get_id(pci, child, PCI_ID_RID, &rid);
+	if (err != 0)
+		return (ACPI_MSI_XREF);
 	err = acpi_iort_map_pci_msi(sc->base.ecam, rid, &xref, &devid);
-	if (err == 0)
-		return (xref);
-	return (ACPI_MSI_XREF);
+	if (err != 0)
+		return (ACPI_MSI_XREF);
+	return (xref);
 }
 
 static u_int
@@ -374,13 +375,15 @@ generic_pcie_map_id(device_t pci, device_t child, uintptr_t *id)
 	int err;
 
 	sc = device_get_softc(pci);
-	pcib_get_id(pci, child, PCI_ID_RID, &rid);
-	err = acpi_iort_map_pci_msi(sc->base.ecam, rid, &xref, &devid);
+	err = pcib_get_id(pci, child, PCI_ID_RID, &rid);
+	if (err != 0)
+		return (err);
+        err = acpi_iort_map_pci_msi(sc->base.ecam, rid, &xref, &devid);
 	if (err == 0)
 		*id = devid;
 	else
-		*id = rid;
-	return (err);
+		*id = rid;	/* RID not in IORT, likely FW bug, ignore */
+	return (0);
 }
 
 static int
@@ -451,14 +454,8 @@ generic_pcie_acpi_get_id(device_t pci, device_t child, enum pci_id_type type,
     uintptr_t *id)
 {
 
-	/*
-	 * Use the PCI RID to find the MSI ID for now, we support only 1:1
-	 * mapping
-	 *
-	 * On aarch64, more complex mapping would come from IORT table
-	 */
 	if (type == PCI_ID_MSI)
-		return generic_pcie_map_id(pci, child, id);
+		return (generic_pcie_map_id(pci, child, id));
 	else
 		return (pcib_get_id(pci, child, type, id));
 }
