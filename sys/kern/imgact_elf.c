@@ -136,21 +136,25 @@ SYSCTL_INT(_kern_elf32, OID_AUTO, read_exec, CTLFLAG_RW, &i386_read_exec, 0,
     "enable execution from readable segments");
 #endif
 
-static int __elfN(aslr_enabled) = 1;
-SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO,
-    aslr_enabled, CTLFLAG_RWTUN, &__elfN(aslr_enabled), 0,
+SYSCTL_NODE(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO, aslr, CTLFLAG_RW, 0,
+    "");
+#define	ASLR_NODE_OID	__CONCAT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), _aslr)
+
+static int __elfN(aslr_enabled) = 0;
+SYSCTL_INT(ASLR_NODE_OID, OID_AUTO, enable, CTLFLAG_RWTUN,
+    &__elfN(aslr_enabled), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE))
     ": enable address map randomization");
 
-static int __elfN(pie_aslr_enabled) = 1;
-SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO,
-    pie_aslr_enabled, CTLFLAG_RWTUN, &__elfN(pie_aslr_enabled), 0,
+static int __elfN(pie_aslr_enabled) = 0;
+SYSCTL_INT(ASLR_NODE_OID, OID_AUTO, pie_enable, CTLFLAG_RWTUN,
+    &__elfN(pie_aslr_enabled), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE))
     ": enable address map randomization for PIE binaries");
 
-static int __elfN(aslr_honor_sbrk) = 0;
-SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO,
-    aslr_honor_sbrk, CTLFLAG_RW, &__elfN(aslr_honor_sbrk), 0,
+static int __elfN(aslr_honor_sbrk) = 1;
+SYSCTL_INT(ASLR_NODE_OID, OID_AUTO, honor_sbrk, CTLFLAG_RW,
+    &__elfN(aslr_honor_sbrk), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE)) ": assume sbrk is used");
 
 static Elf_Brandinfo *elf_brand_list[MAX_BRANDS];
