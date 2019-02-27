@@ -1,9 +1,9 @@
 env:
   CIRRUS_CLONE_DEPTH: 1
 
-ubuntu_task:
+debian_task:
   container:
-    image: ubuntu-1604-xenial-v20171121a
+    image: debian:stable
 
   setup_script:
     - apt-get update
