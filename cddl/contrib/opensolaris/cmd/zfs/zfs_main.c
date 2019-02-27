@@ -3813,7 +3813,7 @@ zfs_do_send(int argc, char **argv)
 	};
 
 	/* check options */
-	while ((c = getopt_long(argc, argv, ":i:I:RbDpvnPLet:c", long_options,
+	while ((c = getopt_long(argc, argv, ":i:I:RbDpVvnPLet:c", long_options,
 	    NULL)) != -1) {
 		switch (c) {
 		case 'i':
@@ -3836,6 +3836,10 @@ zfs_do_send(int argc, char **argv)
 		case 'P':
 			flags.parsable = B_TRUE;
 			flags.verbose = B_TRUE;
+			break;
+		case 'V':
+			flags.progress = B_TRUE;
+			flags.progressastitle = B_TRUE;
 			break;
 		case 'v':
 			if (flags.verbose)
@@ -6114,9 +6118,6 @@ report_mount_progress(int current, int total)
 	static time_t last_progress_time = 0;
 	time_t now = time(NULL);
 	char info[32];
-
-	/* report 1..n instead of 0..n-1 */
-	++current;
 
 	/* display header if we're here for the first time */
 	if (current == 1) {
