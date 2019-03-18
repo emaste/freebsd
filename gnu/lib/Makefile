@@ -4,7 +4,6 @@
 
 SUBDIR=
 SUBDIR.${MK_DIALOG}+=	libdialog
-SUBDIR.${MK_GCC}+=	libgomp
 SUBDIR.${MK_SSP}+=	libssp
 SUBDIR.${MK_TESTS}+=	tests
 
