@@ -543,6 +543,12 @@ nat64lsn_reset_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
 	return (0);
 }
 
+#ifdef __LP64__
+#define	FREEMASK_COPY(pg, n, out)	(out) = *FREEMASK_CHUNK((pg), (n))
+#else
+#define	FREEMASK_COPY(pg, n, out)	(out) = *FREEMASK_CHUNK((pg), (n)) | \
+    ((uint64_t)*(FREEMASK_CHUNK((pg), (n)) + 1) << 32)
+#endif
 /*
  * Reply: [ ipfw_obj_header ipfw_obj_data [ ipfw_nat64lsn_stg
  *	ipfw_nat64lsn_state x count, ... ] ]
@@ -553,16 +559,15 @@ nat64lsn_export_states_v1(struct nat64lsn_cfg *cfg, union nat64lsn_pgidx *idx,
 {
 	ipfw_nat64lsn_state_v1 *s;
 	struct nat64lsn_state *state;
-	uint64_t mask;
+	uint64_t freemask;
 	uint32_t i, count;
 
 	/* validate user input */
 	if (idx->chunk > pg->chunks_count - 1)
 		return (EINVAL);
 
-	mask = pg->chunks_count == 1 ? ~pg->freemask :
-	    ~pg->freemask_chunk[idx->chunk];
-	count = bitcount64(mask);
+	FREEMASK_COPY(pg, idx->chunk, freemask);
+	count = 64 - bitcount64(freemask);
 	if (count == 0)
 		return (0);	/* Try next PG/chunk */
 
@@ -575,7 +580,7 @@ nat64lsn_export_states_v1(struct nat64lsn_cfg *cfg, union nat64lsn_pgidx *idx,
 		return (ENOMEM);
 
 	for (i = 0; i < 64; i++) {
-		if (!ISSET64(mask, i))
+		if (ISSET64(freemask, i))
 			continue;
 		state = pg->chunks_count == 1 ? &pg->states->state[i] :
 		    &pg->states_chunk[idx->chunk]->state[i];

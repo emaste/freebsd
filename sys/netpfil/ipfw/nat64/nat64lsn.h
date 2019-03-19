@@ -75,14 +75,33 @@ struct nat64lsn_pg {
 	uint8_t			spare[2];
 
 	union {
-		uint64_t	freemask;
-		uint64_t	*freemask_chunk;
+		uint64_t	freemask64;
+		uint32_t	freemask32[2];
+		uint64_t	*freemask64_chunk;
+		uint32_t	*freemask32_chunk;
+		void		*freemask_chunk;
 	};
 	union {
 		struct nat64lsn_states_chunk *states;
 		struct nat64lsn_states_chunk **states_chunk;
 	};
 };
+
+#define	CHUNK_BY_FADDR(p, a)	((a) & ((p)->chunks_count - 1))
+
+#ifdef __LP64__
+#define	FREEMASK_CHUNK(p, v)	\
+    ((p)->chunks_count == 1 ? &(p)->freemask64 : \
+	&(p)->freemask64_chunk[CHUNK_BY_FADDR(p, v)])
+#define	FREEMASK_BITCOUNT(pg, faddr)	\
+    bitcount64(*FREEMASK_CHUNK((pg), (faddr)))
+#else
+#define	FREEMASK_CHUNK(p, v)	\
+    ((p)->chunks_count == 1 ? &(p)->freemask32[0] : \
+	&(p)->freemask32_chunk[CHUNK_BY_FADDR(p, v) * 2])
+#define	FREEMASK_BITCOUNT(pg, faddr)	\
+    bitcount64(*(uint64_t *)FREEMASK_CHUNK((pg), (faddr)))
+#endif /* !__LP64__ */
 
 struct nat64lsn_pgchunk {
 	struct nat64lsn_pg	*pgptr[32];

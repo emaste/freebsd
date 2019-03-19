@@ -179,7 +179,7 @@ convert_tcp_flags(uint8_t flags)
 
 static void
 nat64lsn_log(struct pfloghdr *plog, struct mbuf *m, sa_family_t family,
-    uintptr_t state)
+    struct nat64lsn_state *state)
 {
 
 	memset(plog, 0, sizeof(*plog));
@@ -187,8 +187,9 @@ nat64lsn_log(struct pfloghdr *plog, struct mbuf *m, sa_family_t family,
 	plog->af = family;
 	plog->action = PF_NAT;
 	plog->dir = PF_IN;
-	plog->rulenr = htonl(state >> 32);
-	plog->subrulenr = htonl(state & 0xffffffff);
+	plog->rulenr = htonl(state->ip_src);
+	plog->subrulenr = htonl((uint32_t)(state->aport << 16) |
+	    (state->proto << 8) | (state->ip_dst & 0xff));
 	plog->ruleset[0] = '\0';
 	strlcpy(plog->ifname, "NAT64LSN", sizeof(plog->ifname));
 	ipfw_bpf_mtap2(plog, PFLOG_HDRLEN, m);
@@ -216,16 +217,49 @@ nat64lsn_get_aliaslink(struct nat64lsn_cfg *cfg __unused,
 	return (CK_SLIST_FIRST(&host->aliases));
 }
 
-#define	FADDR_CHUNK(p, a)	((a) & ((p)->chunks_count - 1))
-#define	FREEMASK_CHUNK(p, v)	\
-    ((p)->chunks_count == 1 ? &(p)->freemask : \
-	&((p)->freemask_chunk[FADDR_CHUNK(p, v)]))
-#define	STATES_CHUNK(p, v)	\
-    ((p)->chunks_count == 1 ? (p)->states : \
-	((p)->states_chunk[FADDR_CHUNK(p, v)]))
 #define	STATE_HVAL(c, d)	HVAL((d), 2, (c)->hash_seed)
 #define	STATE_HASH(h, v)	\
     ((h)->states_hash[(v) & ((h)->states_hashsize - 1)])
+#define	STATES_CHUNK(p, v)	\
+    ((p)->chunks_count == 1 ? (p)->states : \
+	((p)->states_chunk[CHUNK_BY_FADDR(p, v)]))
+
+#ifdef __LP64__
+#define	FREEMASK_FFSLL(pg, faddr)		\
+    ffsll(*FREEMASK_CHUNK((pg), (faddr)))
+#define	FREEMASK_BTR(pg, faddr, bit)	\
+    ck_pr_btr_64(FREEMASK_CHUNK((pg), (faddr)), (bit))
+#define	FREEMASK_BTS(pg, faddr, bit)	\
+    ck_pr_bts_64(FREEMASK_CHUNK((pg), (faddr)), (bit))
+#define	FREEMASK_ISSET(pg, faddr, bit)	\
+    ISSET64(*FREEMASK_CHUNK((pg), (faddr)), (bit))
+#define	FREEMASK_COPY(pg, n, out)	\
+    (out) = ck_pr_load_64(FREEMASK_CHUNK((pg), (n)))
+#else
+static inline int
+freemask_ffsll(uint32_t *freemask)
+{
+	int i;
+
+	if ((i = ffsl(freemask[0])) != 0)
+		return (i);
+	if ((i = ffsl(freemask[1])) != 0)
+		return (i + 32);
+	return (0);
+}
+#define	FREEMASK_FFSLL(pg, faddr)		\
+    freemask_ffsll(FREEMASK_CHUNK((pg), (faddr)))
+#define	FREEMASK_BTR(pg, faddr, bit)	\
+    ck_pr_btr_32(FREEMASK_CHUNK((pg), (faddr)) + (bit) / 32, (bit) % 32)
+#define	FREEMASK_BTS(pg, faddr, bit)	\
+    ck_pr_bts_32(FREEMASK_CHUNK((pg), (faddr)) + (bit) / 32, (bit) % 32)
+#define	FREEMASK_ISSET(pg, faddr, bit)	\
+    ISSET32(*(FREEMASK_CHUNK((pg), (faddr)) + (bit) / 32), (bit) % 32)
+#define	FREEMASK_COPY(pg, n, out)	\
+    (out) = ck_pr_load_32(FREEMASK_CHUNK((pg), (n))) | \
+	((uint64_t)ck_pr_load_32(FREEMASK_CHUNK((pg), (n)) + 1) << 32)
+#endif /* !__LP64__ */
+
 
 #define	NAT64LSN_TRY_PGCNT	32
 static struct nat64lsn_pg*
@@ -246,8 +280,7 @@ nat64lsn_get_pg(uint32_t *chunkmask, uint32_t *pgmask,
 		idx = 0;
 	do {
 		ck_pr_fence_load();
-		if (pg != NULL &&
-		    bitcount64(*FREEMASK_CHUNK(pg, faddr)) > 0) {
+		if (pg != NULL && FREEMASK_BITCOUNT(pg, faddr) > 0) {
 			/*
 			 * If last used PG has not free states,
 			 * try to update pointer.
@@ -328,9 +361,9 @@ nat64lsn_get_state6to4(struct nat64lsn_cfg *cfg, struct nat64lsn_host *host,
 
 	/* Check that PG has some free states */
 	state = NULL;
-	i = bitcount64(*FREEMASK_CHUNK(pg, faddr));
+	i = FREEMASK_BITCOUNT(pg, faddr);
 	while (i-- > 0) {
-		offset = ffsll(*FREEMASK_CHUNK(pg, faddr));
+		offset = FREEMASK_FFSLL(pg, faddr);
 		if (offset == 0) {
 			/*
 			 * We lost the race.
@@ -340,7 +373,7 @@ nat64lsn_get_state6to4(struct nat64lsn_cfg *cfg, struct nat64lsn_host *host,
 		}
 
 		/* Lets try to atomically grab the state */
-		if (ck_pr_btr_64(FREEMASK_CHUNK(pg, faddr), offset - 1)) {
+		if (FREEMASK_BTR(pg, faddr, offset - 1)) {
 			state = &STATES_CHUNK(pg, faddr)->state[offset - 1];
 			/* Initialize */
 			state->flags = proto != IPPROTO_TCP ? 0 :
@@ -507,7 +540,7 @@ nat64lsn_get_state4to6(struct nat64lsn_cfg *cfg, struct nat64lsn_alias *alias,
 	if (pg == NULL)
 		return (NULL);
 
-	if (ISSET64(*FREEMASK_CHUNK(pg, faddr), state_idx))
+	if (FREEMASK_ISSET(pg, faddr, state_idx))
 		return (NULL);
 
 	state = &STATES_CHUNK(pg, faddr)->state[state_idx];
@@ -592,7 +625,7 @@ nat64lsn_translate4(struct nat64lsn_cfg *cfg,
 
 	if (cfg->base.flags & NAT64_LOG) {
 		logdata = &loghdr;
-		nat64lsn_log(logdata, *mp, AF_INET, (uintptr_t)state);
+		nat64lsn_log(logdata, *mp, AF_INET, state);
 	} else
 		logdata = NULL;
 
@@ -664,7 +697,7 @@ nat64lsn_maintain_pg(struct nat64lsn_cfg *cfg, struct nat64lsn_pg *pg)
 
 	update_age = 0;
 	for (c = 0; c < pg->chunks_count; c++) {
-		freemask = ck_pr_load_64(FREEMASK_CHUNK(pg, c));
+		FREEMASK_COPY(pg, c, freemask);
 		for (i = 0; i < 64; i++) {
 			if (ISSET64(freemask, i))
 				continue;
@@ -685,7 +718,7 @@ nat64lsn_maintain_pg(struct nat64lsn_cfg *cfg, struct nat64lsn_pg *pg)
 				 */
 				state->flags = 0;
 				ck_pr_fence_store();
-				ck_pr_bts_64(FREEMASK_CHUNK(pg, c), i);
+				FREEMASK_BTS(pg, c, i);
 				NAT64STAT_INC(&cfg->base.stats, sdeleted);
 				continue;
 			}
@@ -1064,7 +1097,7 @@ nat64lsn_alloc_proto_pg(struct nat64lsn_cfg *cfg,
 			if (pg->states_chunk[i] == NULL)
 				goto states_failed;
 		}
-		memset(pg->freemask_chunk, 0xFF,
+		memset(pg->freemask_chunk, 0xff,
 		    sizeof(uint64_t) * pg->chunks_count);
 	} else {
 		pg->states = uma_zalloc(nat64lsn_state_zone, M_NOWAIT);
@@ -1072,7 +1105,7 @@ nat64lsn_alloc_proto_pg(struct nat64lsn_cfg *cfg,
 			uma_zfree(nat64lsn_pg_zone, pg);
 			return (PG_ERROR(6));
 		}
-		memset(&pg->freemask, 0xFF, sizeof(uint64_t));
+		memset(&pg->freemask64, 0xff, sizeof(uint64_t));
 	}
 
 	/* Initialize PG and hook it to pgchunk */
@@ -1303,14 +1336,14 @@ nat64lsn_job_destroy(epoch_context_t ctx)
 		pg = CK_SLIST_FIRST(&ji->portgroups);
 		CK_SLIST_REMOVE_HEAD(&ji->portgroups, entries);
 		for (i = 0; i < pg->chunks_count; i++) {
-			if (~(*FREEMASK_CHUNK(pg, i)) != 0) {
+			if (FREEMASK_BITCOUNT(pg, i) != 64) {
 				/*
 				 * XXX: The state has been created during
 				 * PG deletion.
 				 */
-				printf("NAT64LSN: %s: destroying PG "
-				    "with 0x%jx freemask\n", __func__,
-				    (uintmax_t)*FREEMASK_CHUNK(pg, i));
+				printf("NAT64LSN: %s: destroying PG %p "
+				    "with non-empty chunk %d\n", __func__,
+				    pg, i);
 			}
 		}
 		nat64lsn_destroy_pg(pg);
@@ -1383,7 +1416,7 @@ nat64lsn_translate6_internal(struct nat64lsn_cfg *cfg, struct mbuf **mp,
 
 	if (cfg->base.flags & NAT64_LOG) {
 		logdata = &loghdr;
-		nat64lsn_log(logdata, *mp, AF_INET6, (uintptr_t)state);
+		nat64lsn_log(logdata, *mp, AF_INET6, state);
 	} else
 		logdata = NULL;
 
