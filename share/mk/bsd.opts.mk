@@ -61,6 +61,7 @@ __DEFAULT_YES_OPTIONS = \
     NIS \
     NLS \
     OPENSSH \
+    PIE \
     PROFILE \
     SSP \
     TESTS \
@@ -75,7 +76,6 @@ __DEFAULT_NO_OPTIONS = \
     INIT_ALL_PATTERN \
     INIT_ALL_ZERO \
     INSTALL_AS_USER \
-    PIE \
     RETPOLINE \
     STALE_STAGED
 
