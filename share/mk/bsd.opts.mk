@@ -50,6 +50,7 @@ __<bsd.opts.mk>__:
 
 __DEFAULT_YES_OPTIONS = \
     ASSERT_DEBUG \
+    BIND_NOW \
     DEBUG_FILES \
     DOCCOMPRESS \
     INCLUDES \
@@ -69,7 +70,6 @@ __DEFAULT_YES_OPTIONS = \
     WARNS
 
 __DEFAULT_NO_OPTIONS = \
-    BIND_NOW \
     CCACHE_BUILD \
     CTF \
     INSTALL_AS_USER \
