@@ -65,6 +65,7 @@ __DEFAULT_YES_OPTIONS = \
     NIS \
     NLS \
     OPENSSH \
+    RETPOLINE \
     SSP \
     TESTS \
     TOOLCHAIN \
@@ -80,7 +81,6 @@ __DEFAULT_NO_OPTIONS = \
     INSTALL_AS_USER \
     MANSPLITPKG \
     PROFILE \
-    RETPOLINE \
     STALE_STAGED \
     UBSAN
 
