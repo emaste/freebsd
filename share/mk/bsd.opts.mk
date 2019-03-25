@@ -66,6 +66,7 @@ __DEFAULT_YES_OPTIONS = \
     NLS \
     OPENSSH \
     RELRO \
+    RETPOLINE \
     SSP \
     TESTS \
     TOOLCHAIN \
@@ -78,7 +79,6 @@ __DEFAULT_NO_OPTIONS = \
     CCACHE_BUILD \
     CTF \
     INSTALL_AS_USER \
-    RETPOLINE \
     RUN_TESTS \
     STALE_STAGED \
     UBSAN \
