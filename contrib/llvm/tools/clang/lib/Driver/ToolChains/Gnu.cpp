@@ -2512,7 +2512,8 @@ bool Generic_GCC::IsIntegratedAssemblerDefault() const {
   case llvm::Triple::sparc:
   case llvm::Triple::sparcel:
   case llvm::Triple::sparcv9:
-    if (getTriple().isOSSolaris() || getTriple().isOSOpenBSD())
+    if (getTriple().isOSSolaris() || getTriple().isOSOpenBSD() ||
+        getTriple().isOSFreeBSD())
       return true;
     return false;
   default:
