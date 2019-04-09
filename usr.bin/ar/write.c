@@ -711,12 +711,12 @@ write_objs(struct bsdar *bsdar)
 		archive_entry_set_size(entry, (bsdar->s_cnt + 1) * w_sz +
 		    bsdar->s_sn_sz);
 		AC(archive_write_header(a, entry));
-		if(w_sz == sizeof(uint32_t))
+		if (w_sz == sizeof(uint32_t))
 			nr = (uint64_t)htobe32((uint32_t)bsdar->s_cnt);
 		else
 			nr = htobe64(bsdar->s_cnt);
 		write_data(bsdar, a, &nr, w_sz);
-		if(w_sz == sizeof(uint64_t))
+		if (w_sz == sizeof(uint64_t))
 			write_data(bsdar, a, bsdar->s_so, sizeof(uint64_t) *
 			    bsdar->s_cnt);
 		else
