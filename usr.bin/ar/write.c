@@ -669,17 +669,18 @@ write_objs(struct bsdar *bsdar)
 		if (bsdar->s_so_max > UINT32_MAX - pm_sz) {
 			w_sz = sizeof(uint64_t);
 			pm_sz -= s_sz;
-			s_sz = (bsdar->s_cnt + 1) * sizeof(uint64_t) + bsdar->s_sn_sz;
+			s_sz = (bsdar->s_cnt + 1) * sizeof(uint64_t) +
+			    bsdar->s_sn_sz;
 			pm_sz += s_sz;
 		}
 
 		for (i = 0; (size_t)i < bsdar->s_cnt; i++) {
 			if (w_sz == sizeof(uint32_t))
-				*(bsdar->s_so + i) = (uint64_t)htobe32((uint32_t)(*(bsdar->s_so + i)) +
-				    pm_sz);
+				*(bsdar->s_so + i) =
+				    htobe32((uint32_t)(*(bsdar->s_so + i)) + pm_sz);
 			else
-				*(bsdar->s_so + i) = htobe64(*(bsdar->s_so + i) +
-				    pm_sz);
+				*(bsdar->s_so + i) =
+				    htobe64(*(bsdar->s_so + i) + pm_sz);
 		}
 	}
 
@@ -707,8 +708,8 @@ write_objs(struct bsdar *bsdar)
 			archive_entry_copy_pathname(entry, "/");
 		if ((bsdar->options & AR_D) == 0)
 			archive_entry_set_mtime(entry, time(NULL), 0);
-		archive_entry_set_size(entry, (bsdar->s_cnt + 1) *
-		    w_sz + bsdar->s_sn_sz);
+		archive_entry_set_size(entry, (bsdar->s_cnt + 1) * w_sz +
+		    bsdar->s_sn_sz);
 		AC(archive_write_header(a, entry));
 		if(w_sz == sizeof(uint32_t))
 			nr = (uint64_t)htobe32((uint32_t)bsdar->s_cnt);
@@ -720,7 +721,8 @@ write_objs(struct bsdar *bsdar)
 			    bsdar->s_cnt);
 		else
 			for (i = 0; (size_t)i < bsdar->s_cnt; i++)
-				write_data(bsdar, a, (uint32_t *)&bsdar->s_so[i],
+				write_data(bsdar, a,
+				    (uint32_t *)&bsdar->s_so[i],
 				    sizeof(uint32_t));
 		write_data(bsdar, a, bsdar->s_sn, bsdar->s_sn_sz);
 		archive_entry_free(entry);
@@ -934,7 +936,8 @@ add_to_ar_sym_table(struct bsdar *bsdar, const char *name)
 			bsdar_errc(bsdar, EX_SOFTWARE, errno, "realloc failed");
 	}
 	bsdar->s_so[bsdar->s_cnt] = (uint64_t)bsdar->rela_off;
-	bsdar->s_so_max = (uint64_t)bsdar->rela_off > bsdar->s_so_max ? (uint64_t)bsdar->rela_off : bsdar->s_so_max;
+	bsdar->s_so_max = (uint64_t)bsdar->rela_off > bsdar->s_so_max ?
+	    (uint64_t)bsdar->rela_off : bsdar->s_so_max;
 	bsdar->s_cnt++;
 
 	/*
