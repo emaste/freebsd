@@ -1,11 +1,18 @@
 #!/bin/sh
+
+# Install loader, kernel, and enough of userland to boot in QEMU and echo
+# "Hello world." from init, as a very quick smoke test for CI.  Uses QEMU's
+# virtual FAT filesystem to avoid the need to create a disk image.
+#
+# $FreeBSD$
+
 set -e
 
 # Root directory for minimal FreeBSD installation.
 ROOTDIR=$(pwd)/fat-root
 
 # Create minimal directory structure.
-rm -rf $ROOTDIR/efi/boot/BOOTx64.EFI
+rm -f $ROOTDIR/efi/boot/BOOTx64.EFI
 for dir in dev bin efi/boot etc lib libexec sbin usr/libexec; do
 	mkdir -p $ROOTDIR/$dir
 done
@@ -28,7 +35,7 @@ for dir in stand \
 	    -C $dir install
 done
 
-# Copy loader to standard EFI location.
+# Put loader in standard EFI location.
 mv $ROOTDIR/boot/loader.efi $ROOTDIR/efi/boot/BOOTx64.EFI
 
 # Configuration files.
@@ -47,7 +54,7 @@ EOF
 # Remove unnecessary files to keep FAT filesystem size down.
 rm -rf $ROOTDIR/METALOG $ROOTDIR/usr/lib
 
-
+# And, boot in QEMU.
 timeout 300 \
     qemu-system-x86_64 -m 256M -bios OVMF.fd \
     -serial stdio -vga none -nographic -monitor none \
