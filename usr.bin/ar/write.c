@@ -935,9 +935,9 @@ add_to_ar_sym_table(struct bsdar *bsdar, const char *name)
 		if (bsdar->s_so == NULL)
 			bsdar_errc(bsdar, EX_SOFTWARE, errno, "realloc failed");
 	}
-	bsdar->s_so[bsdar->s_cnt] = (uint64_t)bsdar->rela_off;
-	bsdar->s_so_max = (uint64_t)bsdar->rela_off > bsdar->s_so_max ?
-	    (uint64_t)bsdar->rela_off : bsdar->s_so_max;
+	bsdar->s_so[bsdar->s_cnt] = bsdar->rela_off;
+	if ((uint64_t)bsdar->rela_off > bsdar->s_so_max)
+		bsdar->s_so_max = (uint64_t)bsdar->rela_off;
 	bsdar->s_cnt++;
 
 	/*
