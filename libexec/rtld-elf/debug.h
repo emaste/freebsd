@@ -39,16 +39,10 @@
 #include <string.h>
 #include <unistd.h>
 
-extern void debug_printf(const char *, ...) __printflike(1, 2);
+void debug_printf(const char *, ...) __printflike(1, 2);
 extern int debug;
 
-// Enable DEBUG by default as we experiment with tool chain changes which may
-// break rtld.
-#if !defined(DEBUG)
-#define DEBUG
-#endif
-
-#ifdef DEBUG
+#ifndef NO_LD_DEBUG
 #define dbg(...)	debug_printf(__VA_ARGS__)
 #else
 #define dbg(...)	((void) 0)
