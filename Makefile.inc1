@@ -1030,16 +1030,6 @@ _worldtmp: .PHONY
 	cd ${.CURDIR}/tools/build; \
 	    ${MAKE} DIRPRFX=tools/build/ DESTDIR=${WORLDTMP}/legacy host-symlinks
 
-	mkdir -p ${WORLDTMPSR}/${_dir}
-.endfor
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
-	    -p ${WORLDTMPSR}/usr >/dev/null
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
-	    -p ${WORLDTMPSR}/usr/include >/dev/null
-	ln -sf ${.CURDIR}/sys ${WORLDTMPSR}
-
-.for _dir in \
-    usr legacy/bin legacy/usr
 _legacy:
 	@echo
 	@echo "--------------------------------------------------------------"
