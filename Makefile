@@ -588,12 +588,12 @@ universe-toolchain: .PHONY universe_prologue
 	    (echo "${.TARGET} failed," \
 	    "check _.${.TARGET} for details" | \
 	    ${MAKEFAIL}; false)
-	@if [ ! -e "${HOST_OBJTOP}/tmp/usr/bin/cc" ]; then \
-	    echo "Missing host compiler at ${HOST_OBJTOP}/tmp/usr/bin/cc?" >&2; \
+	@if [ ! -e "${HOST_OBJTOP}/sysroot/usr/bin/cc" ]; then \
+	    echo "Missing host compiler at ${HOST_OBJTOP}/sysroot/usr/bin/cc?" >&2; \
 	    false; \
 	fi
-	@if [ ! -e "${HOST_OBJTOP}/tmp/usr/bin/ld" ]; then \
-	    echo "Missing host linker at ${HOST_OBJTOP}/tmp/usr/bin/ld?" >&2; \
+	@if [ ! -e "${HOST_OBJTOP}/sysroot/usr/bin/ld" ]; then \
+	    echo "Missing host linker at ${HOST_OBJTOP}/sysroot/usr/bin/ld?" >&2; \
 	    false; \
 	fi
 	@echo "--------------------------------------------------------------"
@@ -639,15 +639,15 @@ _need_lld_${target}_${target_arch} != \
 # For now we only pass UNIVERSE_TOOLCHAIN_PATH which will be added at the end
 # of STRICTTMPPATH to ensure that the target-specific binaries come first.
 MAKE_PARAMS_${target_arch}+= \
-	XCC="${HOST_OBJTOP}/tmp/usr/bin/cc" \
-	XCXX="${HOST_OBJTOP}/tmp/usr/bin/c++" \
-	XCPP="${HOST_OBJTOP}/tmp/usr/bin/cpp" \
-	UNIVERSE_TOOLCHAIN_PATH=${HOST_OBJTOP}/tmp/usr/bin
+	XCC="${HOST_OBJTOP}/sysroot/usr/bin/cc" \
+	XCXX="${HOST_OBJTOP}/sysroot/usr/bin/c++" \
+	XCPP="${HOST_OBJTOP}/sysroot/usr/bin/cpp" \
+	UNIVERSE_TOOLCHAIN_PATH=${HOST_OBJTOP}/sysroot/usr/bin
 .endif
 .if defined(_need_lld_${target}_${target_arch}) && \
     ${_need_lld_${target}_${target_arch}} == "yes"
 MAKE_PARAMS_${target_arch}+= \
-	XLD="${HOST_OBJTOP}/tmp/usr/bin/ld"
+	XLD="${HOST_OBJTOP}/sysroot/usr/bin/ld"
 .endif
 .endfor
 .endif	# !make(targets)
