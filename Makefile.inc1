@@ -561,7 +561,7 @@ BUILD_ARCH!=	uname -p
 .error To cross-build, set TARGET_ARCH.
 .endif
 .endif
-WORLDTMP?=	${OBJTOP}/tmp
+WORLDTMP?=	${OBJTOP}/sysroot
 BPATH=		${CCACHE_WRAPPER_PATH_PFX}${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/bin:${WORLDTMP}/legacy/usr/libexec
 XPATH=		${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin
 
@@ -2616,9 +2616,9 @@ NXBMAKE+=	XCC="${XCC}" \
 		XCXX="${XCXX}" \
 		XCPP="${XCPP}"
 .else
-NXBMAKE+=	XCC="${NXBOBJTOP}/tmp/usr/bin/cc" \
-		XCXX="${NXBOBJTOP}/tmp/usr/bin/c++" \
-		XCPP="${NXBOBJTOP}/tmp/usr/bin/cpp"
+NXBMAKE+=	XCC="${NXBOBJTOP}/sysroot/usr/bin/cc" \
+		XCXX="${NXBOBJTOP}/sysroot/usr/bin/c++" \
+		XCPP="${NXBOBJTOP}/sysroot/usr/bin/cpp"
 .endif
 NXBMAKE+=	${NXBMAKEENV} ${MAKE} -f Makefile.inc1 ${NXBMAKEARGS} \
 		MACHINE=${MACHINE} MACHINE_ARCH=${MACHINE_ARCH} \
