@@ -33,9 +33,12 @@ __FBSDID("$FreeBSD$");
 
 #include <signal.h>
 #include <sys/fbio.h>
+#include <sys/kbio.h>
 #include <sys/endian.h>
 #include "vgl.h"
 
+static int VGLBlank;
+static byte VGLBorderColor;
 static byte VGLSavePaletteRed[256];
 static byte VGLSavePaletteGreen[256];
 static byte VGLSavePaletteBlue[256];
@@ -551,6 +554,8 @@ VGLRestorePalette()
 {
   int i;
 
+  if (VGLModeInfo.vi_mem_model == V_INFO_MM_DIRECT)
+    return;
   outb(0x3C6, 0xFF);
   inb(0x3DA); 
   outb(0x3C8, 0x00);
@@ -571,6 +576,8 @@ VGLSavePalette()
 {
   int i;
 
+  if (VGLModeInfo.vi_mem_model == V_INFO_MM_DIRECT)
+    return;
   outb(0x3C6, 0xFF);
   inb(0x3DA);
   outb(0x3C7, 0x00);
@@ -591,6 +598,8 @@ VGLSetPalette(byte *red, byte *green, byte *blue)
 {
   int i;
   
+  if (VGLModeInfo.vi_mem_model == V_INFO_MM_DIRECT)
+    return;
   for (i=0; i<256; i++) {
     VGLSavePaletteRed[i] = red[i];
     VGLSavePaletteGreen[i] = green[i];
@@ -615,6 +624,8 @@ VGLSetPalette(byte *red, byte *green, byte *blue)
 void
 VGLSetPaletteIndex(byte color, byte red, byte green, byte blue)
 {
+  if (VGLModeInfo.vi_mem_model == V_INFO_MM_DIRECT)
+    return;
   VGLSavePaletteRed[color] = red;
   VGLSavePaletteGreen[color] = green;
   VGLSavePaletteBlue[color] = blue;
@@ -628,13 +639,30 @@ VGLSetPaletteIndex(byte color, byte red, byte green, byte blue)
 }
 
 void
+VGLRestoreBorder(void)
+{
+  VGLSetBorder(VGLBorderColor);
+}
+
+void
 VGLSetBorder(byte color)
 {
+  if (VGLModeInfo.vi_mem_model == V_INFO_MM_DIRECT && ioctl(0, KDENABIO, 0))
+    return;
   VGLCheckSwitch();
   inb(0x3DA);
   outb(0x3C0,0x11); outb(0x3C0, color); 
   inb(0x3DA);
   outb(0x3C0, 0x20);
+  VGLBorderColor = color;
+  if (VGLModeInfo.vi_mem_model == V_INFO_MM_DIRECT)
+    ioctl(0, KDDISABIO, 0);
+}
+
+void
+VGLRestoreBlank(void)
+{
+  VGLBlankDisplay(VGLBlank);
 }
 
 void
@@ -642,7 +670,12 @@ VGLBlankDisplay(int blank)
 {
   byte val;
 
+  if (VGLModeInfo.vi_mem_model == V_INFO_MM_DIRECT && ioctl(0, KDENABIO, 0))
+    return;
   VGLCheckSwitch();
   outb(0x3C4, 0x01); val = inb(0x3C5); outb(0x3C4, 0x01);
   outb(0x3C5, ((blank) ? (val |= 0x20) : (val &= 0xDF)));
+  VGLBlank = blank;
+  if (VGLModeInfo.vi_mem_model == V_INFO_MM_DIRECT)
+    ioctl(0, KDDISABIO, 0);
 }
