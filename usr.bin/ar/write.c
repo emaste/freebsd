@@ -669,15 +669,18 @@ write_objs(struct bsdar *bsdar)
 			s_sz = (bsdar->s_cnt + 1) * sizeof(uint64_t) +
 			    bsdar->s_sn_sz;
 			pm_sz += s_sz;
-		}
-
-		for (i = 0; (size_t)i < bsdar->s_cnt; i++) {
-			if (w_sz == sizeof(uint32_t))
-				bsdar->s_so[i] =
-				    htobe32((uint32_t)(bsdar->s_so[i] + pm_sz));
-			else
+			/* Convert to big-endian. */
+			for (i = 0; (size_t)i < bsdar->s_cnt; i++)
 				bsdar->s_so[i] =
 				    htobe64(bsdar->s_so[i] + pm_sz);
+		} else {
+			/*
+			 * Convert to big-endian and shuffle in-place to
+			 * the front of the allocation. XXX UB
+			 */
+			for (i = 0; (size_t)i < bsdar->s_cnt; i++)
+				((uint32_t *)(bsdar->s_so))[i] =
+				    htobe32(bsdar->s_so[i] + pm_sz);
 		}
 	}
 
@@ -713,14 +716,7 @@ write_objs(struct bsdar *bsdar)
 		else
 			nr = htobe64(bsdar->s_cnt);
 		write_data(bsdar, a, &nr, w_sz);
-		if (w_sz == sizeof(uint64_t))
-			write_data(bsdar, a, bsdar->s_so, sizeof(uint64_t) *
-			    bsdar->s_cnt);
-		else
-			for (i = 0; (size_t)i < bsdar->s_cnt; i++)
-				write_data(bsdar, a,
-				    (uint32_t *)&bsdar->s_so[i],
-				    sizeof(uint32_t));
+		write_data(bsdar, a, bsdar->s_so, w_sz * bsdar->s_cnt);
 		write_data(bsdar, a, bsdar->s_sn, bsdar->s_sn_sz);
 		archive_entry_free(entry);
 	}
