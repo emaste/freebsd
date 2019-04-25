@@ -1,0 +1,156 @@
+#!/bin/sh
+#-
+# Copyright (c) 2019 Emmanuel Vadot <manu@FreeBSD.Org>
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+# Choose the sets to install
+
+exec 3>&1
+FEATURES=$( dialog --backtitle "FreeBSD Installer" \
+    --title "Base sets" --nocancel --separate-output \
+    --checklist "Choose system sets to install:" \
+    0 0 0 \
+	"0 kernel" "FreeBSD kernel(s)" on \
+	"1 base" "FreeBSD base binary/libraries" on \
+	"2 lib32" "lib32" off \
+	"3 debug" "debug files" off \
+	"4 development" "development files" off \
+	"5 profile" "profile files" off \
+2>&1 1>&3 )
+exec 3>&-
+
+for feature in $FEATURES; do
+	if [ "${feature}" == "base" ]; then
+		install_base=yes
+	fi
+	if [ "${feature}" == "kernel" ]; then
+		install_kernel=yes
+	fi
+	if [ "${feature}" == "lib32" ]; then
+		install_lib32=yes
+	fi
+	if [ "${feature}" == "debug" ]; then
+		install_debug=yes
+	fi
+	if [ "${feature}" == "development" ]; then
+		install_development=yes
+	fi
+	if [ "${feature}" == "profiles" ]; then
+		install_profiles=yes
+	fi
+done
+
+pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} update
+
+pkg_install() {
+	n=0
+	total=$(echo ${pkg_list} | wc -w)
+	for item in ${pkg_list}; do
+		percentage=$((100 * n/total))
+		dialog --backtitle "FreeBSD Installer" --title "Installing $1 packages" --mixedgauge "Installing ${item}"  0 0 $percentage
+		pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} install ${item} >/dev/null 2>&1
+		n=$((n + 1))
+	done
+}
+
+if [ "${install_base}" == "yes" ]; then
+	pkg_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-*' | grep -vE "\-kernel|\-lib32|\-debug|\-development|\-profile" | awk '{print $1}')
+	pkg_install "Base"
+fi
+
+if [ "${install_kernel}" == "yes" ]; then
+	if [ "${install_debug}" == "yes" ]; then
+		pkg_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-kernel-*' | awk '{print $1}')
+	else
+		pkg_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-kernel-*' | grep -vE "\-debug" | awk '{print $1}')
+		pkg_install "kernel"
+	fi
+fi
+
+if [ "${install_lib32}" == "yes" ]; then
+	pkg_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-*-lib32-*' | grep -vE "\-debug|\-development|\-profile" | awk '{print $1}')
+	pkg_install "lib32"
+fi
+
+if [ "${install_debug}" == "yes" ]; then
+	if [ "${install_lib32}" == "yes" ]; then
+		mod="\-development|\-profile"
+	else
+		mod="\-lib32|\-development|\-profile"
+	fi
+	pkg_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-*-debug-*' | grep -vE "${mod}" | awk '{print $1}')
+	pkg_install "debug"
+fi
+
+if [ "${install_development}" == "yes" ]; then
+	if [ "${install_lib32}" == "yes" ]; then
+		mod="\-debug|\-profile"
+	else
+		mod="\-lib32|\-debug|\-profile"
+	fi
+	pkg_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-*-development-*' | grep -vE "${mod}" | awk '{print $1}')
+	pkg_install "development"
+fi
+
+if [ "${install_profiles}" == "yes" ]; then
+	if [ "${install_lib32}" == "yes" ]; then
+		mod="\-development|\-debug|"
+	else
+		mod="\-lib32|\-development|\-debug"
+	fi
+	pkg_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-*-profile-*' | grep -vE "${mod}" | awk '{print $1}')
+	pkg_install "profile"
+fi
+
+kernel_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-kernel-*' | grep -vE "\-debug" | awk '{print $1}')
+if [ ! -z "${kernel_list}" ]; then
+	dialogarg=""
+	on=""
+	nkernels=0
+	kernels=$(ls -d ${BSDINSTALL_CHROOT}/boot/kernel.* | awk -F. '{print $2}')
+	for kernel in ${kernels}; do
+		if [ -z "${on}" ]; then
+			dialogarg="${dialogarg} ${kernel} ${kernel} on"
+			on="on"
+		else
+			dialogarg="${dialogarg} ${kernel} ${kernel} off"
+		fi
+		nkernels=$((nkernels + 1))
+	done
+
+	if [ "${nkernels}" -gt 1 ]; then
+		exec 3>&1
+		KERN=$(dialog --backtitle "FreeBSD Installer" \
+			      --title "Kernel Selection" --nocancel \
+			      --radiolist "Choose kernel to enable:" \
+			      0 0 0 ${dialogarg} \
+			      2>&1 1>&3 )
+		exec 3>&-
+		kernel-select -k ${BSDINSTALL_CHROOT}/boot switch ${KERN}
+	else
+		kernel-select -k ${BSDINSTALL_CHROOT}/boot switch ${kernels}
+	fi
+fi
