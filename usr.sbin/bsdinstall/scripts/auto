@@ -77,6 +77,7 @@ error()
 	local prompt="${1:+$1\n\n}$msg_an_installation_step_has_been_aborted"
 	local hline="$hline_arrows_tab_space_enter"
 
+
 	[ -f "$PATH_FSTAB" ] && bsdinstall umount
 
 	local height width
@@ -143,6 +144,8 @@ dialog_workaround()
 
 f_dprintf "Began Installation at %s" "$( date )"
 
+PKGBASE_INSTALL=$(f_ispkgbase)
+
 rm -rf $BSDINSTALL_TMPETC
 mkdir $BSDINSTALL_TMPETC
 
@@ -153,7 +156,7 @@ trap error SIGINT	# Catch cntrl-C here
 bsdinstall hostname || error "Set hostname failed"
 
 export DISTRIBUTIONS="base.txz kernel.txz"
-if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
+if [ ${PKGBASE_INSTALL} -eq 0 && -f $BSDINSTALL_DISTDIR/MANIFEST]; then
 	DISTMENU=`awk -F'\t' '!/^(kernel\.txz|base\.txz)/{print $1,$5,$6}' $BSDINSTALL_DISTDIR/MANIFEST`
 	DISTMENU="$(echo ${DISTMENU} | sed -E 's/\.txz//g')"
 
@@ -171,17 +174,24 @@ if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
 	fi
 fi
 
-FETCH_DISTRIBUTIONS=""
-for dist in $DISTRIBUTIONS; do
-	if [ ! -f $BSDINSTALL_DISTDIR/$dist ]; then
-		FETCH_DISTRIBUTIONS="$FETCH_DISTRIBUTIONS $dist"
-	fi
-done
+if [ ${PKGBASE_INSTALL} -eq 0 ]; then
 
-if [ -n "$FETCH_DISTRIBUTIONS" -a -n "$BSDINSTALL_CONFIGCURRENT" ]; then
-	dialog --backtitle "FreeBSD Installer" --title "Network Installation" --msgbox "Some installation files were not found on the boot volume. The next few screens will allow you to configure networking so that they can be downloaded from the Internet." 0 0
-	bsdinstall netconfig || error
-	NETCONFIG_DONE=yes
+	FETCH_DISTRIBUTIONS=""
+	for dist in $DISTRIBUTIONS; do
+		if [ ! -f $BSDINSTALL_DISTDIR/$dist ]; then
+			FETCH_DISTRIBUTIONS="$FETCH_DISTRIBUTIONS $dist"
+
+		fi
+	done
+
+
+	if [ -n "$FETCH_DISTRIBUTIONS" -a -n "$BSDINSTALL_CONFIGCURRENT" ]; then
+		dialog --backtitle "FreeBSD Installer" --title "Network Installation" --msgbox "Some installation files were not found on the boot volume. The next few screens will allow you to configure networking so that they can be downloaded from the Internet." 0 0
+		bsdinstall netconfig || error
+		NETCONFIG_DONE=yes
+	fi
+
+
 fi
 
 rm -f $PATH_FSTAB
@@ -334,16 +344,23 @@ case "$PARTMODE" in
 	;;
 esac
 
-if [ -n "$FETCH_DISTRIBUTIONS" ]; then
+if [ ${PKGBASE_INSTALL} -eq 0 && -n "$FETCH_DISTRIBUTIONS" ]; then
 	exec 3>&1
 	export BSDINSTALL_DISTDIR=$(`dirname $0`/fetchmissingdists 2>&1 1>&3)
 	FETCH_RESULT=$?
 	exec 3>&-
 
+
 	[ $FETCH_RESULT -ne 0 ] && error "Could not fetch remote distributions"
+
 fi
-bsdinstall checksum || error "Distribution checksum failed"
-bsdinstall distextract || error "Distribution extract failed"
+
+if [ ${PKGBASE_INSTALL} -eq 0 ]; then
+	bsdinstall checksum || error "Distribution checksum failed"
+	bsdinstall distextract || error "Distribution extract failed"
+else
+	bsdinstall pkgbase || error "Failed to install pkgbase"
+fi
 
 # Set up boot loader
 bsdinstall bootconfig || error "Failed to configure bootloader"
@@ -419,6 +436,7 @@ finalconfig
 
 trap error SIGINT	# SIGINT is bad again
 bsdinstall config  || error "Failed to save config"
+
 
 if [ ! -z "$BSDINSTALL_FETCHDEST" ]; then
 	rm -rf "$BSDINSTALL_FETCHDEST"
