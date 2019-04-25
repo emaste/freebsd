@@ -1010,6 +1010,16 @@ f_count_ifs()
 	setvar "$__var_to_set" $#
 }
 
+f_ispkgbase()
+{
+	ABI=$(pkg -o ABI_FILE=/usr/sbin/uname config abi)
+	if [ -d "/usr/freebsd-dist/${ABI}" ]; then
+		return 1
+	fi
+
+	return 0
+}
+
 ############################################################ MAIN
 
 #
