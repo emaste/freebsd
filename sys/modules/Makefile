@@ -227,6 +227,7 @@ SUBDIR=	\
 	malo \
 	md \
 	mdio \
+	${_mgb} \
 	mem \
 	mfi \
 	mii \
@@ -592,6 +593,7 @@ _linux=		linux
 .if ${MK_SOURCELESS_UCODE} != "no"
 _lio=		lio
 .endif
+_mgb=		mgb
 _nctgpio=	nctgpio
 _ndis=		ndis
 _ntb=		ntb
