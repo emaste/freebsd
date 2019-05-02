@@ -305,7 +305,7 @@ struct if_shared_ctx mgb_sctx_init = {
 
 	.isc_q_align = PAGE_SIZE,
 	.isc_admin_intrcnt = 1,
-	/* .isc_flags = IFLIB_HAS_RXCQ | IFLIB_HAS_TXCQ, */
+	.isc_flags = IFLIB_DRIVER_MEDIA /* | IFLIB_HAS_RXCQ | IFLIB_HAS_TXCQ*/,
 
 	.isc_vendor_info = mgb_vendor_info_array,
 	.isc_driver_version = "1",
