@@ -384,7 +384,6 @@ mgb_attach_pre(if_ctx_t ctx)
 	scctx->isc_capabilities = scctx->isc_capenable = 0;
 #if 0
 	/*
-	 * iflib doesn't like capabilities = 0, so check needs to be disabled
 	 * CSUM, TSO and VLAN support are TBD
 	 */
 	    IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6 |
