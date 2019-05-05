@@ -353,7 +353,6 @@ mgb_attach_pre(if_ctx_t ctx)
 	if_softc_ctx_t scctx;
 	int error, phyaddr, rid;
 	struct ether_addr hwaddr;
-
 	struct mii_data *miid;
 
 	sc = iflib_get_softc(ctx);
@@ -553,8 +552,8 @@ mgb_media_status(if_t ifp, struct ifmediareq *ifmr)
 }
 
 static int
-mgb_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
-    int ntxqs, int ntxqsets)
+mgb_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int ntxqs,
+    int ntxqsets)
 {
 	struct mgb_softc *sc;
 	struct mgb_ring_data *rdata;
@@ -577,8 +576,8 @@ mgb_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
 }
 
 static int
-mgb_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
-    int nrxqs, int nrxqsets)
+mgb_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int nrxqs,
+    int nrxqsets)
 {
 	struct mgb_softc *sc;
 	struct mgb_ring_data *rdata;
@@ -734,7 +733,6 @@ mgb_stop(if_ctx_t ctx)
 	sc = iflib_get_softc(ctx);
 	scctx = iflib_get_softc_ctx(ctx);
 
-
 	/* XXX: Could potentially timeout */
 	for (i = 0; i < scctx->isc_nrxqsets; i++) {
 		mgb_dmac_control(sc, MGB_DMAC_RX_START, 0, DMAC_STOP);
@@ -856,8 +854,7 @@ mgb_msix_intr_assign(if_ctx_t ctx, int msix)
 	    ("num rxqsets/txqsets != 1 "));
 
 	/*
-	 * First vector should be admin interrupts
-	 * all other vectors are for TX/RX
+	 * First vector should be admin interrupts, others vectors are TX/RX
 	 *
 	 * RIDs start at 1, and vector ids start at 0.
 	 */
@@ -994,10 +991,9 @@ mgb_isc_txd_encap(void *xsc , if_pkt_info_t ipi)
 	if_softc_ctx_t scctx;
 	struct mgb_ring_data *rdata;
 	struct mgb_ring_desc *txd;
-	int i;
-
-	qidx_t pidx, nsegs;
 	bus_dma_segment_t *segs;
+	qidx_t pidx, nsegs;
+	int i;
 
 	KASSERT(ipi->ipi_qsidx == 0,
 	    ("tried to refill TX Channel %d.\n", ipi->ipi_qsidx));
@@ -1167,11 +1163,9 @@ static void
 mgb_isc_rxd_refill(void *xsc, if_rxd_update_t iru)
 {
 	if_softc_ctx_t scctx;
-
 	struct mgb_softc *sc;
 	struct mgb_ring_data *rdata;
 	struct mgb_ring_desc *rxd;
-
 	uint64_t *paddrs;
 	qidx_t *idxs;
 	qidx_t idx;
@@ -1220,6 +1214,7 @@ static int
 mgb_test_bar(struct mgb_softc *sc)
 {
 	uint32_t id_rev, dev_id, rev;
+
 	id_rev = CSR_READ_REG(sc, 0);
 	dev_id = id_rev >> 16;
 	rev = id_rev & 0xFFFF;
@@ -1236,6 +1231,7 @@ static int
 mgb_alloc_regs(struct mgb_softc *sc)
 {
 	int rid;
+
 	rid = PCIR_BAR(MGB_BAR);
 	pci_enable_busmaster(sc->dev);
 	sc->regs = bus_alloc_resource_any(sc->dev, SYS_RES_MEMORY,
@@ -1274,7 +1270,6 @@ mgb_dma_init(struct mgb_softc *sc)
 	for (ch = 0; ch < scctx->isc_nrxqsets; ch++)
 		if ((error = mgb_dma_tx_ring_init(sc, ch)))
 			goto fail;
-
 
 fail:
 	return error;
@@ -1411,13 +1406,11 @@ fail:
 }
 
 static int
-mgb_dmac_control(sc, start, channel, cmd)
-	struct mgb_softc *sc;
-	int start;
-	int channel;
-	enum mgb_dmac_cmd cmd;
+mgb_dmac_control(struct mgb_softc *sc, int start, int channel,
+    enum mgb_dmac_cmd cmd)
 {
 	int error = 0;
+
 	switch (cmd) {
 	case DMAC_RESET:
 		CSR_WRITE_REG(sc, MGB_DMAC_CMD,
@@ -1450,12 +1443,10 @@ mgb_dmac_control(sc, start, channel, cmd)
 }
 
 static int
-mgb_fct_control(sc, reg, channel, cmd)
-	struct mgb_softc *sc;
-	int reg;
-	int channel;
-	enum mgb_fct_cmd cmd;
+mgb_fct_control(struct mgb_softc *sc, int reg, int channel,
+    enum mgb_fct_cmd cmd)
 {
+
 	switch (cmd) {
 	case FCT_RESET:
 		CSR_WRITE_REG(sc, reg, MGB_FCT_RESET(channel));
@@ -1473,6 +1464,7 @@ static int
 mgb_hw_teardown(struct mgb_softc *sc)
 {
 	int err = 0;
+
 	/* Stop MAC */
 	CSR_CLEAR_REG(sc, MGB_MAC_RX, MGB_MAC_ENBL);
 	CSR_WRITE_REG(sc, MGB_MAC_TX, MGB_MAC_ENBL);
@@ -1509,6 +1501,7 @@ fail:
 static int
 mgb_hw_reset(struct mgb_softc *sc)
 {
+
 	CSR_UPDATE_REG(sc, MGB_HW_CFG, MGB_LITE_RESET);
 	return (mgb_wait_for_bits(sc, MGB_HW_CFG, 0, MGB_LITE_RESET));
 }
@@ -1516,12 +1509,12 @@ mgb_hw_reset(struct mgb_softc *sc)
 static int
 mgb_mac_init(struct mgb_softc *sc)
 {
+
 	/**
 	 * enable automatic duplex detection and
 	 * automatic speed detection
 	 */
-	CSR_UPDATE_REG(sc, MGB_MAC_CR,
-	    MGB_MAC_ADD_ENBL | MGB_MAC_ASD_ENBL);
+	CSR_UPDATE_REG(sc, MGB_MAC_CR, MGB_MAC_ADD_ENBL | MGB_MAC_ASD_ENBL);
 	CSR_UPDATE_REG(sc, MGB_MAC_TX, MGB_MAC_ENBL);
 	CSR_UPDATE_REG(sc, MGB_MAC_RX, MGB_MAC_ENBL);
 
@@ -1531,9 +1524,10 @@ mgb_mac_init(struct mgb_softc *sc)
 static int
 mgb_phy_reset(struct mgb_softc *sc)
 {
+
 	CSR_UPDATE_BYTE(sc, MGB_PMT_CTL, MGB_PHY_RESET);
-	if (mgb_wait_for_bits(sc, MGB_PMT_CTL, 0, MGB_PHY_RESET)
-	    == MGB_STS_TIMEOUT)
+	if (mgb_wait_for_bits(sc, MGB_PMT_CTL, 0, MGB_PHY_RESET) ==
+	    MGB_STS_TIMEOUT)
 		return MGB_STS_TIMEOUT;
 	return (mgb_wait_for_bits(sc, MGB_PMT_CTL, MGB_PHY_READY, 0));
 }
@@ -1541,6 +1535,7 @@ mgb_phy_reset(struct mgb_softc *sc)
 static int
 mgb_dmac_reset(struct mgb_softc *sc)
 {
+
 	CSR_WRITE_REG(sc, MGB_DMAC_CMD, MGB_DMAC_RESET);
 	return (mgb_wait_for_bits(sc, MGB_DMAC_CMD, 0, MGB_DMAC_RESET));
 }
@@ -1549,8 +1544,8 @@ static int
 mgb_wait_for_bits(struct mgb_softc *sc, int reg, int set_bits, int clear_bits)
 {
 	int i, val;
-	i = 0;
 
+	i = 0;
 	do {
 		/*
 		 * XXX: Datasheets states delay should be > 5 microseconds
@@ -1569,6 +1564,7 @@ mgb_wait_for_bits(struct mgb_softc *sc, int reg, int set_bits, int clear_bits)
 static void
 mgb_get_ethaddr(struct mgb_softc *sc, struct ether_addr *dest)
 {
+
 	CSR_READ_REG_BYTES(sc, MGB_MAC_ADDR_BASE_L, &dest->octet[0], 4);
 	CSR_READ_REG_BYTES(sc, MGB_MAC_ADDR_BASE_H, &dest->octet[4], 2);
 }
@@ -1597,7 +1593,6 @@ mgb_miibus_readreg(device_t dev, int phy, int reg)
 static int
 mgb_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
-
 	struct mgb_softc *sc;
 	int mii_access;
 
