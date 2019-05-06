@@ -60,47 +60,33 @@ __FBSDID("$FreeBSD$");
  *     error status registers in sysctl.
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/bus.h>
+#include <sys/endian.h>
+#include <sys/kdb.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/rman.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
-#include <sys/endian.h>
-
-/* Needed for debugging */
-#include <sys/kdb.h>
-
-/* Needed for KLD */
-#include <sys/module.h>
-#include <sys/param.h>
-#include <sys/kernel.h>
-
-/* Resource Alloc (work with PCI bus) */
-#include <sys/bus.h>
-#include <sys/rman.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 
-/* Needed for Network I/F */
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/if_media.h>
-
-/* Needed for iflib */
 #include <net/iflib.h>
-#include "ifdi_if.h"
 
-/* Needed for PCI support */
+#include <dev/mgb/if_mgb.h>
+#include <dev/mii/mii.h>
+#include <dev/mii/miivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-/* Needed for MII support */
-#include <dev/mii/mii.h>
-#include <dev/mii/miivar.h>
+#include "ifdi_if.h"
 #include "miibus_if.h"
-
-/* Registers and structures for MGB driver */
-#include <dev/mgb/if_mgb.h>
 
 static pci_vendor_info_t mgb_vendor_info_array[] = {
 	PVID(MGB_MICROCHIP_VENDOR_ID, MGB_LAN7430_DEVICE_ID,
@@ -396,18 +382,18 @@ mgb_attach_pre(if_ctx_t ctx)
 
 	/* get the BAR */
 	error = mgb_alloc_regs(sc);
-	if (unlikely(error != 0)) {
+	if (error != 0) {
 		device_printf(sc->dev,
 		    "Unable to allocate bus resource: registers.\n");
 		goto fail;
 	}
 
 	error = mgb_test_bar(sc);
-	if (unlikely(error != 0))
+	if (error != 0)
 		goto fail;
 
 	error = mgb_hw_init(sc);
-	if (unlikely(error != 0)) {
+	if (error != 0) {
 		device_printf(sc->dev,
 		    "MGB device init failed. (err: %d)\n", error);
 		goto fail;
@@ -428,7 +414,7 @@ mgb_attach_pre(if_ctx_t ctx)
 	error = mii_attach(sc->dev, &sc->miibus, iflib_get_ifp(ctx),
 	    mgb_media_change, mgb_media_status,
 	    BMSR_DEFCAPMASK, phyaddr, MII_OFFSET_ANY, MIIF_DOPAUSE);
-	if (unlikely(error != 0)) {
+	if (error != 0) {
 		device_printf(sc->dev, "Failed to attach MII interface\n");
 		goto fail;
 	}
@@ -442,7 +428,7 @@ mgb_attach_pre(if_ctx_t ctx)
 	if (rid != scctx->isc_msix_bar) {
 		sc->pba = bus_alloc_resource_any(sc->dev, SYS_RES_MEMORY,
 		    &rid, RF_ACTIVE);
-		if (unlikely(sc->pba == NULL)) {
+		if (sc->pba == NULL) {
 			error = ENXIO;
 			device_printf(sc->dev, "Failed to setup PBA BAR\n");
 			goto fail;
@@ -450,9 +436,9 @@ mgb_attach_pre(if_ctx_t ctx)
 	}
 
 	mgb_get_ethaddr(sc, &hwaddr);
-	if (unlikely(ETHER_IS_BROADCAST(hwaddr.octet) ||
+	if (ETHER_IS_BROADCAST(hwaddr.octet) ||
 	    ETHER_IS_MULTICAST(hwaddr.octet) ||
-	    ETHER_IS_ZERO(hwaddr.octet)))
+	    ETHER_IS_ZERO(hwaddr.octet))
 		ether_gen_addr(iflib_get_ifp(ctx), &hwaddr);
 
 	/*
@@ -1236,7 +1222,7 @@ mgb_alloc_regs(struct mgb_softc *sc)
 	pci_enable_busmaster(sc->dev);
 	sc->regs = bus_alloc_resource_any(sc->dev, SYS_RES_MEMORY,
 	    &rid, RF_ACTIVE);
-	if (unlikely(sc->regs == NULL))
+	if (sc->regs == NULL)
 		 return ENXIO;
 
 	return (0);
@@ -1287,7 +1273,7 @@ mgb_dma_rx_ring_init(struct mgb_softc *sc, int channel)
 	    ("Trying to init channels when not in init state\n"));
 
 	/* write ring address */
-	if (unlikely(rdata->ring_bus_addr == 0)) {
+	if (rdata->ring_bus_addr == 0) {
 		device_printf(sc->dev, "Invalid ring bus addr.\n");
 		goto fail;
 	}
@@ -1298,7 +1284,7 @@ mgb_dma_rx_ring_init(struct mgb_softc *sc, int channel)
 	    CSR_TRANSLATE_ADDR_LOW32(rdata->ring_bus_addr));
 
 	/* write head pointer writeback address */
-	if (unlikely(rdata->head_wb_bus_addr == 0)) {
+	if (rdata->head_wb_bus_addr == 0) {
 		device_printf(sc->dev, "Invalid head wb bus addr.\n");
 		goto fail;
 	}
@@ -1384,7 +1370,7 @@ mgb_dma_tx_ring_init(struct mgb_softc *sc, int channel)
 	CSR_WRITE_REG(sc, MGB_DMA_TX_CONFIG0(channel), ring_config);
 
 	/* write head pointer writeback address */
-	if (unlikely(rdata->head_wb_bus_addr == 0)) {
+	if (rdata->head_wb_bus_addr == 0) {
 		device_printf(sc->dev, "Invalid head wb bus addr.\n");
 		goto fail;
 	}
@@ -1481,17 +1467,17 @@ mgb_hw_init(struct mgb_softc *sc)
 	int error = 0;
 
 	error = mgb_hw_reset(sc);
-	if (unlikely(error != 0))
+	if (error != 0)
 		goto fail;
 
 	mgb_mac_init(sc);
 
 	error = mgb_phy_reset(sc);
-	if (unlikely(error != 0))
+	if (error != 0)
 		goto fail;
 
 	error = mgb_dmac_reset(sc);
-	if (unlikely(error != 0))
+	if (error != 0)
 		goto fail;
 
 fail:
