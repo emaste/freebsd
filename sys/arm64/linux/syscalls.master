@@ -1555,8 +1555,7 @@
 		    l_ulong start,
 		    l_size_t len,
 		    l_ulong prot,
-		   ,
-		    _int pkey
+		    l_int pkey
 		);
 	}
 289	AUE_NULL	STD	{
