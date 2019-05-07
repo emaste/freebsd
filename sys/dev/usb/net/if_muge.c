@@ -1541,7 +1541,8 @@ muge_fdt_find_mac(const char *compatible, unsigned char *mac)
 
 /**
  *	muge_fdt_count_led_modes - read number of LED modes from node
- *	@compatible: compatible string for DTB node in the form "usb[N]NNN,[M]MMM"
+ *	@compatible: compatible string for DTB node in the form
+ *	"usb[N]NNN,[M]MMM"
  *	    where NNN is vendor id and MMM is product id
  *	@amount: memory to store number of LED entries to
  *
@@ -1551,7 +1552,8 @@ muge_fdt_find_mac(const char *compatible, unsigned char *mac)
  *	Returns 0 on success, error code otherwise
  */
 static int
-muge_fdt_count_led_modes(struct muge_softc *sc, const char *compatible, uint32_t *amount)
+muge_fdt_count_led_modes(struct muge_softc *sc, const char *compatible,
+    uint32_t *amount)
 {
 	phandle_t node, root;
 	ssize_t proplen;
@@ -1652,11 +1654,8 @@ muge_set_leds(struct usb_ether *ue)
 #endif
 
 	sc->sc_leds = 0;	/* no LED mode is set */
-	if (lan78xx_eeprom_present(sc)) {
-		muge_dbg_printf(sc, "Setting LED modes from EEPROM is"
-				" currently not implemented\n");
+	if (lan78xx_eeprom_present(sc))
 		return;
-	}
 #ifdef FDT
 	snprintf(compatible, sizeof(compatible), "usb%x,%x",
 	    uaa->info.idVendor, uaa->info.idProduct);
@@ -1669,6 +1668,7 @@ muge_set_leds(struct usb_ether *ue)
 		return;
 	}
 #endif
+	muge_dbg_printf(sc, "LED configuration not available\n");
 }
 
 /**
