@@ -163,8 +163,7 @@ SUBDIR=	\
 	if_lagg \
 	${_if_ndis} \
 	${_if_stf} \
-	if_tap \
-	if_tun \
+	if_tuntap \
 	if_vlan \
 	if_vxlan \
 	iflib \
@@ -236,6 +235,7 @@ SUBDIR=	\
 	mfi \
 	mii \
 	mlx \
+	mlxfw \
 	${_mlx4} \
 	${_mlx4ib} \
 	${_mlx4en} \
