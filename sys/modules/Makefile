@@ -205,6 +205,7 @@ SUBDIR=	\
 	libalias \
 	libiconv \
 	libmchain \
+	lindebugfs \
 	linuxkpi \
 	${_lio} \
 	lpt \
