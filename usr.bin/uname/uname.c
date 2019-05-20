@@ -87,8 +87,8 @@ static void print_uname(u_int);
 static void setup_get(void);
 static void usage(void);
 
-static char *buildid, *ident, *platform, *hostname, *arch,
-    *release, *sysname, *version, *kernvers, *uservers;
+static char *buildid, *ident, *platform, *hostname, *arch, *release, *sysname,
+    *version, *kernvers, *uservers;
 static int space;
 
 int
