@@ -210,6 +210,8 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 			mode = VM_MEMATTR_WRITE_COMBINING;
 		else if ((p->md_attr & EFI_MD_ATTR_UC) != 0)
 			mode = VM_MEMATTR_DEVICE;
+		else if (p->md_type == EFI_MD_TYPE_IOMEM)
+			mode = VM_MEMATTR_DEVICE;
 		else {
 			if (bootverbose)
 				printf("EFI Runtime entry %d mapping "
