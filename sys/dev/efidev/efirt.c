@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 
 static struct efi_systbl *efi_systbl;
 static eventhandler_tag efi_shutdown_tag;
+static struct efi_map_header *efihdr = NULL;
 /*
  * The following pointers point to tables in the EFI runtime service data pages.
  * Care should be taken to make sure that we've properly entered the EFI runtime
@@ -133,6 +134,41 @@ efi_is_in_map(struct efi_md *map, int ndesc, int descsz, vm_offset_t addr)
 	return (false);
 }
 
+uint64_t
+efi_memory_attribute(vm_paddr_t pa)
+{
+	caddr_t kmdp;
+	struct efi_md *map, *p;
+	size_t efisz;
+	int i, ndesc;
+
+	if (efihdr == NULL) {
+		kmdp = preload_search_by_type("elf kernel");
+		if (kmdp == NULL)
+			kmdp = preload_search_by_type("elf64 kernel");
+		efihdr = (struct efi_map_header *)preload_search_info(kmdp,
+		    MODINFO_METADATA | MODINFOMD_EFI_MAP);
+		if (efihdr == NULL)
+			return (0);
+	}
+
+	efisz = (sizeof(struct efi_map_header) + 0xf) & ~0xf;
+	map = (struct efi_md *)((uint8_t *)efihdr + efisz);
+	if (efihdr->descriptor_size == 0)
+		return (0);
+	ndesc = efihdr->memory_size / efihdr->descriptor_size;
+
+	for (i = 0, p = map; i < ndesc; i++, p = efi_next_descriptor(p,
+	    efihdr->descriptor_size)) {
+		if (pa >= p->md_phys &&
+		    pa < (p->md_phys + p->md_pages * PAGE_SIZE)) {
+			return (p->md_attr);
+		}
+	}
+
+	return (0);
+}
+
 static void
 efi_shutdown_final(void *dummy __unused, int howto)
 {
@@ -149,7 +185,6 @@ efi_shutdown_final(void *dummy __unused, int howto)
 static int
 efi_init(void)
 {
-	struct efi_map_header *efihdr;
 	struct efi_md *map;
 	struct efi_rt *rtdm;
 	caddr_t kmdp;
@@ -182,15 +217,17 @@ efi_init(void)
 			printf("EFI config table is not present\n");
 	}
 
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
-	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
 	if (efihdr == NULL) {
-		if (bootverbose)
-			printf("EFI map is not present\n");
-		return (0);
+		kmdp = preload_search_by_type("elf kernel");
+		if (kmdp == NULL)
+			kmdp = preload_search_by_type("elf64 kernel");
+		efihdr = (struct efi_map_header *)preload_search_info(kmdp,
+		    MODINFO_METADATA | MODINFOMD_EFI_MAP);
+		if (efihdr == NULL) {
+			if (bootverbose)
+				printf("EFI map is not present\n");
+			return (0);
+		}
 	}
 	efisz = (sizeof(struct efi_map_header) + 0xf) & ~0xf;
 	map = (struct efi_md *)((uint8_t *)efihdr + efisz);
@@ -233,6 +270,19 @@ efi_init(void)
 		return (ENXIO);
 	}
 #endif
+
+	printf("EFI RT Signature: %lx, Revision=%x, Size=%x, CRC32=%x\n",
+	  efi_runtime->rt_hdr.th_sig,
+	  efi_runtime->rt_hdr.th_rev,
+	  efi_runtime->rt_hdr.th_hdrsz,
+	  efi_runtime->rt_hdr.th_crc32);
+	printf("EFI RT Get Time: %lx\n", (unsigned long)efi_runtime->rt_gettime);
+	printf("EFI RT Set Time: %lx\n", (unsigned long)efi_runtime->rt_settime);
+	printf("EFI RT Get Wakeup Time: %lx\n", (unsigned long)efi_runtime->rt_getwaketime);
+	printf("EFI RT Set Wakeup Time: %lx\n", (unsigned long)efi_runtime->rt_setwaketime);
+	printf("EFI RT Get Var: %lx\n", (unsigned long)efi_runtime->rt_getvar);
+	printf("EFI RT Get Next Var: %lx\n", (unsigned long)efi_runtime->rt_scanvar);
+	printf("EFI RT Set Var: %lx\n", (unsigned long)efi_runtime->rt_setvar);
 
 	/*
 	 * We use SHUTDOWN_PRI_LAST - 1 to trigger after IPMI, but before ACPI.
@@ -353,10 +403,12 @@ efi_rt_arch_call_nofault(struct efirt_callinfo *ec)
 		    ec->ec_arg2, ec->ec_arg3, ec->ec_arg4);
 		break;
 	case 5:
+		__asm __volatile("brk #0x4ff");
 		ec->ec_efi_status = ((register_t (*)(register_t, register_t,
 		    register_t, register_t, register_t))ec->ec_fptr)(
 		    ec->ec_arg1, ec->ec_arg2, ec->ec_arg3, ec->ec_arg4,
 		    ec->ec_arg5);
+		__asm __volatile("brk #0x4ff");
 		break;
 	default:
 		panic("efi_rt_arch_call: %d args", (int)ec->ec_argcnt);
@@ -376,6 +428,7 @@ efi_call(struct efirt_callinfo *ecp)
 	error = efi_rt_handle_faults ? efi_rt_arch_call(ecp) :
 	    efi_rt_arch_call_nofault(ecp);
 	efi_leave();
+	printf("efi_leave done\n");
 	if (error == 0)
 		error = efi_status_to_errno(ecp->ec_efi_status);
 	else if (bootverbose)
@@ -547,6 +600,7 @@ efi_var_set(efi_char *name, struct uuid *vendor, uint32_t attrib,
 	ec.ec_arg4 = (uintptr_t)datasize;
 	ec.ec_arg5 = (uintptr_t)data;
 	ec.ec_fptr = EFI_RT_METHOD_PA(rt_setvar);
+	printf("efi_var_set: calling rt_setvar (%lx)\n", ec.ec_fptr);
 	return (efi_call(&ec));
 }
 
