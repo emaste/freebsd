@@ -127,6 +127,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/_unrhdr.h>
 #include <sys/smp.h>
+#include <sys/efi.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -173,7 +174,6 @@ __FBSDID("$FreeBSD$");
 #define	DEVICE_MEMORY	0
 #define	UNCACHED_MEMORY	1
 #define	CACHED_MEMORY	2
-
 
 #ifdef PV_STATS
 #define PV_STAT(x)	do { x ; } while (0)
@@ -4629,7 +4629,9 @@ pmap_mapbios(vm_paddr_t pa, vm_size_t size)
 	vm_offset_t va, offset;
 	pd_entry_t *pde;
 	pt_entry_t *l2;
+	uint64_t attr;
 	int i, lvl, l2_blocks, free_l2_count, start_idx;
+	int mode;
 
 	if (!vm_initialized) {
 		/*
@@ -4723,7 +4725,18 @@ pmap_mapbios(vm_paddr_t pa, vm_size_t size)
 		/* L3 table is linked */
 		va = trunc_page(va);
 		pa = trunc_page(pa);
-		pmap_kenter(va, size, pa, CACHED_MEMORY);
+
+		/* From UEFI spec 2.8 table 7 in 2.3.6.1 */
+		attr = efi_memory_attribute(pa);
+		if ((attr & EFI_MD_ATTR_WB) != 0)
+			mode = VM_MEMATTR_WRITE_BACK;
+		else if ((attr & EFI_MD_ATTR_WT) != 0)
+			mode = VM_MEMATTR_WRITE_THROUGH;
+		else if ((attr & EFI_MD_ATTR_WC) != 0)
+			mode = VM_MEMATTR_WRITE_COMBINING;
+		else
+			mode = VM_MEMATTR_DEVICE;
+		pmap_kenter(va, size, pa, mode);
 	}
 
 	return ((void *)(va + offset));
