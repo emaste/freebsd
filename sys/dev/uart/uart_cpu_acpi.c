@@ -45,9 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/actables.h>
 
-extern bus_space_tag_t uart_bus_space_io;
-extern bus_space_tag_t uart_bus_space_mem;
-
 static struct acpi_uart_compat_data *
 uart_cpu_acpi_scan(uint8_t interface_type)
 {
@@ -130,6 +127,7 @@ uart_cpu_acpi_spcr(int devtype, struct uart_devinfo *di)
 	di->bas.regiowidth = spcr->SerialPort.BitWidth / 8;
 	switch (spcr->BaudRate) {
 	case 0:
+		/* Special value; means "keep current value unchanged". */
 		di->baudrate = 0;
 		break;
 	case 3:
@@ -145,6 +143,8 @@ uart_cpu_acpi_spcr(int devtype, struct uart_devinfo *di)
 		di->baudrate = 115200;
 		break;
 	default:
+		printf("SPCR has reserved BaudRate value: %d!\n",
+		    (int)spcr->BaudRate);
 		goto out;
 	}
 
