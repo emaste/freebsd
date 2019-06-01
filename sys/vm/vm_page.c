@@ -833,7 +833,7 @@ vm_page_startup(vm_offset_t vaddr)
 
 			vmd = VM_DOMAIN(seg->domain);
 			vm_domain_free_lock(vmd);
-			vm_phys_free_contig(m, pagecount);
+			vm_phys_enqueue_contig(m, pagecount);
 			vm_domain_free_unlock(vmd);
 			vm_domain_freecnt_inc(vmd, pagecount);
 			vm_cnt.v_page_count += (u_int)pagecount;
@@ -2645,7 +2645,6 @@ retry:
 				} else {
 					m->flags &= ~PG_ZERO;
 					vm_page_dequeue(m);
-					vm_page_remove(m);
 					if (vm_page_free_prep(m))
 						SLIST_INSERT_HEAD(&free, m,
 						    plinks.s.ss);
