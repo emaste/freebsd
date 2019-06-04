@@ -192,7 +192,7 @@ int efi_var_get(uint16_t *name, struct uuid *vendor, uint32_t *attrib,
 int efi_var_nextname(size_t *namesize, uint16_t *name, struct uuid *vendor);
 int efi_var_set(uint16_t *name, struct uuid *vendor, uint32_t attrib,
     size_t datasize, void *data);
-uint64_t efi_memory_attribute(vm_paddr_t pa);
+uint64_t efi_memory_attribute(vm_paddr_t pa, vm_paddr_t *out);
 
 #endif	/* _KERNEL */
 
