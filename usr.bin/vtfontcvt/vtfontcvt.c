@@ -244,6 +244,23 @@ parse_bitmap_line(uint8_t *left, uint8_t *right, unsigned int line,
 	return (0);
 }
 
+static void
+set_height(int h)
+{
+	if (h <= 0 || h > VFNT_MAXDIMENSION)
+		errx(1, "invalid height %d", h);
+	height = h;
+}
+
+static void
+set_width(int w)
+{
+	if (w <= 0 || w > VFNT_MAXDIMENSION)
+		errx(1, "invalid width %d", w);
+	width = w;
+	wbytes = howmany(width, 8);
+}
+
 static int
 parse_bdf(FILE *fp, unsigned int map_idx)
 {
@@ -295,23 +312,6 @@ parse_bdf(FILE *fp, unsigned int map_idx)
 	}
 
 	return (0);
-}
-
-static void
-set_height(int h)
-{
-	if (h <= 0 || h > VFNT_MAXDIMENSION)
-		errx(1, "invalid height %d", h);
-	height = h;
-}
-
-static void
-set_width(int w)
-{
-	if (w <= 0 || w > VFNT_MAXDIMENSION)
-		errx(1, "invalid width %d", w);
-	width = w;
-	wbytes = howmany(width, 8);
 }
 
 static int
