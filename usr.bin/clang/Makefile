@@ -10,6 +10,7 @@ SUBDIR+=	llvm-tblgen
 SUBDIR+=	llvm-ar
 SUBDIR+=	llvm-nm
 SUBDIR+=	llvm-objdump
+SUBDIR+=	llvm-symbolizer
 
 .if ${MK_CLANG_EXTRAS} != "no"
 SUBDIR+=	bugpoint
@@ -33,7 +34,6 @@ SUBDIR+=	llvm-modextract
 SUBDIR+=	llvm-objcopy
 SUBDIR+=	llvm-pdbutil
 SUBDIR+=	llvm-rtdyld
-SUBDIR+=	llvm-symbolizer
 SUBDIR+=	llvm-xray
 SUBDIR+=	opt
 .endif
