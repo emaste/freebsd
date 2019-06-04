@@ -60,10 +60,6 @@ __FBSDID("$FreeBSD$");
 
 static struct efi_systbl *efi_systbl;
 static eventhandler_tag efi_shutdown_tag;
-static struct efi_map_header *efihdr;
-static size_t efi_hdr_sz;
-static struct efi_md *efi_map;
-static int efi_map_ndesc;
 /*
  * The following pointers point to tables in the EFI runtime service data pages.
  * Care should be taken to make sure that we've properly entered the EFI runtime
@@ -137,88 +133,6 @@ efi_is_in_map(struct efi_md *map, int ndesc, int descsz, vm_offset_t addr)
 	return (false);
 }
 
-static int
-efi_map_compare(const void *key, const void *member)
-{
-	uint64_t pa;
-	const struct efi_md *md;
-
-	pa = *(const uint64_t *)key;
-	md = (const struct efi_md *)member;
-
-	if (pa >= (uintptr_t)md->md_phys &&
-	  pa < (uintptr_t)md->md_phys + md->md_pages * PAGE_SIZE)
-		return (0);
-	if (pa < (uintptr_t)md->md_phys)
-		return (-1);
-	return (1);
-}
-
-static int
-efi_map_qsort_compare(const void *p1, const void *p2)
-{
-	const struct efi_md *md1;
-	const struct efi_md *md2;
-
-	md1 = (const struct efi_md *)p1;
-	md2 = (const struct efi_md *)p2;
-	return (((uintptr_t)md1->md_phys > (uintptr_t)md2->md_phys) - 
-	    ((uintptr_t)md1->md_phys < (uintptr_t)md2->md_phys));
-}
-
-static bool
-efi_get_memory_map(void)
-{
-	caddr_t kmdp;
-
-	if (efi_map != NULL)
-		return (true);
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
-	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
-	if (efihdr == NULL)
-		return (false);
-	efi_hdr_sz = roundup2(sizeof(struct efi_map_header), 16);
-	efi_map = (struct efi_md *)((uint8_t *)efihdr + efi_hdr_sz);
-	if (efihdr->descriptor_size == 0)
-		return (false);
-	efi_map_ndesc = efihdr->memory_size / efihdr->descriptor_size;
-	qsort(efi_map, efi_map_ndesc, efihdr->descriptor_size,
-	    efi_map_qsort_compare);
-	return (true);
-}
-
-uint64_t
-efi_memory_attribute(vm_paddr_t pa, vm_paddr_t *out)
-{
-	struct efi_md *p, *n;
-
-	if (!efi_get_memory_map())
-		return (0);
-	p = bsearch(&pa, efi_map, efi_map_ndesc, efihdr->descriptor_size,
-	  efi_map_compare);
-	if (p == NULL)
-		return (EFI_MD_ATTR_UC);
-	if (out == NULL)
-		return (p->md_attr);
-	*out = pa + (p->md_pages - 1) * PAGE_SIZE;
-	n = p;
-	do {
-		pa += n->md_pages * PAGE_SIZE;
-		n = bsearch(&pa, efi_map, efi_map_ndesc,
-		  efihdr->descriptor_size, efi_map_compare);
-		if (n == NULL)
-			break;
-		if (n->md_attr == p->md_attr)
-			*out = pa + (n->md_pages - 1) * PAGE_SIZE;
-		else
-			break;
-	} while (1);
-	return (p->md_attr);
-}
-
 static void
 efi_shutdown_final(void *dummy __unused, int howto)
 {
@@ -235,8 +149,12 @@ efi_shutdown_final(void *dummy __unused, int howto)
 static int
 efi_init(void)
 {
+	struct efi_map_header *efihdr;
+	struct efi_md *map;
 	struct efi_rt *rtdm;
-	int rt_disabled;
+	caddr_t kmdp;
+	size_t efisz;
+	int ndesc, rt_disabled;
 
 	rt_disabled = 0;
 	TUNABLE_INT_FETCH("efi.rt.disabled", &rt_disabled);
@@ -264,13 +182,23 @@ efi_init(void)
 			printf("EFI config table is not present\n");
 	}
 
-	if (!efi_get_memory_map()) {
+	kmdp = preload_search_by_type("elf kernel");
+	if (kmdp == NULL)
+		kmdp = preload_search_by_type("elf64 kernel");
+	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
+	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
+	if (efihdr == NULL) {
 		if (bootverbose)
 			printf("EFI map is not present\n");
 		return (0);
 	}
+	efisz = (sizeof(struct efi_map_header) + 0xf) & ~0xf;
+	map = (struct efi_md *)((uint8_t *)efihdr + efisz);
+	if (efihdr->descriptor_size == 0)
+		return (ENOMEM);
 
-	if (!efi_create_1t1_map(efi_map, efi_map_ndesc, efihdr->descriptor_size)) {
+	ndesc = efihdr->memory_size / efihdr->descriptor_size;
+	if (!efi_create_1t1_map(map, ndesc, efihdr->descriptor_size)) {
 		if (bootverbose)
 			printf("EFI cannot create runtime map\n");
 		return (ENOMEM);
@@ -295,8 +223,8 @@ efi_init(void)
 	 * the EFI map, and fail to attach if not.
 	 */
 	rtdm = (struct efi_rt *)efi_phys_to_kva((uintptr_t)efi_runtime);
-	if (rtdm == NULL || !efi_is_in_map(efi_map, efi_map_ndesc,
-	    efihdr->descriptor_size, (vm_offset_t)rtdm->rt_gettime)) {
+	if (rtdm == NULL || !efi_is_in_map(map, ndesc, efihdr->descriptor_size,
+	    (vm_offset_t)rtdm->rt_gettime)) {
 		if (bootverbose)
 			printf(
 			 "EFI runtime services table has an invalid pointer\n");
@@ -305,23 +233,6 @@ efi_init(void)
 		return (ENXIO);
 	}
 #endif
-
-	if (bootverbose) {
-		printf("EFI RT Signature: %jx, Revision=%x, Size=%x, CRC32=%x\n",
-		    efi_runtime->rt_hdr.th_sig,
-		    efi_runtime->rt_hdr.th_rev,
-		    efi_runtime->rt_hdr.th_hdrsz,
-		    efi_runtime->rt_hdr.th_crc32);
-		printf("EFI RT Get Time: %p\n", efi_runtime->rt_gettime);
-		printf("EFI RT Set Time: %p\n", efi_runtime->rt_settime);
-		printf("EFI RT Get Wakeup Time: %p\n",
-		    efi_runtime->rt_getwaketime);
-		printf("EFI RT Set Wakeup Time: %p\n",
-		    efi_runtime->rt_setwaketime);
-		printf("EFI RT Get Var: %p\n", efi_runtime->rt_getvar);
-		printf("EFI RT Get Next Var: %p\n", efi_runtime->rt_scanvar);
-		printf("EFI RT Set Var: %p\n", efi_runtime->rt_setvar);
-	}
 
 	/*
 	 * We use SHUTDOWN_PRI_LAST - 1 to trigger after IPMI, but before ACPI.
