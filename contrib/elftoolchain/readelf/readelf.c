@@ -3434,8 +3434,8 @@ dump_gnu_property_type_0(struct readelf *re, const char *buf, size_t sz)
 		if (sz < 8)
 			goto bad;
 
-		type = *(const uint32_t *)(const void *)(buf);
-		prop_sz =*(const uint32_t *)(const void *)(buf + 4);
+		type = *(const uint32_t *)(const void *)buf;
+		prop_sz = *(const uint32_t *)(const void *)(buf + 4);
 		buf += 8;
 		sz -= 8;
 
@@ -3451,12 +3451,12 @@ dump_gnu_property_type_0(struct readelf *re, const char *buf, size_t sz)
 			}
 			switch (type) {
 			case GNU_PROPERTY_X86_FEATURE_1_AND:
-				printf("x86 feature:");
+				printf("x86 features:");
 				if (prop_sz != 4)
 					goto bad;
 				dump_flags(gnu_property_x86_feature_1_and_bits,
 				    *(const uint32_t *)(const void *)buf);
-			break;
+				break;
 			}
 		}
 
