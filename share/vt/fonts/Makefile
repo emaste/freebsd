@@ -1,6 +1,13 @@
 # $FreeBSD$
 
+.PATH:	${SRCTOP}/contrib/spleen
+
 FONTS=	gallant.fnt \
+	spleen-5x8.fnt \
+	spleen-8x16.fnt \
+	spleen-12x24.fnt \
+	spleen-16x32.fnt \
+	spleen-32x64.fnt \
 	terminus-b32.fnt \
 	tom-thumb.fnt \
 	vgarom-8x8.fnt \
