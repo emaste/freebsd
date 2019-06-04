@@ -67,7 +67,7 @@ static const char sccsid[] = "@(#)uname.c	8.2 (Berkeley) 5/4/95";
 #define	IFLAG	0x40
 #define	UFLAG	0x80
 #define	KFLAG	0x100
-#define BFLAG	0x200
+#define	BFLAG	0x200
 
 typedef void (*get_t)(void);
 static get_t get_buildid, get_ident, get_platform, get_hostname, get_arch,
