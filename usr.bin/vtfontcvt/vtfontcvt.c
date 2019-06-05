@@ -251,7 +251,7 @@ split_bitmap_line(uint8_t *left, uint8_t *right, uint8_t *line, size_t w)
 	memcpy(left, line, wbytes);
 	*(left + wbytes - 1) &= 0xFF << s;
 
-	if (w > width) { // Double-width character
+	if (w > width) { /* Double-width character. */
 		uint8_t t;
 
 		for (i = 0; i < wbytes; i++) {
