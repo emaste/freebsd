@@ -111,7 +111,7 @@ xmalloc(size_t size)
 static int
 add_mapping(struct glyph *gl, unsigned int c, unsigned int map_idx)
 {
-	struct mapping *mp, *mptmp;
+	struct mapping *mp, *mp_temp;
 	struct mapping_list *ml;
 
 	mapping_total++;
@@ -128,9 +128,9 @@ add_mapping(struct glyph *gl, unsigned int c, unsigned int map_idx)
 		TAILQ_INSERT_TAIL(ml, mp, m_list);
 	} else {
 		/* Find entry to insert new char before; cannot be at end. */
-		TAILQ_FOREACH(mptmp, ml, m_list) {
-			if (mptmp->m_char >= c) {
-				TAILQ_INSERT_BEFORE(mptmp, mp, m_list);
+		TAILQ_FOREACH(mp_temp, ml, m_list) {
+			if (mp_temp->m_char >= c) {
+				TAILQ_INSERT_BEFORE(mp_temp, mp, m_list);
 				break;
 			}
 		}
