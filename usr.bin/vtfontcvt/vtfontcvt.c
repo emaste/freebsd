@@ -424,6 +424,40 @@ out:
 }
 
 static int
+parse_bitmap_line(uint8_t *left, uint8_t *right, unsigned int line,
+    unsigned int dwidth)
+{
+	uint8_t *p;
+	unsigned int i, subline;
+
+	if (dwidth != width && dwidth != width * 2)
+		errx(1, "Bitmap with unsupported width %u!", dwidth);
+
+	/* Move pixel data right to simplify splitting double characters. */
+	line >>= (howmany(dwidth, 8) * 8) - dwidth;
+
+	for (i = dwidth / width; i > 0; i--) {
+		p = (i == 2) ? right : left;
+
+		subline = line & ((1 << width) - 1);
+		subline <<= (howmany(width, 8) * 8) - width;
+
+		if (wbytes == 1) {
+			*p = subline;
+		} else if (wbytes == 2) {
+			*p++ = subline >> 8;
+			*p = subline;
+		} else {
+			errx(1, "Unsupported wbytes %u!", wbytes);
+		}
+
+		line >>= width;
+	}
+
+	return (0);
+}
+
+static int
 parse_hex(FILE *fp, unsigned int map_idx)
 {
 	char *ln, *p;
