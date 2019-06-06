@@ -246,7 +246,7 @@ rshift_bitmap_line(uint8_t *line, size_t size, size_t len, size_t shift)
 		t <<= s;
 
 		if (i + d + 1 < size)
-			*(line + i + d + 1) |= (uint8_t) t;
+			*(line + i + d + 1) |= (uint8_t)t;
 		if (i + d < size)
 			*(line + i + d) = t >> 8;
 	}
@@ -312,9 +312,11 @@ parse_bdf(FILE *fp, unsigned int map_idx)
 		ln[length - 1] = '\0';
 
 		if (strncmp(ln, "FONT ", 5) == 0) {
-			p = ln + 5; i = 0;
+			p = ln + 5;
+			i = 0;
 			while ((p = strchr(p, '-')) != NULL) {
-				p++; i++;
+				p++;
+				i++;
 				if (i == 11) {
 					spacing = *p;
 					break;
@@ -340,10 +342,10 @@ parse_bdf(FILE *fp, unsigned int map_idx)
 
 		if (strncmp(ln, "DWIDTH ", 7) == 0 &&
 		    sscanf(ln + 7, "%d %d", &dwidth, &dwy) == 2) {
-		if (dwy != 0 || (dwidth != fbbw && dwidth * 2 != fbbw))
-			errx(1, "Bitmap with unsupported "
-			    "DWIDTH %d %d at line %u",
-			    dwidth, dwy, linenum);
+			if (dwy != 0 || (dwidth != fbbw && dwidth * 2 != fbbw))
+				errx(1, "Bitmap with unsupported "
+				    "DWIDTH %d %d at line %u",
+				    dwidth, dwy, linenum);
 			if (dwidth < fbbw)
 				set_width(dwidth);
 		}
@@ -371,7 +373,7 @@ parse_bdf(FILE *fp, unsigned int map_idx)
 			bbwbytes = howmany(bbw, 8);
 		} else if (strncmp(ln, "BITMAP", 6) == 0 &&
 		    (ln[6] == ' ' || ln[6] == '\0')) {
-			if (dwidth ==  0 || bbw == 0 || bbh == 0)
+			if (dwidth == 0 || bbw == 0 || bbh == 0)
 				errx(1, "Broken char header at line %u!",
 				    linenum);
 			if (bytes == NULL) {
@@ -403,9 +405,10 @@ parse_bdf(FILE *fp, unsigned int map_idx)
 				memset(line, 0, wbytes * 2);
 				for (j = 0; j < bbwbytes; j++) {
 					unsigned int val;
-					if (sscanf(ln + j * 2, "%2x", &val) == 0)
+					if (sscanf(ln + j * 2, "%2x", &val) ==
+					    0)
 						break;
-					*(line + j) = (uint8_t) val;
+					*(line + j) = (uint8_t)val;
 				}
 
 				rv = rshift_bitmap_line(line, wbytes * 2,
