@@ -127,7 +127,7 @@ add_mapping(struct glyph *gl, unsigned int c, unsigned int map_idx)
 		/* Common case: empty list or new char at end of list. */
 		TAILQ_INSERT_TAIL(ml, mp, m_list);
 	} else {
-		/* Find entry to insert new char before; cannot be at end. */
+		/* Find insertion point for char; cannot be at end. */
 		TAILQ_FOREACH(mp_temp, ml, m_list) {
 			if (mp_temp->m_char >= c) {
 				TAILQ_INSERT_BEFORE(mp_temp, mp, m_list);
