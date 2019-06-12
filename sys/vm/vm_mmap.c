@@ -103,6 +103,9 @@ SYSCTL_INT(_vm, OID_AUTO, old_mlock, CTLFLAG_RWTUN, &old_mlock, 0,
 static int mincore_mapped = 1;
 SYSCTL_INT(_vm, OID_AUTO, mincore_mapped, CTLFLAG_RWTUN, &mincore_mapped, 0,
     "mincore reports mappings, not residency");
+static int imply_prot_max = 0;
+SYSCTL_INT(_vm, OID_AUTO, imply_prot_max, CTLFLAG_RWTUN, &mincore_mapped, 0,
+    "Imply maximum page permissions in mmap() when none are specified.");
 
 #ifdef MAP_32BIT
 #define	MAP_32BIT_MAX_ADDR	((vm_offset_t)1 << 31)
@@ -187,8 +190,19 @@ kern_mmap(struct thread *td, uintptr_t addr0, size_t len, int prot, int flags,
 	vm_offset_t addr;
 	vm_size_t pageoff, size;
 	vm_prot_t cap_maxprot;
-	int align, error;
+	int align, error, max_prot;
 	cap_rights_t rights;
+
+	max_prot = PROT_MAX_EXTRACT(prot);
+	prot = PROT_MAX(prot);
+	/*
+	 * Always honor PROT_MAX if set.  If not, default to all
+	 * permissions unless we're implying maximum permissions.
+	 *
+	 * XXX: should be tunable per process and ABI.
+	 */
+	if (max_prot == 0)
+		max_prot = imply_prot_max ? prot : _PROT_ALL;
 
 	vms = td->td_proc->p_vmspace;
 	fp = NULL;
@@ -335,7 +349,7 @@ kern_mmap(struct thread *td, uintptr_t addr0, size_t len, int prot, int flags,
 		 * This relies on VM_PROT_* matching PROT_*.
 		 */
 		error = vm_mmap_object(&vms->vm_map, &addr, size, prot,
-		    VM_PROT_ALL, flags, NULL, pos, FALSE, td);
+		    max_prot, flags, NULL, pos, FALSE, td);
 	} else {
 		/*
 		 * Mapping file, get fp for validation and don't let the
@@ -363,7 +377,7 @@ kern_mmap(struct thread *td, uintptr_t addr0, size_t len, int prot, int flags,
 
 		/* This relies on VM_PROT_* matching PROT_*. */
 		error = fo_mmap(fp, &vms->vm_map, &addr, size, prot,
-		    cap_maxprot, flags, pos, td);
+		    max_prot & cap_maxprot, flags, pos, td);
 	}
 
 	if (error == 0)
@@ -594,8 +608,10 @@ kern_mprotect(struct thread *td, uintptr_t addr0, size_t size, int prot)
 {
 	vm_offset_t addr;
 	vm_size_t pageoff;
+	int vm_error, max_prot;
 
 	addr = addr0;
+	max_prot = PROT_MAX_EXTRACT(prot);
 	prot = (prot & VM_PROT_ALL);
 	pageoff = (addr & PAGE_MASK);
 	addr -= pageoff;
@@ -610,8 +626,19 @@ kern_mprotect(struct thread *td, uintptr_t addr0, size_t size, int prot)
 	if (addr + size < addr)
 		return (EINVAL);
 
-	switch (vm_map_protect(&td->td_proc->p_vmspace->vm_map, addr,
-	    addr + size, prot, FALSE)) {
+	if (max_prot != 0) {
+		if ((max_prot & prot) != prot)
+			return (EINVAL);
+		vm_error = vm_map_protect(&td->td_proc->p_vmspace->vm_map,
+		    addr, addr + size, max_prot, TRUE);
+		if (vm_error != KERN_SUCCESS)
+			goto error_out;
+	}
+	vm_error = vm_map_protect(&td->td_proc->p_vmspace->vm_map, addr,
+	    addr + size, prot, FALSE);
+
+error_out:
+	switch (vm_error) {
 	case KERN_SUCCESS:
 		return (0);
 	case KERN_PROTECTION_FAILURE:
