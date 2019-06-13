@@ -608,10 +608,8 @@ kern_mprotect(struct thread *td, uintptr_t addr0, size_t size, int prot)
 {
 	vm_offset_t addr;
 	vm_size_t pageoff;
-	int vm_error, max_prot;
 
 	addr = addr0;
-	max_prot = PROT_MAX_EXTRACT(prot);
 	prot = (prot & VM_PROT_ALL);
 	pageoff = (addr & PAGE_MASK);
 	addr -= pageoff;
@@ -626,19 +624,8 @@ kern_mprotect(struct thread *td, uintptr_t addr0, size_t size, int prot)
 	if (addr + size < addr)
 		return (EINVAL);
 
-	if (max_prot != 0) {
-		if ((max_prot & prot) != prot)
-			return (EINVAL);
-		vm_error = vm_map_protect(&td->td_proc->p_vmspace->vm_map,
-		    addr, addr + size, max_prot, TRUE);
-		if (vm_error != KERN_SUCCESS)
-			goto error_out;
-	}
-	vm_error = vm_map_protect(&td->td_proc->p_vmspace->vm_map, addr,
-	    addr + size, prot, FALSE);
-
-error_out:
-	switch (vm_error) {
+	switch (vm_map_protect(&td->td_proc->p_vmspace->vm_map, addr,
+	    addr + size, prot, FALSE)) {
 	case KERN_SUCCESS:
 		return (0);
 	case KERN_PROTECTION_FAILURE:
