@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/spleen
+.PATH:	${SRCTOP}/contrib/spleen
 
 FONTS=	gallant.fnt \
 	spleen-5x8.fnt \
