@@ -734,18 +734,17 @@ SYSCTL_INT(_debug, OID_AUTO, vmmap_check, CTLFLAG_RWTUN,
 static void
 _vm_map_assert_consistent(vm_map_t map)
 {
-	vm_map_entry_t entry;
-	vm_map_entry_t child;
+	vm_map_entry_t child, entry, prev;
 	vm_size_t max_left, max_right;
 
 	if (!enable_vmmap_check)
 		return;
 
-	for (entry = map->header.next; entry != &map->header;
-	    entry = entry->next) {
-		KASSERT(entry->prev->end <= entry->start,
+	for (prev = &map->header; (entry = prev->next) != &map->header;
+	    prev = entry) {
+		KASSERT(prev->end <= entry->start,
 		    ("map %p prev->end = %jx, start = %jx", map,
-		    (uintmax_t)entry->prev->end, (uintmax_t)entry->start));
+		    (uintmax_t)prev->end, (uintmax_t)entry->start));
 		KASSERT(entry->start < entry->end,
 		    ("map %p start = %jx, end = %jx", map,
 		    (uintmax_t)entry->start, (uintmax_t)entry->end));
@@ -762,7 +761,7 @@ _vm_map_assert_consistent(vm_map_t map)
 		    (uintmax_t)entry->start, (uintmax_t)entry->right->start));
 		child = entry->left;
 		max_left = (child != NULL) ? child->max_free :
-			entry->start - entry->prev->end;
+			entry->start - prev->end;
 		child = entry->right;
 		max_right = (child != NULL) ? child->max_free :
 			entry->next->start - entry->end;
@@ -2109,6 +2108,60 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 }
 
 /*
+ *	vm_map_entry_back:
+ *
+ *	Allocate an object to back a map entry.
+ */
+static inline void
+vm_map_entry_back(vm_map_entry_t entry)
+{
+	vm_object_t object;
+
+	KASSERT(entry->object.vm_object == NULL,
+	    ("map entry %p has backing object", entry));
+	KASSERT((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0,
+	    ("map entry %p is a submap", entry));
+	object = vm_object_allocate(OBJT_DEFAULT,
+	    atop(entry->end - entry->start));
+	entry->object.vm_object = object;
+	entry->offset = 0;
+	if (entry->cred != NULL) {
+		object->cred = entry->cred;
+		object->charge = entry->end - entry->start;
+		entry->cred = NULL;
+	}
+}
+
+/*
+ *	vm_map_entry_charge_object
+ *
+ *	If there is no object backing this entry, create one.  Otherwise, if
+ *	the entry has cred, give it to the backing object.
+ */
+static inline void
+vm_map_entry_charge_object(vm_map_t map, vm_map_entry_t entry)
+{
+
+	VM_MAP_ASSERT_LOCKED(map);
+	KASSERT((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0,
+	    ("map entry %p is a submap", entry));
+	if (entry->object.vm_object == NULL && !map->system_map &&
+	    (entry->eflags & MAP_ENTRY_GUARD) == 0)
+		vm_map_entry_back(entry);
+	else if (entry->object.vm_object != NULL &&
+	    ((entry->eflags & MAP_ENTRY_NEEDS_COPY) == 0) &&
+	    entry->cred != NULL) {
+		VM_OBJECT_WLOCK(entry->object.vm_object);
+		KASSERT(entry->object.vm_object->cred == NULL,
+		    ("OVERCOMMIT: %s: both cred e %p", __func__, entry));
+		entry->object.vm_object->cred = entry->cred;
+		entry->object.vm_object->charge = entry->end - entry->start;
+		VM_OBJECT_WUNLOCK(entry->object.vm_object);
+		entry->cred = NULL;
+	}
+}
+
+/*
  *	vm_map_clip_start:	[ internal use only ]
  *
  *	Asserts that the given entry begins at or after
@@ -2140,38 +2193,7 @@ _vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
 	 * starting address.
 	 */
 	vm_map_simplify_entry(map, entry);
-
-	/*
-	 * If there is no object backing this entry, we might as well create
-	 * one now.  If we defer it, an object can get created after the map
-	 * is clipped, and individual objects will be created for the split-up
-	 * map.  This is a bit of a hack, but is also about the best place to
-	 * put this improvement.
-	 */
-	if (entry->object.vm_object == NULL && !map->system_map &&
-	    (entry->eflags & MAP_ENTRY_GUARD) == 0) {
-		vm_object_t object;
-		object = vm_object_allocate(OBJT_DEFAULT,
-				atop(entry->end - entry->start));
-		entry->object.vm_object = object;
-		entry->offset = 0;
-		if (entry->cred != NULL) {
-			object->cred = entry->cred;
-			object->charge = entry->end - entry->start;
-			entry->cred = NULL;
-		}
-	} else if (entry->object.vm_object != NULL &&
-		   ((entry->eflags & MAP_ENTRY_NEEDS_COPY) == 0) &&
-		   entry->cred != NULL) {
-		VM_OBJECT_WLOCK(entry->object.vm_object);
-		KASSERT(entry->object.vm_object->cred == NULL,
-		    ("OVERCOMMIT: vm_entry_clip_start: both cred e %p", entry));
-		entry->object.vm_object->cred = entry->cred;
-		entry->object.vm_object->charge = entry->end - entry->start;
-		VM_OBJECT_WUNLOCK(entry->object.vm_object);
-		entry->cred = NULL;
-	}
-
+	vm_map_entry_charge_object(map, entry);
 	new_entry = vm_map_entry_create(map);
 	*new_entry = *entry;
 
@@ -2222,40 +2244,11 @@ _vm_map_clip_end(vm_map_t map, vm_map_entry_t entry, vm_offset_t end)
 	KASSERT(entry->start < end && entry->end > end,
 	    ("_vm_map_clip_end: invalid clip of entry %p", entry));
 
-	/*
-	 * If there is no object backing this entry, we might as well create
-	 * one now.  If we defer it, an object can get created after the map
-	 * is clipped, and individual objects will be created for the split-up
-	 * map.  This is a bit of a hack, but is also about the best place to
-	 * put this improvement.
-	 */
-	if (entry->object.vm_object == NULL && !map->system_map &&
-	    (entry->eflags & MAP_ENTRY_GUARD) == 0) {
-		vm_object_t object;
-		object = vm_object_allocate(OBJT_DEFAULT,
-				atop(entry->end - entry->start));
-		entry->object.vm_object = object;
-		entry->offset = 0;
-		if (entry->cred != NULL) {
-			object->cred = entry->cred;
-			object->charge = entry->end - entry->start;
-			entry->cred = NULL;
-		}
-	} else if (entry->object.vm_object != NULL &&
-		   ((entry->eflags & MAP_ENTRY_NEEDS_COPY) == 0) &&
-		   entry->cred != NULL) {
-		VM_OBJECT_WLOCK(entry->object.vm_object);
-		KASSERT(entry->object.vm_object->cred == NULL,
-		    ("OVERCOMMIT: vm_entry_clip_end: both cred e %p", entry));
-		entry->object.vm_object->cred = entry->cred;
-		entry->object.vm_object->charge = entry->end - entry->start;
-		VM_OBJECT_WUNLOCK(entry->object.vm_object);
-		entry->cred = NULL;
-	}
 
 	/*
 	 * Create a new entry and insert it AFTER the specified entry
 	 */
+	vm_map_entry_charge_object(map, entry);
 	new_entry = vm_map_entry_create(map);
 	*new_entry = *entry;
 
@@ -3935,16 +3928,8 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 			 */
 			object = old_entry->object.vm_object;
 			if (object == NULL) {
-				object = vm_object_allocate(OBJT_DEFAULT,
-					atop(old_entry->end - old_entry->start));
-				old_entry->object.vm_object = object;
-				old_entry->offset = 0;
-				if (old_entry->cred != NULL) {
-					object->cred = old_entry->cred;
-					object->charge = old_entry->end -
-					    old_entry->start;
-					old_entry->cred = NULL;
-				}
+				vm_map_entry_back(old_entry);
+				object = old_entry->object.vm_object;
 			}
 
 			/*
@@ -4825,15 +4810,15 @@ vm_map_pmap_KBI(vm_map_t map)
 static void
 vm_map_print(vm_map_t map)
 {
-	vm_map_entry_t entry;
+	vm_map_entry_t entry, prev;
 
 	db_iprintf("Task map %p: pmap=%p, nentries=%d, version=%u\n",
 	    (void *)map,
 	    (void *)map->pmap, map->nentries, map->timestamp);
 
 	db_indent += 2;
-	for (entry = map->header.next; entry != &map->header;
-	    entry = entry->next) {
+	for (prev = &map->header; (entry = prev->next) != &map->header;
+	    prev = entry) {
 		db_iprintf("map entry %p: start=%p, end=%p, eflags=%#x, \n",
 		    (void *)entry, (void *)entry->start, (void *)entry->end,
 		    entry->eflags);
@@ -4844,7 +4829,8 @@ vm_map_print(vm_map_t map)
 			db_iprintf(" prot=%x/%x/%s",
 			    entry->protection,
 			    entry->max_protection,
-			    inheritance_name[(int)(unsigned char)entry->inheritance]);
+			    inheritance_name[(int)(unsigned char)
+			    entry->inheritance]);
 			if (entry->wired_count != 0)
 				db_printf(", wired");
 		}
@@ -4852,9 +4838,9 @@ vm_map_print(vm_map_t map)
 			db_printf(", share=%p, offset=0x%jx\n",
 			    (void *)entry->object.sub_map,
 			    (uintmax_t)entry->offset);
-			if ((entry->prev == &map->header) ||
-			    (entry->prev->object.sub_map !=
-				entry->object.sub_map)) {
+			if (prev == &map->header ||
+			    prev->object.sub_map !=
+				entry->object.sub_map) {
 				db_indent += 2;
 				vm_map_print((vm_map_t)entry->object.sub_map);
 				db_indent -= 2;
@@ -4874,9 +4860,9 @@ vm_map_print(vm_map_t map)
 				    (entry->eflags & MAP_ENTRY_NEEDS_COPY) ? "needed" : "done");
 			db_printf("\n");
 
-			if ((entry->prev == &map->header) ||
-			    (entry->prev->object.vm_object !=
-				entry->object.vm_object)) {
+			if (prev == &map->header ||
+			    prev->object.vm_object !=
+				entry->object.vm_object) {
 				db_indent += 2;
 				vm_object_print((db_expr_t)(intptr_t)
 						entry->object.vm_object,
