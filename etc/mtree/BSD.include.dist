@@ -90,6 +90,8 @@
         ..
         ppbus
         ..
+        pwm
+        ..
         smbus
         ..
         speaker
