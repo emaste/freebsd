@@ -21,7 +21,7 @@ FILES=	${FONTS} INDEX.fonts
 CLEANFILES+=	${FONTS}
 
 .SUFFIXES: .bdf .fnt .fnt.uu .hex
-.hex.fnt .bdf.fnt:
+.bdf.fnt .hex.fnt:
 	vtfontcvt ${.IMPSRC} ${.TARGET}
 
 FILESDIR=	${SHAREDIR}/vt/fonts
