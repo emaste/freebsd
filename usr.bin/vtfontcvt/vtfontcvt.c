@@ -313,7 +313,7 @@ parse_bdf(FILE *fp, unsigned int map_idx)
 	int bbw, bbh, bbox, bboy;		/* Glyph bounding box. */
 	int fbbw = 0, fbbh, fbbox, fbboy;	/* Font bounding box. */
 	int dwidth = 0, dwy = 0;
-	int rv;
+	int rv = -1;
 	char spc = '\0';
 
 	/*
@@ -367,6 +367,7 @@ parse_bdf(FILE *fp, unsigned int map_idx)
 	dwidth = bbw = bbh = 0;
 	rewind(fp);
 	linenum = 0;
+	bbwbytes = 0; /* GCC 4.2.1 "may be used uninitialized" workaround. */
 	bytes = xmalloc(wbytes * height);
 	bytes_r = xmalloc(wbytes * height);
 	line = xmalloc(wbytes * 2);
