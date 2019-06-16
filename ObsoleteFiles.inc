@@ -40,6 +40,30 @@
 
 # 20190618: sys/capability.h removed (sys/capsicum.h is the one to use)
 OLD_FILES+=usr/include/sys/capability.h
+# 20190616: svn/svnlite removed in wipbsd
+OLD_FILES+=usr/bin/svn
+OLD_FILES+=usr/bin/svnadmin
+OLD_FILES+=usr/bin/svnbench
+OLD_FILES+=usr/bin/svndumpfilter
+OLD_FILES+=usr/bin/svnfsfs
+OLD_FILES+=usr/bin/svnlite
+OLD_FILES+=usr/bin/svnliteadmin
+OLD_FILES+=usr/bin/svnlitebench
+OLD_FILES+=usr/bin/svnlitedumpfilter
+OLD_FILES+=usr/bin/svnlitefsfs
+OLD_FILES+=usr/bin/svnlitelook
+OLD_FILES+=usr/bin/svnlitemucc
+OLD_FILES+=usr/bin/svnliterdump
+OLD_FILES+=usr/bin/svnliteserve
+OLD_FILES+=usr/bin/svnlitesync
+OLD_FILES+=usr/bin/svnliteversion
+OLD_FILES+=usr/bin/svnlook
+OLD_FILES+=usr/bin/svnmucc
+OLD_FILES+=usr/bin/svnrdump
+OLD_FILES+=usr/bin/svnserve
+OLD_FILES+=usr/bin/svnsync
+OLD_FILES+=usr/bin/svnversion
+OLD_FILES+=usr/share/man/man1/svnlite.1.gz
 # 20190615: sys/pwm.h renamed to dev/pwmc.h
 OLD_FILES+=usr/include/sys/pwm.h
 # 20190612: new clang import which bumps version from 8.0.0 to 8.0.1.
