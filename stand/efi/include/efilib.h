@@ -42,7 +42,9 @@ extern EFI_RUNTIME_SERVICES	*RS;
 extern struct devsw efipart_fddev;
 extern struct devsw efipart_cddev;
 extern struct devsw efipart_hddev;
+extern struct devsw efihttp_dev;
 extern struct devsw efinet_dev;
+extern struct fs_ops efihttp_fsops;
 extern struct netif_driver efinetif;
 
 /* EFI block device data, included here to help efi_zfs_probe() */
