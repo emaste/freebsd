@@ -374,9 +374,6 @@ kern_mmap(struct thread *td, uintptr_t addr0, size_t len, int prot, int flags,
 		error = fget_mmap(td, fd, &rights, &cap_maxprot, &fp);
 		if (error != 0)
 			goto done;
-		KASSERT((max_prot & cap_maxprot) == max_prot,
-		    ("max_prot (%x) contains permissions not in "
-		    "cap_maxprot (%x)", max_prot, cap_maxprot));
 		if ((flags & (MAP_SHARED | MAP_PRIVATE)) == 0 &&
 		    td->td_proc->p_osrel >= P_OSREL_MAP_FSTRICT) {
 			error = EINVAL;
@@ -622,7 +619,7 @@ kern_mprotect(struct thread *td, uintptr_t addr0, size_t size, int prot)
 	if ((prot & ~(_PROT_ALL | PROT_MAX(_PROT_ALL))) != 0)
 		return (EINVAL);
 	max_prot = PROT_MAX_EXTRACT(prot);
-	prot = (prot & VM_PROT_ALL);
+	prot = PROT_EXTRACT(prot);
 	pageoff = (addr & PAGE_MASK);
 	addr -= pageoff;
 	size += pageoff;
