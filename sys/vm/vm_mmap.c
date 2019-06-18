@@ -105,7 +105,7 @@ SYSCTL_INT(_vm, OID_AUTO, mincore_mapped, CTLFLAG_RWTUN, &mincore_mapped, 0,
     "mincore reports mappings, not residency");
 static int imply_prot_max = 0;
 SYSCTL_INT(_vm, OID_AUTO, imply_prot_max, CTLFLAG_RWTUN, &imply_prot_max, 0,
-    "Imply maximum page permissions in mmap() when none are specified.");
+    "Imply maximum page permissions in mmap() when none are specified");
 
 #ifdef MAP_32BIT
 #define	MAP_32BIT_MAX_ADDR	((vm_offset_t)1 << 31)
@@ -193,8 +193,12 @@ kern_mmap(struct thread *td, uintptr_t addr0, size_t len, int prot, int flags,
 	int align, error, max_prot;
 	cap_rights_t rights;
 
+	if ((prot & ~(_PROT_ALL | PROT_MAX(_PROT_ALL))) != 0)
+		return (EINVAL);
 	max_prot = PROT_MAX_EXTRACT(prot);
 	prot = PROT_EXTRACT(prot);
+	if (max_prot != 0 && (max_prot & prot) != prot)
+		return (EINVAL);
 	/*
 	 * Always honor PROT_MAX if set.  If not, default to all
 	 * permissions unless we're implying maximum permissions.
@@ -370,6 +374,9 @@ kern_mmap(struct thread *td, uintptr_t addr0, size_t len, int prot, int flags,
 		error = fget_mmap(td, fd, &rights, &cap_maxprot, &fp);
 		if (error != 0)
 			goto done;
+		KASSERT((max_prot & cap_maxprot) == cap_maxprot,
+		    ("cap_maxprot (%x) contains permissions not in "
+		    "max_prot (%x)", cap_maxprot, max_prot));
 		if ((flags & (MAP_SHARED | MAP_PRIVATE)) == 0 &&
 		    td->td_proc->p_osrel >= P_OSREL_MAP_FSTRICT) {
 			error = EINVAL;
@@ -612,6 +619,8 @@ kern_mprotect(struct thread *td, uintptr_t addr0, size_t size, int prot)
 	int vm_error, max_prot;
 
 	addr = addr0;
+	if ((prot & ~(_PROT_ALL | PROT_MAX(_PROT_ALL))) != 0)
+		return (EINVAL);
 	max_prot = PROT_MAX_EXTRACT(prot);
 	prot = (prot & VM_PROT_ALL);
 	pageoff = (addr & PAGE_MASK);
@@ -627,18 +636,17 @@ kern_mprotect(struct thread *td, uintptr_t addr0, size_t size, int prot)
 	if (addr + size < addr)
 		return (EINVAL);
 
+	vm_error = KERN_SUCCESS;
 	if (max_prot != 0) {
 		if ((max_prot & prot) != prot)
 			return (EINVAL);
 		vm_error = vm_map_protect(&td->td_proc->p_vmspace->vm_map,
 		    addr, addr + size, max_prot, TRUE);
-		if (vm_error != KERN_SUCCESS)
-			goto error_out;
 	}
-	vm_error = vm_map_protect(&td->td_proc->p_vmspace->vm_map, addr,
-	    addr + size, prot, FALSE);
+	if (vm_error == KERN_SUCCESS)
+		vm_error = vm_map_protect(&td->td_proc->p_vmspace->vm_map,
+		    addr, addr + size, prot, FALSE);
 
-error_out:
 	switch (vm_error) {
 	case KERN_SUCCESS:
 		return (0);
