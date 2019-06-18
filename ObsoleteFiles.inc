@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20190618: sys/capability.h removed (sys/capsicum.h is the one to use)
+OLD_FILES+=usr/include/sys/capability.h
 # 20190616: svn/svnlite removed in wipbsd
 OLD_FILES+=usr/bin/svn
 OLD_FILES+=usr/bin/svnadmin
