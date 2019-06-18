@@ -374,9 +374,9 @@ kern_mmap(struct thread *td, uintptr_t addr0, size_t len, int prot, int flags,
 		error = fget_mmap(td, fd, &rights, &cap_maxprot, &fp);
 		if (error != 0)
 			goto done;
-		KASSERT((max_prot & cap_maxprot) == cap_maxprot,
-		    ("cap_maxprot (%x) contains permissions not in "
-		    "max_prot (%x)", cap_maxprot, max_prot));
+		KASSERT((max_prot & cap_maxprot) == max_prot,
+		    ("max_prot (%x) contains permissions not in "
+		    "cap_maxprot (%x)", max_prot, cap_maxprot));
 		if ((flags & (MAP_SHARED | MAP_PRIVATE)) == 0 &&
 		    td->td_proc->p_osrel >= P_OSREL_MAP_FSTRICT) {
 			error = EINVAL;
