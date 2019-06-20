@@ -28,7 +28,7 @@
 .\"	@(#)mprotect.2	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 13, 2019
+.Dd June 20, 2019
 .Dt MPROTECT 2
 .Os
 .Sh NAME
@@ -69,14 +69,14 @@ The pages can be executed.
 In addition to these protection flags,
 .Fx
 provides the ability to set the maximum protection of a region
-(e.g., prevents
+(which prevents
 .Nm
 from upgrading the permissions).
 This is accomplished by
 .Em or Ns 'ing
 one or more
 .Dv PROT_
-value wrapped in the
+values wrapped in the
 .Dv PROT_MAX()
 macro into the
 .Fa prot
@@ -94,6 +94,15 @@ The virtual address range specified by the
 and
 .Fa len
 arguments is not valid.
+.It Bq Er EINVAL
+The
+.Fa prot
+argument contains unhandled bits.
+.It Bq Er EINVAL
+The
+.Fa prot
+argument contains permissions which are not a subset of the specified
+maximum permissions.
 .It Bq Er EACCES
 The calling process was not allowed to change
 the protection to the value specified by

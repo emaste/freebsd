@@ -28,7 +28,7 @@
 .\"	@(#)mmap.2	8.4 (Berkeley) 5/11/95
 .\" $FreeBSD$
 .\"
-.Dd June 13, 2019
+.Dd June 20, 2019
 .Dt MMAP 2
 .Os
 .Sh NAME
@@ -123,7 +123,7 @@ This is accomplished by
 .Em or Ns 'ing
 one or more
 .Dv PROT_
-value wrapped in the
+values wrapped in the
 .Dv PROT_MAX()
 macro into the
 .Fa prot
@@ -431,6 +431,11 @@ referenced a regular file or shared memory.
 An invalid value was passed in the
 .Fa prot
 argument.
+.It Bq Er EINVAL
+The
+.Fa prot
+argument contains permissions which are not a subset of the specified
+maximum permissions.
 .It Bq Er EINVAL
 An undefined option was set in the
 .Fa flags
