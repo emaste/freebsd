@@ -296,32 +296,23 @@ typedef struct _SATA_DEVICE_PATH {
 	UINT16				Lun;
 } SATA_DEVICE_PATH;
 
-///
-/// DNS Device Path SubType
-///
+
+/* DNS Device Path SubType */
 #define MSG_DNS_DP                0x1F
 typedef struct {
   EFI_DEVICE_PATH                 Header;
-  ///
-  /// Indicates the DNS server address is IPv4 or IPv6 address.
-  ///
+  /* Indicates the DNS server address is IPv4 or IPv6 address. */
   UINT8                           IsIPv6;
-  ///
-  /// Instance of the DNS server address.
-  ///
+  /* Instance of the DNS server address. */
   /* XXX: actually EFI_IP_ADDRESS */
   EFI_IPv4_ADDRESS                DnsServerIp[];
 } DNS_DEVICE_PATH;
 
-///
-/// Uniform Resource Identifiers (URI) Device Path SubType
-///
+/* Uniform Resource Identifiers (URI) Device Path SubType */
 #define MSG_URI_DP                0x18
 typedef struct {
   EFI_DEVICE_PATH                 Header;
-  ///
-  /// Instance of the URI pursuant to RFC 3986.
-  ///
+  /* Instance of the URI pursuant to RFC 3986. */
   CHAR8                           Uri[];
 } URI_DEVICE_PATH;
 

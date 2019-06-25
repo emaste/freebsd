@@ -45,7 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <Protocol/Ip4Config2.h>
 #include <Protocol/ServiceBinding.h>
 
-#define	__compiler_membar()	__asm __volatile(" " : : : "memory")
+/* Poll timeout in milliseconds */
+static const int EFIHTTP_POLL_TIMEOUT = 300000;
 
 static EFI_GUID http_guid = EFI_HTTP_PROTOCOL_GUID;
 static EFI_GUID httpsb_guid = EFI_HTTP_SERVICE_BINDING_PROTOCOL_GUID;
@@ -275,9 +276,9 @@ efihttp_dev_open(struct open_file *f, ...)
 		return (err);
 
 	oh = calloc(1, sizeof(struct open_efihttp));
-	oh->dev_handle = handle;
 	if (!oh)
 		return (ENOMEM);
+	oh->dev_handle = handle;
 	dev = (struct devdesc *)f->f_devdata;
 	dev->d_opendata = oh;
 
@@ -328,6 +329,10 @@ efihttp_dev_open(struct open_file *f, ...)
 	 */
 	len = DevicePathNodeLength(&uri->Header) - sizeof(URI_DEVICE_PATH);
 	oh->uri_base = malloc(len + 1);
+	if (oh->uri_base == NULL) {
+		err = ENOMEM;
+		goto end;
+	}
 	strncpy(oh->uri_base, uri->Uri, len);
 	oh->uri_base[len] = '\0';
 	c = strrchr(oh->uri_base, '/');
@@ -384,19 +389,10 @@ _efihttp_fs_open(const char *path, struct open_file *f)
 	struct file_efihttp *fh;
 	EFI_STATUS status;
 	int i;
+	int polltime;
 	bool done;
 
-	/*
-	 * The efihttp_fs is a bit of a layering violation. It's not a
-	 * "filesystem" that can work on top of just any device, but
-	 * rather needs to reach into the efihttp_dev to access the
-	 * HTTP stack provided by UEFI. So refuse to try opening on
-	 * any device except efihttp_dev.
-	 */
 	dev = (struct devdesc *)f->f_devdata;
-	if (dev->d_dev != &efihttp_dev)
-		return (EOPNOTSUPP);
-
 	oh = (struct open_efihttp *)dev->d_opendata;
 	fh = calloc(1, sizeof(struct file_efihttp));
 	if (fh == NULL)
@@ -434,17 +430,20 @@ _efihttp_fs_open(const char *path, struct open_file *f)
 		return (efi_status_to_errno(status));
 
 	/* Send the read request */
+	done = false;
 	status = BS->CreateEvent(EVT_NOTIFY_SIGNAL, TPL_CALLBACK, notify,
 	    &done, &token.Event);
 	if (EFI_ERROR(status))
 		return (efi_status_to_errno(status));
 
 	/* extract the host portion of the URL */
-	host = calloc(strlen(oh->uri_base) + 1, 1);
-	strcpy(host, oh->uri_base);
+	host = strdup(oh->uri_base);
+	if (host == NULL)
+		return (ENOMEM);
+	hostp = host;
 	/* Remove the protocol scheme */
 	c = strchr(host, '/');
-	if (*(c + 1) == '/')
+	if (c != NULL && *(c + 1) == '/')
 		hostp = (c + 2);
 
 	/* Remove any path information */
@@ -469,8 +468,6 @@ _efihttp_fs_open(const char *path, struct open_file *f)
 	headers[2].FieldValue = "*/*";
 	cpy8to16(oh->uri_base, request.Url, strlen(oh->uri_base));
 	cpy8to16(path, request.Url + strlen(oh->uri_base), strlen(path));
-	done = false;
-	__compiler_membar();
 	status = oh->http->Request(oh->http, &token);
 	free(request.Url);
 	free(host);
@@ -478,13 +475,24 @@ _efihttp_fs_open(const char *path, struct open_file *f)
 		BS->CloseEvent(token.Event);
 		return (efi_status_to_errno(status));
 	}
-	while (!done)
-		oh->http->Poll(oh->http);
+
+	polltime = 0;
+	while (!done && polltime < EFIHTTP_POLL_TIMEOUT) {
+		status = oh->http->Poll(oh->http);
+		if (EFI_ERROR(status))
+			break;
+
+		if (!done) {
+			delay(100 * 1000);
+			polltime += 100;
+		}
+	}
 	BS->CloseEvent(token.Event);
 	if (EFI_ERROR(token.Status))
 		return (efi_status_to_errno(token.Status));
 
 	/* Wait for the read response */
+	done = false;
 	status = BS->CreateEvent(EVT_NOTIFY_SIGNAL, TPL_CALLBACK, notify,
 	    &done, &token.Event);
 	if (EFI_ERROR(status))
@@ -497,15 +505,23 @@ _efihttp_fs_open(const char *path, struct open_file *f)
 	message.BodyLength = 0;
 	message.Body = NULL;
 	response.StatusCode = HTTP_STATUS_UNSUPPORTED_STATUS;
-	done = false;
-	__compiler_membar();
 	status = oh->http->Response(oh->http, &token);
 	if (EFI_ERROR(status)) {
 		BS->CloseEvent(token.Event);
 		return (efi_status_to_errno(status));
 	}
-	while (!done)
-		oh->http->Poll(oh->http);
+
+	polltime = 0;
+	while (!done && polltime < EFIHTTP_POLL_TIMEOUT) {
+		status = oh->http->Poll(oh->http);
+		if (EFI_ERROR(status))
+			break;
+
+		if (!done) {
+			delay(100 * 1000);
+			polltime += 100;
+		}
+	}
 	BS->CloseEvent(token.Event);
 	if (EFI_ERROR(token.Status)) {
 		BS->FreePool(message.Headers);
@@ -572,6 +588,7 @@ _efihttp_fs_read(struct open_file *f, void *buf, size_t size, size_t *resid)
 	struct open_efihttp *oh;
 	struct file_efihttp *fh;
 	bool done;
+	int polltime;
 
 	fh = (struct file_efihttp *)f->f_fsdata;
 
@@ -584,6 +601,7 @@ _efihttp_fs_read(struct open_file *f, void *buf, size_t size, size_t *resid)
 
 	dev = (struct devdesc *)f->f_devdata;
 	oh = (struct open_efihttp *)dev->d_opendata;
+	done = false;
 	status = BS->CreateEvent(EVT_NOTIFY_SIGNAL, TPL_CALLBACK, notify,
 	    &done, &token.Event);
 	if (EFI_ERROR(status)) {
@@ -596,8 +614,6 @@ _efihttp_fs_read(struct open_file *f, void *buf, size_t size, size_t *resid)
 	message.Headers = NULL;
 	message.BodyLength = size;
 	message.Body = buf;
-	done = false;
-	__compiler_membar();
 	status = oh->http->Response(oh->http, &token);
 	if (status == EFI_CONNECTION_FIN) {
 		if (resid)
@@ -607,8 +623,17 @@ _efihttp_fs_read(struct open_file *f, void *buf, size_t size, size_t *resid)
 		BS->CloseEvent(token.Event);
 		return (efi_status_to_errno(status));
 	}
-	while (!done)
-		oh->http->Poll(oh->http);
+	polltime = 0;
+	while (!done && polltime < EFIHTTP_POLL_TIMEOUT) {
+		status = oh->http->Poll(oh->http);
+		if (EFI_ERROR(status))
+				break;
+
+		if (!done) {
+			delay(100 * 1000);
+			polltime += 100;
+		}
+	}
 	BS->CloseEvent(token.Event);
 	if (token.Status == EFI_CONNECTION_FIN) {
 		if (resid)
@@ -701,14 +726,20 @@ efihttp_fs_stat(struct open_file *f, struct stat *sb)
 static int
 efihttp_fs_readdir(struct open_file *f, struct dirent *d)
 {
-	static char *dirbuf = NULL, *cursor;
+	static char *dirbuf = NULL, *db2, *cursor;
 	static int dirbuf_len = 0;
 	char *end;
 	struct file_efihttp *fh;
 
 	fh = (struct file_efihttp *)f->f_fsdata;
 	if (dirbuf_len < fh->size) {
-		dirbuf = realloc(dirbuf, fh->size);
+		db2 = realloc(dirbuf, fh->size);
+		if (db2 == NULL) {
+			free(dirbuf);
+			return (ENOMEM);
+		} else
+			dirbuf = db2;
+
 		dirbuf_len = fh->size;
 	}
 
