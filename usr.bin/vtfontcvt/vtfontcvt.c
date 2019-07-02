@@ -229,15 +229,14 @@ add_char(unsigned curchar, unsigned map_idx, uint8_t *bytes, uint8_t *bytes_r)
 static void
 rshift_row(uint8_t *buf, size_t len, size_t shift)
 {
-	ssize_t i;
-	size_t off_byte = shift / 8;
+	ssize_t i, off_byte = shift / 8;
 	size_t off_bit = shift % 8;
 
 	if (shift == 0)
-		return (0);
+		return;
 	for (i = len - 1; i >= 0; i--)
 		buf[i] = (i >= off_byte ? buf[i - off_byte] >> off_bit : 0) |
-		    (i > off_byte ? buf[i - off_byte - 1] << (8 - off_bit) : 0;
+		    (i > off_byte ? buf[i - off_byte - 1] << (8 - off_bit) : 0);
 }
 
 /*
@@ -408,10 +407,7 @@ parse_bdf(FILE *fp, unsigned int map_idx)
 					*(line + j) = (uint8_t)val;
 				}
 
-				rv = rshift_row(line, wbytes * 2, bbox - fbbox);
-				if (rv != 0)
-					goto out;
-
+				rshift_row(line, wbytes * 2, bbox - fbbox);
 				rv = split_row(bytes + i * wbytes,
 				     bytes_r + i * wbytes, line, dwidth);
 				if (rv != 0)
