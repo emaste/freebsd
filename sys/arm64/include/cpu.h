@@ -89,6 +89,9 @@
 #define	CPU_PART_CORTEX_A73	0xD09
 #define	CPU_PART_CORTEX_A75	0xD0A
 
+/* Ampere part numbers */
+#define	CPU_PART_EMAG8180	0x000
+
 /* Cavium Part numbers */
 #define	CPU_PART_THUNDERX	0x0A1
 #define	CPU_PART_THUNDERX_81XX	0x0A2

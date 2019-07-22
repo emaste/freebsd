@@ -161,6 +161,11 @@ static const struct cpu_parts cpu_parts_arm[] = {
 	{ CPU_PART_CORTEX_A75, "Cortex-A75" },
 	CPU_PART_NONE,
 };
+/* Ampere */
+static const struct cpu_parts cpu_parts_ampere[] = {
+	{ CPU_PART_EMAG8180, "eMAG 8180" },
+	CPU_PART_NONE,
+};
 /* Cavium */
 static const struct cpu_parts cpu_parts_cavium[] = {
 	{ CPU_PART_THUNDERX, "ThunderX" },
@@ -184,7 +189,7 @@ const struct cpu_implementers cpu_implementers[] = {
 	{ CPU_IMPL_INFINEON,	"IFX",		cpu_parts_none },
 	{ CPU_IMPL_FREESCALE,	"Freescale",	cpu_parts_none },
 	{ CPU_IMPL_NVIDIA,	"NVIDIA",	cpu_parts_none },
-	{ CPU_IMPL_APM,		"APM",		cpu_parts_none },
+	{ CPU_IMPL_APM,		"APM",		cpu_parts_ampere },
 	{ CPU_IMPL_QUALCOMM,	"Qualcomm",	cpu_parts_none },
 	{ CPU_IMPL_MARVELL,	"Marvell",	cpu_parts_none },
 	{ CPU_IMPL_INTEL,	"Intel",	cpu_parts_none },
