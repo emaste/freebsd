@@ -443,7 +443,8 @@ bsd_to_linux_termios(struct termios *bios, struct linux_termios *lios)
 {
 	int i;
 
-	lios->c_iflag = 0;
+	memset(lios, 0, sizeof(*lios));
+
 	if (bios->c_iflag & IGNBRK)
 		lios->c_iflag |= LINUX_IGNBRK;
 	if (bios->c_iflag & BRKINT)
@@ -471,7 +472,6 @@ bsd_to_linux_termios(struct termios *bios, struct linux_termios *lios)
 	if (bios->c_iflag & IMAXBEL)
 		lios->c_iflag |= LINUX_IMAXBEL;
 
-	lios->c_oflag = 0;
 	if (bios->c_oflag & OPOST)
 		lios->c_oflag |= LINUX_OPOST;
 	if (bios->c_oflag & ONLCR)
@@ -496,7 +496,6 @@ bsd_to_linux_termios(struct termios *bios, struct linux_termios *lios)
 	if (bios->c_cflag & CRTSCTS)
 		lios->c_cflag |= LINUX_CRTSCTS;
 
-	lios->c_lflag = 0;
 	if (bios->c_lflag & ISIG)
 		lios->c_lflag |= LINUX_ISIG;
 	if (bios->c_lflag & ICANON)
@@ -552,7 +551,6 @@ bsd_to_linux_termios(struct termios *bios, struct linux_termios *lios)
 		    lios->c_cc[i] == _POSIX_VDISABLE)
 			lios->c_cc[i] = LINUX_POSIX_VDISABLE;
 	}
-	lios->c_line = 0;
 }
 
 static void
