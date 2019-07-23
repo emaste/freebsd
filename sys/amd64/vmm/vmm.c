@@ -2236,9 +2236,9 @@ vm_hpet(struct vm *vm)
 bool
 vmm_is_pptdev(int bus, int slot, int func)
 {
-	int found, i, n;
-	int b, s, f;
+	int b, f, i, n, s;
 	char *val, *cp, *cp2;
+	bool found;
 
 	/*
 	 * XXX

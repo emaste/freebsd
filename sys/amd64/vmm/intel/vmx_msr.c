@@ -49,20 +49,14 @@ static bool
 vmx_ctl_allows_one_setting(uint64_t msr_val, int bitpos)
 {
 
-	if (msr_val & (1UL << (bitpos + 32)))
-		return (true);
-	else
-		return (false);
+	return ((msr_val & (1UL << (bitpos + 32))) != 0);
 }
 
 static bool
 vmx_ctl_allows_zero_setting(uint64_t msr_val, int bitpos)
 {
 
-	if ((msr_val & (1UL << bitpos)) == 0)
-		return (true);
-	else
-		return (false);
+	return ((msr_val & (1UL << bitpos)) == 0);
 }
 
 uint32_t
@@ -95,10 +89,7 @@ vmx_set_ctlreg(int ctl_reg, int true_ctl_reg, uint32_t ones_mask,
 	if ((ones_mask ^ zeros_mask) != (ones_mask | zeros_mask))
 		return (EINVAL);
 
-	if (rdmsr(MSR_VMX_BASIC) & (1UL << 55))
-		true_ctls_avail = true;
-	else
-		true_ctls_avail = false;
+	true_ctls_avail = (rdmsr(MSR_VMX_BASIC) & (1UL << 55)) != 0;
 
 	val = rdmsr(ctl_reg);
 	if (true_ctls_avail)

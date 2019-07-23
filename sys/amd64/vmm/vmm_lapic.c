@@ -140,10 +140,7 @@ lapic_intr_msi(struct vm *vm, uint64_t addr, uint64_t msg)
 static bool
 x2apic_msr(u_int msr)
 {
-	if (msr >= 0x800 && msr <= 0xBFF)
-		return (true);
-	else
-		return (false);
+	return (msr >= 0x800 && msr <= 0xBFF);
 }
 
 static u_int
@@ -157,10 +154,7 @@ bool
 lapic_msr(u_int msr)
 {
 
-	if (x2apic_msr(msr) || (msr == MSR_APICBASE))
-		return (true);
-	else
-		return (false);
+	return (x2apic_msr(msr) || msr == MSR_APICBASE);
 }
 
 int

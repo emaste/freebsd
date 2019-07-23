@@ -42,19 +42,13 @@ bool
 vmm_is_intel(void)
 {
 
-	if (strcmp(cpu_vendor, "GenuineIntel") == 0)
-		return (true);
-	else
-		return (false);
+	return (strcmp(cpu_vendor, "GenuineIntel") == 0);
 }
 
 bool
 vmm_is_amd(void)
 {
-	if (strcmp(cpu_vendor, "AuthenticAMD") == 0)
-		return (true);
-	else
-		return (false);
+	return (strcmp(cpu_vendor, "AuthenticAMD") == 0);
 }
 
 bool
