@@ -124,8 +124,8 @@ CFLAGS.gcc+=	${CFLAGS.gcc.${.IMPSRC}}
 
 DEPENDOBJS+=	tables.h
 incdir=${SYSROOT:U${DESTDIR}}${INCLUDEDIR}
-tables.h: mktables ${incdir}/netinet/in.h ${incdir}/netinet/tcp.h \
-    ${incdir}/netinet6/in6.h
+tblhdrs!=sh ${.CURDIR}/mktables -d ${incdir} | sort -u
+tables.h: mktables ${tblhdrs:S?^?${incdir}/?}
 	sh ${.CURDIR}/mktables ${incdir} ${.TARGET}.tmp && \
 	    mv -f ${.TARGET}.tmp ${.TARGET}
 
