@@ -2644,9 +2644,9 @@ NXBMAKE+=	XCC="${XCC}" \
 		XCXX="${XCXX}" \
 		XCPP="${XCPP}"
 .else
-NXBMAKE+=	XCC="${NXBOBJTOP}/tmp/usr/bin/cc" \
-		XCXX="${NXBOBJTOP}/tmp/usr/bin/c++" \
-		XCPP="${NXBOBJTOP}/tmp/usr/bin/cpp"
+NXBMAKE+=	XCC="${NXBOBJTOP}/sysroot/usr/bin/cc" \
+		XCXX="${NXBOBJTOP}/sysroot/usr/bin/c++" \
+		XCPP="${NXBOBJTOP}/sysroot/usr/bin/cpp"
 .endif
 NXBMAKE+=	${NXBMAKEENV} ${MAKE} -f Makefile.inc1 ${NXBMAKEARGS} \
 		TARGET=${NXB_TARGET} TARGET_ARCH=${NXB_TARGET_ARCH} \
