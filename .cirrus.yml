@@ -13,6 +13,7 @@ task:
   install_script:
   - pkg install -y qemu-devel uefi-edk2-qemu-x86_64
   script:
+  - rm -f /usr/bin/as /usr/bin/objdump
   - make -j$(sysctl -n hw.ncpu) WITHOUT_TOOLCHAIN=yes buildworld buildkernel
   test_script:
   - sh tools/boot/ci-qemu-test.sh
