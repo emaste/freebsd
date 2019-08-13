@@ -1550,7 +1550,7 @@ retry:
 			    "for pool '%s' when syncing out the odd labels of "
 			    "dirty vdevs", error, spa_name(spa));
 		}
-		goto retry;;
+		goto retry;
 	}
 
 	trim_thread_wakeup(spa);
