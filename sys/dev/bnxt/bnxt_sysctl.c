@@ -1202,7 +1202,7 @@ bnxt_create_config_sysctls_pre(struct bnxt_softc *softc)
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(softc->dev);
 	struct sysctl_oid_list *children;
 
-	children = SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev));;
+	children = SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev));
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rss_key",
 	    CTLTYPE_STRING|CTLFLAG_RWTUN, softc, 0, bnxt_rss_key_sysctl, "A",
@@ -1404,7 +1404,7 @@ bnxt_create_config_sysctls_post(struct bnxt_softc *softc)
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(softc->dev);
 	struct sysctl_oid_list *children;
 
-	children = SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev));;
+	children = SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev));
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "vlan_only",
 	    CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_vlan_only_sysctl, "I",
