@@ -696,7 +696,7 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 	cmdsz = roundup2(cmdsz, PAGE_SIZE);
 	cplsz = qpair->num_entries * sizeof(struct nvme_completion);
 	cplsz = roundup2(cplsz, PAGE_SIZE);
-	prpsz = sizeof(uint64_t) * NVME_MAX_PRP_LIST_ENTRIES;;
+	prpsz = sizeof(uint64_t) * NVME_MAX_PRP_LIST_ENTRIES;
 	prpmemsz = qpair->num_trackers * prpsz;
 	allocsz = cmdsz + cplsz + prpmemsz;
 
