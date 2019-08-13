@@ -486,7 +486,7 @@ update_pages(vnode_t *vp, int64_t start, int len, objset_t *os, uint64_t oid,
 
 			va = zfs_map_page(pp, &sf);
 			(void) dmu_read(os, oid, start+off, nbytes,
-			    va+off, DMU_READ_PREFETCH);;
+			    va+off, DMU_READ_PREFETCH);
 			zfs_unmap_page(sf);
 
 			zfs_vmobject_wlock(obj);
@@ -5866,7 +5866,7 @@ static int
 zfs_vptocnp(struct vop_vptocnp_args *ap)
 {
 	vnode_t *covered_vp;
-	vnode_t *vp = ap->a_vp;;
+	vnode_t *vp = ap->a_vp;
 	zfsvfs_t *zfsvfs = vp->v_vfsp->vfs_data;
 	znode_t *zp = VTOZ(vp);
 	enum vgetstate vs;
