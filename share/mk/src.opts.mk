@@ -71,7 +71,6 @@ __DEFAULT_YES_OPTIONS = \
     BOOTPARAMD \
     BOOTPD \
     BSD_CPIO \
-    BSD_CRTBEGIN \
     BSD_GREP \
     BSDINSTALL \
     BSNMP \
@@ -379,11 +378,6 @@ BROKEN_OPTIONS+=HYPERV
 .if ${__T} != "aarch64" && ${__T} != "amd64" && ${__T} != "i386" && \
     ${__T} != "powerpc64"
 BROKEN_OPTIONS+=NVME
-.endif
-
-# Sparc64 need extra crt*.o files
-.if ${__T:Msparc64}
-BROKEN_OPTIONS+=BSD_CRTBEGIN
 .endif
 
 .if ${COMPILER_FEATURES:Mc++11} && \
