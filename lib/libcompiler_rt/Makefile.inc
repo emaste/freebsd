@@ -233,7 +233,7 @@ SRCS+=		switchu8.S
 SRCS+=		sync_synchronize.S
 .endif
 
-# On some archs GCC-6.3 or Clang requires bswap32 built-in.
+# On some archs GCC-6.3 requires bswap32 built-in.
 .if ${MACHINE_CPUARCH} == "mips" || ${MACHINE_CPUARCH} == "riscv" || \
     ${MACHINE_CPUARCH} == "sparc64"
 SRCS+=		bswapdi2.c
