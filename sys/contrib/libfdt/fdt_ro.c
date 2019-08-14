@@ -94,7 +94,7 @@ uint32_t fdt_get_max_phandle(const void *fdt)
 	uint32_t max_phandle = 0;
 	int offset;
 
-	for (offset = fdt_next_node(fdt, -1, NULL);
+	for (offset = fdt_next_node(fdt, -1, NULL);;
 	     offset = fdt_next_node(fdt, offset, NULL)) {
 		uint32_t phandle;
 
