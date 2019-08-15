@@ -222,7 +222,7 @@ _STK_OFFS_  =   0                   #starting offset from rsp
   .if (SKEIN_ASM_UNROLL && (\BLK_BITS)) == 0
     StackVar    ksRot ,16*(\KS_CNT) #leave space for "rotation" to happen
   .endif
-    StackVar    Wcopy  ,8*(WCNT)    #copy of input block    
+    StackVar    Wcopy  ,8*(WCNT)    #copy of input block
   .if ((8*_PushCnt_ + _STK_OFFS_) % 8) == 0
     StackVar    align16,8           #keep 16-byte aligned (adjust for retAddr?)
 tmpStk_\BLK_BITS = align16          #use this
@@ -233,7 +233,7 @@ tmpStk_\BLK_BITS = align16          #use this
     StackVar    blkCnt ,8           #number of full blocks to process
     StackVar    bitAdd ,8           #bit count to add to tweak
 LOCAL_SIZE  =   _STK_OFFS_          #size of "local" vars
-    #---- 
+    #----
     StackVar    savRegs,8*_PushCnt_ #saved registers
     StackVar    retAddr,8           #return address
     #---- caller's stack frame (aligned mod 16)
@@ -254,11 +254,11 @@ __STK_FRM_OFFS_\BLK_BITS = FRAME_OFFS
 # Notes on stack frame setup:
 #   * the most frequently used variable is X_stk[], based at [rsp+0]
 #   * the next most used is the key schedule arrays, ksKey and ksTwk
-#       so rbp is "centered" there, allowing short offsets to the key 
+#       so rbp is "centered" there, allowing short offsets to the key
 #       schedule even in 1024-bit Skein case
-#   * the Wcopy variables are infrequently accessed, but they have long 
+#   * the Wcopy variables are infrequently accessed, but they have long
 #       offsets from both rsp and rbp only in the 1024-bit case.
-#   * all other local vars and calling parameters can be accessed 
+#   * all other local vars and calling parameters can be accessed
 #       with short offsets, except in the 1024-bit case
 #
     subq    $LOCAL_SIZE,%rsp        #make room for the locals
@@ -339,7 +339,7 @@ C_label Skein_256_Process_Block
 Skein_256_block_loop:
     #
     # general register usage:
-    #   RAX..RDX        = X0..X3    
+    #   RAX..RDX        = X0..X3
     #   R08..R12        = ks[0..4]
     #   R13..R15        = ts[0..2]
     #   RSP, RBP        = stack/frame pointers
@@ -349,11 +349,11 @@ Skein_256_block_loop:
     movq    TWEAK+0(%rdi)     ,%r13
     addq    bitAdd+F_O(%rbp)  ,%r13  #computed updated tweak value T0
     movq    %r14              ,%r15
-    xorq    %r13              ,%r15  #now %r13.%r15 is set as the tweak 
+    xorq    %r13              ,%r15  #now %r13.%r15 is set as the tweak
 
     movq    $KW_PARITY        ,%r12
     movq       X_VARS+ 0(%rdi),%r8
-    movq       X_VARS+ 8(%rdi),%r9 
+    movq       X_VARS+ 8(%rdi),%r9
     movq       X_VARS+16(%rdi),%r10
     movq       X_VARS+24(%rdi),%r11
     movq    %r13,TWEAK+0(%rdi)       #save updated tweak value ctx->h.T[0]
@@ -369,12 +369,12 @@ Skein_256_block_loop:
     movq    24(%rsi)          ,%rdx
 
     movq    %rax,Wcopy+ 0+F_O(%rbp)  #save copy of input block
-    movq    %rbx,Wcopy+ 8+F_O(%rbp)    
-    movq    %rcx,Wcopy+16+F_O(%rbp)    
-    movq    %rdx,Wcopy+24+F_O(%rbp)    
+    movq    %rbx,Wcopy+ 8+F_O(%rbp)
+    movq    %rcx,Wcopy+16+F_O(%rbp)
+    movq    %rdx,Wcopy+24+F_O(%rbp)
 
     addq    %r8 ,%rax                #initial key injection
-    addq    %r9 ,%rbx 
+    addq    %r9 ,%rbx
     addq    %r10,%rcx
     addq    %r11,%rdx
     addq    %r13,%rbx
@@ -1192,9 +1192,9 @@ _UNROLL_CNT =   ROUNDS_256/8
     xorq    Wcopy +24+F_O (%rbp),%rdx
     andq    TWEAK + 8     (%rdi),%r14
     movq    %rax,X_VARS+ 0(%rdi)             #store final result
-    movq    %rbx,X_VARS+ 8(%rdi)        
-    movq    %rcx,X_VARS+16(%rdi)        
-    movq    %rdx,X_VARS+24(%rdi)        
+    movq    %rbx,X_VARS+ 8(%rdi)
+    movq    %rcx,X_VARS+16(%rdi)
+    movq    %rdx,X_VARS+24(%rdi)
 
     # go back for more blocks, if needed
     decq    blkCnt+F_O(%rbp)
@@ -1266,9 +1266,9 @@ Skein_512_block_loop:
     addReg   r13,rax                  #precompute key injection for tweak
     addReg   r14, rbx
     movq     0(%rsi),%rax             #load input block
-    movq     8(%rsi),%rbx 
-    movq    16(%rsi),%rcx 
-    movq    24(%rsi),%rdx 
+    movq     8(%rsi),%rbx
+    movq    16(%rsi),%rcx
+    movq    24(%rsi),%rdx
     addReg   r8 , rax                 #do initial key injection
     addReg   r9 , rbx
     movq    %rax,Wcopy+ 0+F_O(%rbp)   #keep local copy for feedforward
@@ -1279,17 +1279,17 @@ Skein_512_block_loop:
     movq    %rdx,Wcopy+24+F_O(%rbp)
 
     movq    32(%rsi),%rax
-    movq    40(%rsi),%rbx 
-    movq    48(%rsi),%rcx 
+    movq    40(%rsi),%rbx
+    movq    48(%rsi),%rcx
     movq    56(%rsi),%rdx
     addReg   r12, rax
     addReg   r13, rbx
     addReg   r14, rcx
     addReg   r15, rdx
-    movq    %rax,Wcopy+32+F_O(%rbp)    
-    movq    %rbx,Wcopy+40+F_O(%rbp)    
-    movq    %rcx,Wcopy+48+F_O(%rbp)    
-    movq    %rdx,Wcopy+56+F_O(%rbp)    
+    movq    %rax,Wcopy+32+F_O(%rbp)
+    movq    %rbx,Wcopy+40+F_O(%rbp)
+    movq    %rcx,Wcopy+48+F_O(%rbp)
+    movq    %rdx,Wcopy+56+F_O(%rbp)
 
     addq    $8*WCNT,%rsi              #skip the block
     movq    %rsi,blkPtr+F_O(%rbp)     #update block pointer
@@ -2660,16 +2660,16 @@ C_label Skein_512_Unroll_Cnt
 #
 #################
 # use details of permutation to make register assignments
-# 
+#
 o1K_rdi =  0        #offsets in X[] associated with each register
-o1K_rsi =  1 
-o1K_rbp =  2 
-o1K_rax =  3 
+o1K_rsi =  1
+o1K_rbp =  2
+o1K_rax =  3
 o1K_rcx =  4        #rcx is "shared" with X6, since X4/X6 alternate
-o1K_rbx =  5 
-o1K_rdx =  7 
-o1K_r8  =  8  
-o1K_r9  =  9  
+o1K_rbx =  5
+o1K_rdx =  7
+o1K_r8  =  8
+o1K_r9  =  9
 o1K_r10 = 10
 o1K_r11 = 11
 o1K_r12 = 12
@@ -2698,7 +2698,7 @@ Skein1024_block_loop:
     #
     movq         TWEAK+     0(%rdi),%r8
     addq         bitAdd+  F_O(%rbp),%r8    #computed updated tweak value T0
-    movq    %r9 ,%r10 
+    movq    %r9 ,%r10
     xorq    %r8 ,%r10                      #%rax/%rbx/%rcx = tweak schedule
     movq    %r8 ,TWEAK+     0(%rdi)        #save updated tweak value ctx->h.T[0]
     movq    %r8 ,ksTwk+ 0+F_O(%rbp)
@@ -2713,11 +2713,11 @@ Skein1024_block_loop:
       movq              8*\_rN_(%rsi),%r15  #get msg   word
       xorq  %r14,%rax                      #update key schedule overall parity
       movq  %r14,ksKey +8*\_rN_+F_O(%rbp)   #save key schedule word on stack
-      movq  %r15,Wcopy +8*\_rN_+F_O(%rbp)   #save local msg Wcopy 
+      movq  %r15,Wcopy +8*\_rN_+F_O(%rbp)   #save local msg Wcopy
       addq  %r15,%r14                      #do the initial key injection
       movq  %r14,X_stk +8*\_rN_    (%rsp)   #save initial state var on stack
     .endr
-    # now process the rest, using the "real" registers 
+    # now process the rest, using the "real" registers
     #     (MUST do it in reverse order to inject tweaks r8/r9 first)
     .irp _rr_,r15,r14,r13,r12,r11,r10,r9,r8,rdx,rbx
 _oo_ = o1K_\_rr_                           #offset assocated with the register
@@ -2730,7 +2730,7 @@ _oo_ = o1K_\_rr_                           #offset assocated with the register
       .if    _oo_ == 13                    #do the initial tweak injection
         addReg \_rr_,r8                     #          (only in words 13/14)
       .elseif _oo_ == 14
-        addReg \_rr_,r9 
+        addReg \_rr_,r9
       .endif
     .endr
     movq    %rax,ksKey+8*WCNT+F_O(%rbp)    #save key schedule parity
@@ -2761,7 +2761,7 @@ _UNROLL_CNT =   ROUNDS_1024/8
 	leaq (%r9, %r8),%r8
 	rolq $RC_1024_0_4,%r9
 	xorq %r8, %r9
-	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack 
+	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack
 	leaq (%r11, %r10),%r10
 	rolq $RC_1024_0_5,%r11
 	xorq %r10, %r11
@@ -2892,7 +2892,7 @@ _UNROLL_CNT =   ROUNDS_1024/8
 	leaq (%r9, %r8),%r8
 	rolq $RC_1024_4_4,%r9
 	xorq %r8, %r9
-	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack 
+	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack
 	leaq (%r11, %r10),%r10
 	rolq $RC_1024_4_5,%r11
 	xorq %r10, %r11
@@ -3023,7 +3023,7 @@ _UNROLL_CNT =   ROUNDS_1024/8
 	leaq (%r9, %r8),%r8
 	rolq $RC_1024_0_4,%r9
 	xorq %r8, %r9
-	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack 
+	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack
 	leaq (%r11, %r10),%r10
 	rolq $RC_1024_0_5,%r11
 	xorq %r10, %r11
@@ -3154,7 +3154,7 @@ _UNROLL_CNT =   ROUNDS_1024/8
 	leaq (%r9, %r8),%r8
 	rolq $RC_1024_4_4,%r9
 	xorq %r8, %r9
-	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack 
+	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack
 	leaq (%r11, %r10),%r10
 	rolq $RC_1024_4_5,%r11
 	xorq %r10, %r11
@@ -3285,7 +3285,7 @@ _UNROLL_CNT =   ROUNDS_1024/8
 	leaq (%r9, %r8),%r8
 	rolq $RC_1024_0_4,%r9
 	xorq %r8, %r9
-	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack 
+	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack
 	leaq (%r11, %r10),%r10
 	rolq $RC_1024_0_5,%r11
 	xorq %r10, %r11
@@ -3416,7 +3416,7 @@ _UNROLL_CNT =   ROUNDS_1024/8
 	leaq (%r9, %r8),%r8
 	rolq $RC_1024_4_4,%r9
 	xorq %r8, %r9
-	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack 
+	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack
 	leaq (%r11, %r10),%r10
 	rolq $RC_1024_4_5,%r11
 	xorq %r10, %r11
@@ -3547,7 +3547,7 @@ _UNROLL_CNT =   ROUNDS_1024/8
 	leaq (%r9, %r8),%r8
 	rolq $RC_1024_0_4,%r9
 	xorq %r8, %r9
-	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack 
+	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack
 	leaq (%r11, %r10),%r10
 	rolq $RC_1024_0_5,%r11
 	xorq %r10, %r11
@@ -3678,7 +3678,7 @@ _UNROLL_CNT =   ROUNDS_1024/8
 	leaq (%r9, %r8),%r8
 	rolq $RC_1024_4_4,%r9
 	xorq %r8, %r9
-	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack 
+	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack
 	leaq (%r11, %r10),%r10
 	rolq $RC_1024_4_5,%r11
 	xorq %r10, %r11
@@ -3809,7 +3809,7 @@ _UNROLL_CNT =   ROUNDS_1024/8
 	leaq (%r9, %r8),%r8
 	rolq $RC_1024_0_4,%r9
 	xorq %r8, %r9
-	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack 
+	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack
 	leaq (%r11, %r10),%r10
 	rolq $RC_1024_0_5,%r11
 	xorq %r10, %r11
@@ -3940,7 +3940,7 @@ _UNROLL_CNT =   ROUNDS_1024/8
 	leaq (%r9, %r8),%r8
 	rolq $RC_1024_4_4,%r9
 	xorq %r8, %r9
-	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack 
+	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack
 	leaq (%r11, %r10),%r10
 	rolq $RC_1024_4_5,%r11
 	xorq %r10, %r11
@@ -4071,7 +4071,7 @@ _UNROLL_CNT =   ROUNDS_1024/8
 	leaq (%r9, %r8),%r8
 	rolq $RC_1024_0_4,%r9
 	xorq %r8, %r9
-	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack 
+	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack
 	leaq (%r11, %r10),%r10
 	rolq $RC_1024_0_5,%r11
 	xorq %r10, %r11
@@ -4202,7 +4202,7 @@ _UNROLL_CNT =   ROUNDS_1024/8
 	leaq (%r9, %r8),%r8
 	rolq $RC_1024_4_4,%r9
 	xorq %r8, %r9
-	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack 
+	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack
 	leaq (%r11, %r10),%r10
 	rolq $RC_1024_4_5,%r11
 	xorq %r10, %r11
@@ -4333,7 +4333,7 @@ _UNROLL_CNT =   ROUNDS_1024/8
 	leaq (%r9, %r8),%r8
 	rolq $RC_1024_0_4,%r9
 	xorq %r8, %r9
-	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack 
+	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack
 	leaq (%r11, %r10),%r10
 	rolq $RC_1024_0_5,%r11
 	xorq %r10, %r11
@@ -4464,7 +4464,7 @@ _UNROLL_CNT =   ROUNDS_1024/8
 	leaq (%r9, %r8),%r8
 	rolq $RC_1024_4_4,%r9
 	xorq %r8, %r9
-	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack 
+	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack
 	leaq (%r11, %r10),%r10
 	rolq $RC_1024_4_5,%r11
 	xorq %r10, %r11
@@ -4595,7 +4595,7 @@ _UNROLL_CNT =   ROUNDS_1024/8
 	leaq (%r9, %r8),%r8
 	rolq $RC_1024_0_4,%r9
 	xorq %r8, %r9
-	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack 
+	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack
 	leaq (%r11, %r10),%r10
 	rolq $RC_1024_0_5,%r11
 	xorq %r10, %r11
@@ -4726,7 +4726,7 @@ _UNROLL_CNT =   ROUNDS_1024/8
 	leaq (%r9, %r8),%r8
 	rolq $RC_1024_4_4,%r9
 	xorq %r8, %r9
-	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack 
+	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack
 	leaq (%r11, %r10),%r10
 	rolq $RC_1024_4_5,%r11
 	xorq %r10, %r11
@@ -4857,7 +4857,7 @@ _UNROLL_CNT =   ROUNDS_1024/8
 	leaq (%r9, %r8),%r8
 	rolq $RC_1024_0_4,%r9
 	xorq %r8, %r9
-	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack 
+	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack
 	leaq (%r11, %r10),%r10
 	rolq $RC_1024_0_5,%r11
 	xorq %r10, %r11
@@ -4988,7 +4988,7 @@ _UNROLL_CNT =   ROUNDS_1024/8
 	leaq (%r9, %r8),%r8
 	rolq $RC_1024_4_4,%r9
 	xorq %r8, %r9
-	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack 
+	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack
 	leaq (%r11, %r10),%r10
 	rolq $RC_1024_4_5,%r11
 	xorq %r10, %r11
@@ -5119,7 +5119,7 @@ _UNROLL_CNT =   ROUNDS_1024/8
 	leaq (%r9, %r8),%r8
 	rolq $RC_1024_0_4,%r9
 	xorq %r8, %r9
-	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack 
+	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack
 	leaq (%r11, %r10),%r10
 	rolq $RC_1024_0_5,%r11
 	xorq %r10, %r11
@@ -5250,7 +5250,7 @@ _UNROLL_CNT =   ROUNDS_1024/8
 	leaq (%r9, %r8),%r8
 	rolq $RC_1024_4_4,%r9
 	xorq %r8, %r9
-	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack 
+	movq X_stk+8*6(%rsp),%rcx	#load X6 from stack
 	leaq (%r11, %r10),%r10
 	rolq $RC_1024_4_5,%r11
 	xorq %r10, %r11
@@ -5373,7 +5373,7 @@ _UNROLL_CNT =   ROUNDS_1024/8
     # feedforward:   ctx->X[i] = X[i] ^ w[i], {i=0..15}
     movq    %rdx,X_stk+8*o1K_rdx(%rsp) #we need a register. x6 already on stack
     movq       ctxPtr(%rsp),%rdx
-    
+
     .irp _rr_,rdi,rsi,rbp,rax,rcx,rbx,r8,r9,r10,r11,r12,r13,r14,r15   #do all but x6,x7
 _oo_ = o1K_\_rr_
       xorq  Wcopy +8*_oo_(%rsp),%\_rr_ #feedforward XOR
@@ -5385,7 +5385,7 @@ _oo_ = o1K_\_rr_
         andq   TWEAK+ 8(%rdx),%r9
       .endif
     .endr
-    # 
+    #
     movq         X_stk +8*6(%rsp),%rax #now process x6,x7 (skipped in .irp above)
     movq         X_stk +8*7(%rsp),%rbx
     xorq         Wcopy +8*6(%rsp),%rax
