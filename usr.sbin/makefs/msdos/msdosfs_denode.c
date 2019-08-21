@@ -1,6 +1,8 @@
 /*	$NetBSD: msdosfs_denode.c,v 1.7 2015/03/29 05:52:59 agc Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1994, 1995, 1997 Wolfgang Solfrank.
  * Copyright (C) 1994, 1995, 1997 TooLs GmbH.
  * All rights reserved.
@@ -31,7 +33,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/*
+/*-
  * Written by Paul Popelka (paulp@uts.amdahl.com)
  *
  * You can do anything you want with this software, just don't say you wrote
@@ -326,7 +328,7 @@ detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred)
 	if (chaintofree != 0 && !MSDOSFSEOF(pmp, chaintofree))
 		freeclusterchain(pmp, chaintofree);
 
-	return allerror;
+	return (allerror);
 }
 
 /*
