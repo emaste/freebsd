@@ -59,7 +59,7 @@
 
 #include "ffs/buf.h"
 #include <fs/msdosfs/bpb.h>
-#include "msdos/direntry.h"
+#include <fs/msdosfs/direntry.h>
 #include <fs/msdosfs/denode.h>
 #include <fs/msdosfs/fat.h>
 #include <fs/msdosfs/msdosfsmount.h>
@@ -67,6 +67,11 @@
 #include "makefs.h"
 #include "msdos.h"
 
+int unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen);
+int unix2winfn(const u_char *un, size_t unlen, struct winentry *wep, int cnt,
+    int chksum);
+uint8_t winChksum(uint8_t *name);
+ 
 /*
  * dep  - directory entry to copy into the directory
  * ddep - directory to add to
