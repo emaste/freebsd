@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 
 #include "ffs/buf.h"
 #include <fs/msdosfs/bpb.h>
-#include "msdos/direntry.h"
+#include <fs/msdosfs/direntry.h>
 #include <fs/msdosfs/denode.h>
 #include <fs/msdosfs/fat.h>
 #include <fs/msdosfs/msdosfsmount.h>
@@ -96,6 +96,12 @@ static int msdosfs_wfile(const char *, struct denode *, fsnode *);
 static void unix2fattime(const struct timespec *tsp, uint16_t *ddp,
     uint16_t *dtp);
 
+int unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen);
+int winChkName(const u_char *un, size_t unlen, struct winentry *wep,
+    int chksum);
+uint8_t winChksum(uint8_t *name);
+int winSlotCnt(const u_char *un, size_t unlen);
+ 
 static void
 msdosfs_times(struct denode *dep, const struct stat *st)
 {
