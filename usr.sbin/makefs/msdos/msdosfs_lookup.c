@@ -67,11 +67,6 @@
 #include "makefs.h"
 #include "msdos.h"
 
-int unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen);
-int unix2winfn(const u_char *un, size_t unlen, struct winentry *wep, int cnt,
-    int chksum);
-uint8_t winChksum(uint8_t *name);
- 
 /*
  * dep  - directory entry to copy into the directory
  * ddep - directory to add to
@@ -172,7 +167,7 @@ createde(struct denode *dep, struct denode *ddep, struct denode **depp,
 				ddep->de_fndoffset -= sizeof(struct direntry);
 			}
 			if (!unix2winfn(un, unlen, (struct winentry *)ndep,
-					cnt++, chksum))
+					cnt++, chksum, NULL /* XXX */))
 				break;
 		}
 	}
@@ -257,14 +252,14 @@ uniqdosname(struct denode *dep, struct componentname *cnp, u_char *cp)
 
 	if (pmp->pm_flags & MSDOSFSMNT_SHORTNAME)
 		return (unix2dosfn((const u_char *)cnp->cn_nameptr, cp,
-		    cnp->cn_namelen, 0) ? 0 : EINVAL);
+		    cnp->cn_namelen, 0, NULL /* XXX */) ? 0 : EINVAL);
 
 	for (gen = 1;; gen++) {
 		/*
 		 * Generate DOS name with generation number
 		 */
 		if (!unix2dosfn((const u_char *)cnp->cn_nameptr, cp,
-		    cnp->cn_namelen, gen))
+		    cnp->cn_namelen, gen, NULL /* XXX */))
 			return gen == 1 ? EINVAL : EEXIST;
 
 		/*
