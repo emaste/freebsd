@@ -97,11 +97,8 @@ static int msdosfs_wfile(const char *, struct denode *, fsnode *);
 static void unix2fattime(const struct timespec *tsp, uint16_t *ddp,
     uint16_t *dtp);
 
-int unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen);
 int winChkName(const u_char *un, size_t unlen, struct winentry *wep,
     int chksum);
-uint8_t winChksum(uint8_t *name);
-int winSlotCnt(const u_char *un, size_t unlen);
  
 static void
 msdosfs_times(struct denode *dep, const struct stat *st)
@@ -178,19 +175,19 @@ msdosfs_findslot(struct denode *dp, struct componentname *cnp)
 	pmp = dp->de_pmp;
 
 	switch (unix2dosfn((const u_char *)cnp->cn_nameptr, dosfilename,
-	    cnp->cn_namelen, 0)) {
+	    cnp->cn_namelen, 0, NULL /* XXX */)) {
 	case 0:
 		return (EINVAL);
 	case 1:
 		break;
 	case 2:
 		wincnt = winSlotCnt((const u_char *)cnp->cn_nameptr,
-		    cnp->cn_namelen) + 1;
+		    cnp->cn_namelen, NULL /* XXX */) + 1;
 		break;
 	case 3:
 		olddos = 0;
 		wincnt = winSlotCnt((const u_char *)cnp->cn_nameptr,
-		    cnp->cn_namelen) + 1;
+		    cnp->cn_namelen, NULL /* XXX */) + 1;
 		break;
 	}
 
