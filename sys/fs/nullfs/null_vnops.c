@@ -668,7 +668,7 @@ null_lock(struct vop_lock1_args *ap)
 		 * We prevent it from being recycled by holding the vnode
 		 * here.
 		 */
-		vholdl(lvp);
+		vholdnz(lvp);
 		error = VOP_LOCK(lvp, flags);
 
 		/*
@@ -710,31 +710,16 @@ static int
 null_unlock(struct vop_unlock_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
-	int flags = ap->a_flags;
-	int mtxlkflag = 0;
 	struct null_node *nn;
 	struct vnode *lvp;
 	int error;
 
-	if ((flags & LK_INTERLOCK) != 0)
-		mtxlkflag = 1;
-	else if (mtx_owned(VI_MTX(vp)) == 0) {
-		VI_LOCK(vp);
-		mtxlkflag = 2;
-	}
 	nn = VTONULL(vp);
 	if (nn != NULL && (lvp = NULLVPTOLOWERVP(vp)) != NULL) {
-		VI_LOCK_FLAGS(lvp, MTX_DUPOK);
-		flags |= LK_INTERLOCK;
-		vholdl(lvp);
-		VI_UNLOCK(vp);
-		error = VOP_UNLOCK(lvp, flags);
+		vholdnz(lvp);
+		error = VOP_UNLOCK(lvp, 0);
 		vdrop(lvp);
-		if (mtxlkflag == 0)
-			VI_LOCK(vp);
 	} else {
-		if (mtxlkflag == 2)
-			VI_UNLOCK(vp);
 		error = vop_stdunlock(ap);
 	}
 
@@ -747,14 +732,13 @@ null_unlock(struct vop_unlock_args *ap)
  * ours.
  */
 static int
-null_inactive(struct vop_inactive_args *ap __unused)
+null_want_recycle(struct vnode *vp)
 {
-	struct vnode *vp, *lvp;
+	struct vnode *lvp;
 	struct null_node *xp;
 	struct mount *mp;
 	struct null_mount *xmp;
 
-	vp = ap->a_vp;
 	xp = VTONULL(vp);
 	lvp = NULLVPTOLOWERVP(vp);
 	mp = vp->v_mount;
@@ -768,10 +752,29 @@ null_inactive(struct vop_inactive_args *ap __unused)
 		 * deleted, then free up the vnode so as not to tie up
 		 * the lower vnodes.
 		 */
+		return (1);
+	}
+	return (0);
+}
+
+static int
+null_inactive(struct vop_inactive_args *ap)
+{
+	struct vnode *vp;
+
+	vp = ap->a_vp;
+	if (null_want_recycle(vp)) {
 		vp->v_object = NULL;
 		vrecycle(vp);
 	}
 	return (0);
+}
+
+static int
+null_need_inactive(struct vop_need_inactive_args *ap)
+{
+
+	return (null_want_recycle(ap->a_vp));
 }
 
 /*
@@ -845,10 +848,8 @@ null_getwritemount(struct vop_getwritemount_args *ap)
 	VI_LOCK(vp);
 	xp = VTONULL(vp);
 	if (xp && (lowervp = xp->null_lowervp)) {
-		VI_LOCK_FLAGS(lowervp, MTX_DUPOK);
+		vholdnz(lowervp);
 		VI_UNLOCK(vp);
-		vholdl(lowervp);
-		VI_UNLOCK(lowervp);
 		VOP_GETWRITEMOUNT(lowervp, ap->a_mpp);
 		vdrop(lowervp);
 	} else {
@@ -924,6 +925,7 @@ struct vop_vector null_vnodeops = {
 	.vop_getattr =		null_getattr,
 	.vop_getwritemount =	null_getwritemount,
 	.vop_inactive =		null_inactive,
+	.vop_need_inactive =	null_need_inactive,
 	.vop_islocked =		vop_stdislocked,
 	.vop_lock1 =		null_lock,
 	.vop_lookup =		null_lookup,

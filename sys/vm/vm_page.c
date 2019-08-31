@@ -3081,9 +3081,10 @@ vm_pqbatch_process_page(struct vm_pagequeue *pq, vm_page_t m)
 	 * the page queue lock held.  In this case it is about to free the page,
 	 * which must not have any queue state.
 	 */
-	qflags = atomic_load_8(&m->aflags) & PGA_QUEUE_STATE_MASK;
-	KASSERT(pq == vm_page_pagequeue(m) || qflags == 0,
-	    ("page %p doesn't belong to queue %p but has queue state %#x",
+	qflags = atomic_load_8(&m->aflags);
+	KASSERT(pq == vm_page_pagequeue(m) ||
+	    (qflags & PGA_QUEUE_STATE_MASK) == 0,
+	    ("page %p doesn't belong to queue %p but has aflags %#x",
 	    m, pq, qflags));
 
 	if ((qflags & PGA_DEQUEUE) != 0) {
@@ -3097,6 +3098,13 @@ vm_pqbatch_process_page(struct vm_pagequeue *pq, vm_page_t m)
 			vm_pagequeue_cnt_inc(pq);
 			vm_page_aflag_set(m, PGA_ENQUEUED);
 		}
+
+		/*
+		 * Give PGA_REQUEUE_HEAD precedence over PGA_REQUEUE.
+		 * In particular, if both flags are set in close succession,
+		 * only PGA_REQUEUE_HEAD will be applied, even if it was set
+		 * first.
+		 */
 		if ((qflags & PGA_REQUEUE_HEAD) != 0) {
 			KASSERT(m->queue == PQ_INACTIVE,
 			    ("head enqueue not supported for page %p", m));
@@ -3105,12 +3113,8 @@ vm_pqbatch_process_page(struct vm_pagequeue *pq, vm_page_t m)
 		} else
 			TAILQ_INSERT_TAIL(&pq->pq_pl, m, plinks.q);
 
-		/*
-		 * PGA_REQUEUE and PGA_REQUEUE_HEAD must be cleared after
-		 * setting PGA_ENQUEUED in order to synchronize with the
-		 * page daemon.
-		 */
-		vm_page_aflag_clear(m, PGA_REQUEUE | PGA_REQUEUE_HEAD);
+		vm_page_aflag_clear(m, qflags & (PGA_REQUEUE |
+		    PGA_REQUEUE_HEAD));
 	}
 }
 
@@ -3130,8 +3134,8 @@ vm_pqbatch_process(struct vm_pagequeue *pq, struct vm_batchqueue *bq,
 	vm_batchqueue_init(bq);
 }
 
-static void
-vm_pqbatch_submit_page(vm_page_t m, uint8_t queue)
+void
+vm_page_pqbatch_submit(vm_page_t m, uint8_t queue)
 {
 	struct vm_batchqueue *bq;
 	struct vm_pagequeue *pq;
@@ -3174,21 +3178,20 @@ vm_pqbatch_submit_page(vm_page_t m, uint8_t queue)
 		    ("invalid queue transition for page %p", m));
 		KASSERT((m->aflags & PGA_ENQUEUED) == 0,
 		    ("page %p is enqueued with invalid queue index", m));
-		vm_page_aflag_clear(m, PGA_QUEUE_STATE_MASK);
 	}
 	vm_pagequeue_unlock(pq);
 	critical_exit();
 }
 
 /*
- *	vm_page_drain_pqbatch:		[ internal use only ]
+ *	vm_page_pqbatch_drain:		[ internal use only ]
  *
  *	Force all per-CPU page queue batch queues to be drained.  This is
  *	intended for use in severe memory shortages, to ensure that pages
  *	do not remain stuck in the batch queues.
  */
 void
-vm_page_drain_pqbatch(void)
+vm_page_pqbatch_drain(void)
 {
 	struct thread *td;
 	struct vm_domain *vmd;
@@ -3253,7 +3256,7 @@ vm_page_dequeue_deferred(vm_page_t m)
 	if ((queue = vm_page_queue(m)) == PQ_NONE)
 		return;
 	vm_page_aflag_set(m, PGA_DEQUEUE);
-	vm_pqbatch_submit_page(m, queue);
+	vm_page_pqbatch_submit(m, queue);
 }
 
 /*
@@ -3277,7 +3280,7 @@ vm_page_dequeue_deferred_free(vm_page_t m)
 	if ((queue = m->queue) == PQ_NONE)
 		return;
 	vm_page_aflag_set(m, PGA_DEQUEUE);
-	vm_pqbatch_submit_page(m, queue);
+	vm_page_pqbatch_submit(m, queue);
 }
 
 /*
@@ -3352,7 +3355,7 @@ vm_page_enqueue(vm_page_t m, uint8_t queue)
 	m->queue = queue;
 	if ((m->aflags & PGA_REQUEUE) == 0)
 		vm_page_aflag_set(m, PGA_REQUEUE);
-	vm_pqbatch_submit_page(m, queue);
+	vm_page_pqbatch_submit(m, queue);
 }
 
 /*
@@ -3372,7 +3375,7 @@ vm_page_requeue(vm_page_t m)
 
 	if ((m->aflags & PGA_REQUEUE) == 0)
 		vm_page_aflag_set(m, PGA_REQUEUE);
-	vm_pqbatch_submit_page(m, atomic_load_8(&m->queue));
+	vm_page_pqbatch_submit(m, atomic_load_8(&m->queue));
 }
 
 /*
@@ -3700,7 +3703,7 @@ vm_page_deactivate_noreuse(vm_page_t m)
 	}
 	if ((m->aflags & PGA_REQUEUE_HEAD) == 0)
 		vm_page_aflag_set(m, PGA_REQUEUE_HEAD);
-	vm_pqbatch_submit_page(m, PQ_INACTIVE);
+	vm_page_pqbatch_submit(m, PQ_INACTIVE);
 }
 
 /*
