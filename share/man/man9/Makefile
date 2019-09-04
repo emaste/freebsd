@@ -2223,9 +2223,7 @@ MLINKS+=vm_map_lookup.9 vm_map_lookup_done.9
 MLINKS+=vm_map_max.9 vm_map_min.9 \
 	vm_map_max.9 vm_map_pmap.9
 MLINKS+=vm_map_stack.9 vm_map_growstack.9
-MLINKS+=vm_map_wire.9 vm_map_wire_mapped.9 \
-	vm_page_wire.9 vm_page_unwire.9 \
-	vm_page_wire.9 vm_page_unwire_noq.9
+MLINKS+=vm_map_wire.9 vm_map_unwire.9
 MLINKS+=vm_page_bits.9 vm_page_clear_dirty.9 \
 	vm_page_bits.9 vm_page_dirty.9 \
 	vm_page_bits.9 vm_page_is_valid.9 \
@@ -2281,6 +2279,8 @@ MLINKS+=vrele.9 vput.9 \
 	vrele.9 vunref.9
 MLINKS+=vslock.9 vsunlock.9
 MLINKS+=zone.9 uma.9 \
+	zone.9 uma_prealloc.9 \
+	zone.9 uma_reclaim.9 \
 	zone.9 uma_zalloc.9 \
 	zone.9 uma_zalloc_arg.9 \
 	zone.9 uma_zalloc_domain.9 \
@@ -2296,7 +2296,7 @@ MLINKS+=zone.9 uma.9 \
 	zone.9 uma_zfree_pcpu_arg.9 \
 	zone.9 uma_zone_get_cur.9 \
 	zone.9 uma_zone_get_max.9 \
-	zone.9 uma_zone_prealloc.9 \
+	zone.9 uma_zone_reclaim.9 \
 	zone.9 uma_zone_reserve.9 \
 	zone.9 uma_zone_reserve_kva.9 \
 	zone.9 uma_zone_set_allocf.9 \
