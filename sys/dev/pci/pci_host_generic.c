@@ -351,7 +351,8 @@ generic_pcie_activate_resource(device_t dev, device_t child, int type,
 			phys_base = sc->ranges[i].phys_base;
 			size = sc->ranges[i].size;
 
-			if ((rman_get_start(r) >= pci_base) && (rman_get_start(r) < (pci_base + size))) {
+			if ((rman_get_start(r) >= pci_base) &&
+			    (rman_get_end(r) < (pci_base + size))) {
 				found = 1;
 				break;
 			}
