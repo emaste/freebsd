@@ -346,7 +346,7 @@ generic_pcie_translate_resource(device_t dev, int type, rman_res_t start,
 			phys_base = sc->ranges[i].phys_base;
 			size = sc->ranges[i].size;
 
-			if (start < pci_base || start >= pci_base + size)
+			if (start < pci_base || end >= pci_base + size)
 				continue;
 
 			switch (FLAG_TYPE(sc->ranges[i].flags)) {
