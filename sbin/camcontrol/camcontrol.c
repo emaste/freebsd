@@ -420,7 +420,7 @@ getdevlist(struct cam_device *device)
 	ccb->cgdl.status = CAM_GDEVLIST_MORE_DEVS;
 	while (ccb->cgdl.status == CAM_GDEVLIST_MORE_DEVS) {
 		if (cam_send_ccb(device, ccb) < 0) {
-			perror("error getting device list");
+			warn("error getting device list");
 			cam_freeccb(ccb);
 			return (1);
 		}
@@ -769,7 +769,7 @@ print_dev_mmcsd(struct device_match_result *dev_result, char *tmpstr)
 	advi->buf = (uint8_t *)&mmc_ident_data;
 
 	if (cam_send_ccb(dev, ccb) < 0) {
-		warn("error sending CAMIOCOMMAND ioctl");
+		warn("error sending XPT_DEV_ADVINFO CCB");
 		cam_freeccb(ccb);
 		cam_close_device(dev);
 		return (1);
@@ -811,7 +811,7 @@ nvme_get_cdata(struct cam_device *dev, struct nvme_controller_data *cdata)
 	advi->buf = (uint8_t *)cdata;
 
 	if (cam_send_ccb(dev, ccb) < 0) {
-		warn("error sending CAMIOCOMMAND ioctl");
+		warn("error sending XPT_DEV_ADVINFO CCB");
 		cam_freeccb(ccb);
 		cam_close_device(dev);
 		return(1);
@@ -876,13 +876,7 @@ testunitready(struct cam_device *device, int task_attr, int retry_count,
 
 	if (cam_send_ccb(device, ccb) < 0) {
 		if (quiet == 0)
-			perror("error sending test unit ready");
-
-		if (arglist & CAM_ARG_VERBOSE) {
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-		}
-
+			warn("error sending TEST UNIT READY command");
 		cam_freeccb(ccb);
 		return (1);
 	}
@@ -945,13 +939,7 @@ scsistart(struct cam_device *device, int startstop, int loadeject,
 		ccb->ccb_h.flags |= CAM_PASS_ERR_RECOVER;
 
 	if (cam_send_ccb(device, ccb) < 0) {
-		perror("error sending start unit");
-
-		if (arglist & CAM_ARG_VERBOSE) {
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-		}
-
+		warn("error sending START STOP UNIT command");
 		cam_freeccb(ccb);
 		return (1);
 	}
@@ -1114,13 +1102,7 @@ scsiinquiry(struct cam_device *device, int task_attr, int retry_count,
 		ccb->ccb_h.flags |= CAM_PASS_ERR_RECOVER;
 
 	if (cam_send_ccb(device, ccb) < 0) {
-		perror("error sending SCSI inquiry");
-
-		if (arglist & CAM_ARG_VERBOSE) {
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-		}
-
+		warn("error sending INQUIRY command");
 		cam_freeccb(ccb);
 		return (1);
 	}
@@ -1196,13 +1178,7 @@ scsiserial(struct cam_device *device, int task_attr, int retry_count,
 		ccb->ccb_h.flags |= CAM_PASS_ERR_RECOVER;
 
 	if (cam_send_ccb(device, ccb) < 0) {
-		warn("error getting serial number");
-
-		if (arglist & CAM_ARG_VERBOSE) {
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-		}
-
+		warn("error sending INQUIRY command");
 		cam_freeccb(ccb);
 		free(serial_buf);
 		return (1);
@@ -1802,12 +1778,6 @@ scsi_cam_pass_16_send(struct cam_device *device, union ccb *ccb, int quiet)
 			warn("error sending ATA %s via pass_16",
 			     ata_op_string(&ata_cmd));
 		}
-
-		if (arglist & CAM_ARG_VERBOSE) {
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-		}
-
 		return (1);
 	}
 
@@ -1849,12 +1819,6 @@ ata_cam_send(struct cam_device *device, union ccb *ccb, int quiet)
 			warn("error sending ATA %s",
 			     ata_op_string(&(ccb->ataio.cmd)));
 		}
-
-		if (arglist & CAM_ARG_VERBOSE) {
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-		}
-
 		return (1);
 	}
 
@@ -1878,13 +1842,11 @@ ata_cam_send(struct cam_device *device, union ccb *ccb, int quiet)
 static int
 ata_do_pass_16(struct cam_device *device, union ccb *ccb, int retries,
 	       u_int32_t flags, u_int8_t protocol, u_int8_t ata_flags,
-	       u_int8_t tag_action, u_int8_t command, u_int8_t features,
-	       u_int64_t lba, u_int8_t sector_count, u_int8_t *data_ptr,
+	       u_int8_t tag_action, u_int8_t command, u_int16_t features,
+	       u_int64_t lba, u_int16_t sector_count, u_int8_t *data_ptr,
 	       u_int16_t dxfer_len, int timeout, int quiet)
 {
 	if (data_ptr != NULL) {
-		ata_flags |= AP_FLAG_BYT_BLOK_BYTES |
-			    AP_FLAG_TLEN_SECT_CNT;
 		if (flags & CAM_DIR_OUT)
 			ata_flags |= AP_FLAG_TDIR_TO_DEV;
 		else
@@ -1935,44 +1897,10 @@ ata_try_pass_16(struct cam_device *device)
 }
 
 static int
-ata_do_28bit_cmd(struct cam_device *device, union ccb *ccb, int retries,
-		 u_int32_t flags, u_int8_t protocol, u_int8_t tag_action,
-		 u_int8_t command, u_int8_t features, u_int32_t lba,
-		 u_int8_t sector_count, u_int8_t *data_ptr, u_int16_t dxfer_len,
-		 int timeout, int quiet)
-{
-
-
-	switch (ata_try_pass_16(device)) {
-	case -1:
-		return (1);
-	case 1:
-		/* Try using SCSI Passthrough */
-		return ata_do_pass_16(device, ccb, retries, flags, protocol,
-				      0, tag_action, command, features, lba,
-				      sector_count, data_ptr, dxfer_len,
-				      timeout, quiet);
-	}
-
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->ataio);
-	cam_fill_ataio(&ccb->ataio,
-		       retries,
-		       NULL,
-		       flags,
-		       tag_action,
-		       data_ptr,
-		       dxfer_len,
-		       timeout);
-
-	ata_28bit_cmd(&ccb->ataio, command, features, lba, sector_count);
-	return ata_cam_send(device, ccb, quiet);
-}
-
-static int
 ata_do_cmd(struct cam_device *device, union ccb *ccb, int retries,
 	   u_int32_t flags, u_int8_t protocol, u_int8_t ata_flags,
-	   u_int8_t tag_action, u_int8_t command, u_int8_t features,
-	   u_int64_t lba, u_int8_t sector_count, u_int8_t *data_ptr,
+	   u_int8_t tag_action, u_int8_t command, u_int16_t features,
+	   u_int64_t lba, u_int16_t sector_count, u_int8_t *data_ptr,
 	   u_int16_t dxfer_len, int timeout, int force48bit)
 {
 	int retval;
@@ -2219,14 +2147,15 @@ atahpa_password(struct cam_device *device, int retry_count,
 			   retry_count,
 			   /*flags*/CAM_DIR_OUT,
 			   /*protocol*/protocol,
-			   /*ata_flags*/AP_FLAG_CHK_COND,
+			   /*ata_flags*/AP_FLAG_BYT_BLOK_BLOCKS |
+			    AP_FLAG_TLEN_SECT_CNT | AP_FLAG_CHK_COND,
 			   /*tag_action*/MSG_SIMPLE_Q_TAG,
 			   /*command*/cmd,
 			   /*features*/ATA_HPA_FEAT_SET_PWD,
 			   /*lba*/0,
-			   /*sector_count*/0,
+			   /*sector_count*/sizeof(*pwd) / 512,
 			   /*data_ptr*/(u_int8_t*)pwd,
-			   /*dxfer_len*/sizeof(struct ata_set_max_pwd),
+			   /*dxfer_len*/sizeof(*pwd),
 			   timeout ? timeout : 1000,
 			   is48bit);
 
@@ -2286,14 +2215,15 @@ atahpa_unlock(struct cam_device *device, int retry_count,
 			   retry_count,
 			   /*flags*/CAM_DIR_OUT,
 			   /*protocol*/protocol,
-			   /*ata_flags*/AP_FLAG_CHK_COND,
+			   /*ata_flags*/AP_FLAG_BYT_BLOK_BLOCKS |
+			    AP_FLAG_TLEN_SECT_CNT | AP_FLAG_CHK_COND,
 			   /*tag_action*/MSG_SIMPLE_Q_TAG,
 			   /*command*/cmd,
 			   /*features*/ATA_HPA_FEAT_UNLOCK,
 			   /*lba*/0,
-			   /*sector_count*/0,
+			   /*sector_count*/sizeof(*pwd) / 512,
 			   /*data_ptr*/(u_int8_t*)pwd,
-			   /*dxfer_len*/sizeof(struct ata_set_max_pwd),
+			   /*dxfer_len*/sizeof(*pwd),
 			   timeout ? timeout : 1000,
 			   is48bit);
 
@@ -2463,45 +2393,32 @@ ata_do_identify(struct cam_device *device, int retry_count, int timeout,
 		return (1);
 	}
 
-	error = ata_do_28bit_cmd(device,
-				 ccb,
-				 /*retries*/retry_count,
-				 /*flags*/CAM_DIR_IN,
-				 /*protocol*/AP_PROTO_PIO_IN,
-				 /*tag_action*/MSG_SIMPLE_Q_TAG,
-				 /*command*/command,
-				 /*features*/0,
-				 /*lba*/0,
-				 /*sector_count*/0,
-				 /*data_ptr*/(u_int8_t *)ptr,
-				 /*dxfer_len*/sizeof(struct ata_params),
-				 /*timeout*/timeout ? timeout : 30 * 1000,
-				 /*quiet*/1);
+retry:
+	error = ata_do_cmd(device,
+			   ccb,
+			   /*retries*/retry_count,
+			   /*flags*/CAM_DIR_IN,
+			   /*protocol*/AP_PROTO_PIO_IN,
+			   /*ata_flags*/AP_FLAG_BYT_BLOK_BLOCKS |
+			    AP_FLAG_TLEN_SECT_CNT,
+			   /*tag_action*/MSG_SIMPLE_Q_TAG,
+			   /*command*/command,
+			   /*features*/0,
+			   /*lba*/0,
+			   /*sector_count*/sizeof(struct ata_params) / 512,
+			   /*data_ptr*/(u_int8_t *)ptr,
+			   /*dxfer_len*/sizeof(struct ata_params),
+			   /*timeout*/timeout ? timeout : 30 * 1000,
+			   /*force48bit*/0);
 
 	if (error != 0) {
-		if (retry_command == 0) {
-			free(ptr);
-			return (1);
+		if (retry_command != 0) {
+			command = retry_command;
+			retry_command = 0;
+			goto retry;
 		}
-		error = ata_do_28bit_cmd(device,
-					 ccb,
-					 /*retries*/retry_count,
-					 /*flags*/CAM_DIR_IN,
-					 /*protocol*/AP_PROTO_PIO_IN,
-					 /*tag_action*/MSG_SIMPLE_Q_TAG,
-					 /*command*/retry_command,
-					 /*features*/0,
-					 /*lba*/0,
-					 /*sector_count*/0,
-					 /*data_ptr*/(u_int8_t *)ptr,
-					 /*dxfer_len*/sizeof(struct ata_params),
-					 /*timeout*/timeout ? timeout : 30 * 1000,
-					 /*quiet*/0);
-
-		if (error != 0) {
-			free(ptr);
-			return (1);
-		}
+		free(ptr);
+		return (1);
 	}
 
 	ident_buf = (struct ata_params *)ptr;
@@ -2687,20 +2604,21 @@ atasecurity_freeze(struct cam_device *device, union ccb *ccb,
 	if (quiet == 0)
 		atasecurity_notify(ATA_SECURITY_FREEZE_LOCK, NULL);
 
-	return ata_do_28bit_cmd(device,
-				ccb,
-				retry_count,
-				/*flags*/CAM_DIR_NONE,
-				/*protocol*/AP_PROTO_NON_DATA,
-				/*tag_action*/MSG_SIMPLE_Q_TAG,
-				/*command*/ATA_SECURITY_FREEZE_LOCK,
-				/*features*/0,
-				/*lba*/0,
-				/*sector_count*/0,
-				/*data_ptr*/NULL,
-				/*dxfer_len*/0,
-				/*timeout*/timeout,
-				/*quiet*/0);
+	return ata_do_cmd(device,
+			  ccb,
+			  retry_count,
+			  /*flags*/CAM_DIR_NONE,
+			  /*protocol*/AP_PROTO_NON_DATA,
+			  /*ata_flags*/0,
+			  /*tag_action*/MSG_SIMPLE_Q_TAG,
+			  /*command*/ATA_SECURITY_FREEZE_LOCK,
+			  /*features*/0,
+			  /*lba*/0,
+			  /*sector_count*/0,
+			  /*data_ptr*/NULL,
+			  /*dxfer_len*/0,
+			  /*timeout*/timeout,
+			  /*force48bit*/0);
 }
 
 static int
@@ -2712,20 +2630,22 @@ atasecurity_unlock(struct cam_device *device, union ccb *ccb,
 	if (quiet == 0)
 		atasecurity_notify(ATA_SECURITY_UNLOCK, pwd);
 
-	return ata_do_28bit_cmd(device,
-				ccb,
-				retry_count,
-				/*flags*/CAM_DIR_OUT,
-				/*protocol*/AP_PROTO_PIO_OUT,
-				/*tag_action*/MSG_SIMPLE_Q_TAG,
-				/*command*/ATA_SECURITY_UNLOCK,
-				/*features*/0,
-				/*lba*/0,
-				/*sector_count*/0,
-				/*data_ptr*/(u_int8_t *)pwd,
-				/*dxfer_len*/sizeof(*pwd),
-				/*timeout*/timeout,
-				/*quiet*/0);
+	return ata_do_cmd(device,
+			  ccb,
+			  retry_count,
+			  /*flags*/CAM_DIR_OUT,
+			  /*protocol*/AP_PROTO_PIO_OUT,
+			  /*ata_flags*/AP_FLAG_BYT_BLOK_BLOCKS |
+			    AP_FLAG_TLEN_SECT_CNT,
+			  /*tag_action*/MSG_SIMPLE_Q_TAG,
+			  /*command*/ATA_SECURITY_UNLOCK,
+			  /*features*/0,
+			  /*lba*/0,
+			  /*sector_count*/sizeof(*pwd) / 512,
+			  /*data_ptr*/(u_int8_t *)pwd,
+			  /*dxfer_len*/sizeof(*pwd),
+			  /*timeout*/timeout,
+			  /*force48bit*/0);
 }
 
 static int
@@ -2736,20 +2656,22 @@ atasecurity_disable(struct cam_device *device, union ccb *ccb,
 
 	if (quiet == 0)
 		atasecurity_notify(ATA_SECURITY_DISABLE_PASSWORD, pwd);
-	return ata_do_28bit_cmd(device,
-				ccb,
-				retry_count,
-				/*flags*/CAM_DIR_OUT,
-				/*protocol*/AP_PROTO_PIO_OUT,
-				/*tag_action*/MSG_SIMPLE_Q_TAG,
-				/*command*/ATA_SECURITY_DISABLE_PASSWORD,
-				/*features*/0,
-				/*lba*/0,
-				/*sector_count*/0,
-				/*data_ptr*/(u_int8_t *)pwd,
-				/*dxfer_len*/sizeof(*pwd),
-				/*timeout*/timeout,
-				/*quiet*/0);
+	return ata_do_cmd(device,
+			  ccb,
+			  retry_count,
+			  /*flags*/CAM_DIR_OUT,
+			  /*protocol*/AP_PROTO_PIO_OUT,
+			  /*ata_flags*/AP_FLAG_BYT_BLOK_BLOCKS |
+			    AP_FLAG_TLEN_SECT_CNT,
+			  /*tag_action*/MSG_SIMPLE_Q_TAG,
+			  /*command*/ATA_SECURITY_DISABLE_PASSWORD,
+			  /*features*/0,
+			  /*lba*/0,
+			  /*sector_count*/sizeof(*pwd) / 512,
+			  /*data_ptr*/(u_int8_t *)pwd,
+			  /*dxfer_len*/sizeof(*pwd),
+			  /*timeout*/timeout,
+			  /*force48bit*/0);
 }
 
 
@@ -2795,20 +2717,21 @@ atasecurity_erase(struct cam_device *device, union ccb *ccb,
 	if (quiet == 0)
 		atasecurity_notify(ATA_SECURITY_ERASE_PREPARE, NULL);
 
-	error = ata_do_28bit_cmd(device,
-				 ccb,
-				 retry_count,
-				 /*flags*/CAM_DIR_NONE,
-				 /*protocol*/AP_PROTO_NON_DATA,
-				 /*tag_action*/MSG_SIMPLE_Q_TAG,
-				 /*command*/ATA_SECURITY_ERASE_PREPARE,
-				 /*features*/0,
-				 /*lba*/0,
-				 /*sector_count*/0,
-				 /*data_ptr*/NULL,
-				 /*dxfer_len*/0,
-				 /*timeout*/timeout,
-				 /*quiet*/0);
+	error = ata_do_cmd(device,
+			   ccb,
+			   retry_count,
+			   /*flags*/CAM_DIR_NONE,
+			   /*protocol*/AP_PROTO_NON_DATA,
+			   /*ata_flags*/0,
+			   /*tag_action*/MSG_SIMPLE_Q_TAG,
+			   /*command*/ATA_SECURITY_ERASE_PREPARE,
+			   /*features*/0,
+			   /*lba*/0,
+			   /*sector_count*/0,
+			   /*data_ptr*/NULL,
+			   /*dxfer_len*/0,
+			   /*timeout*/timeout,
+			   /*force48bit*/0);
 
 	if (error != 0)
 		return error;
@@ -2816,20 +2739,22 @@ atasecurity_erase(struct cam_device *device, union ccb *ccb,
 	if (quiet == 0)
 		atasecurity_notify(ATA_SECURITY_ERASE_UNIT, pwd);
 
-	error = ata_do_28bit_cmd(device,
-				 ccb,
-				 retry_count,
-				 /*flags*/CAM_DIR_OUT,
-				 /*protocol*/AP_PROTO_PIO_OUT,
-				 /*tag_action*/MSG_SIMPLE_Q_TAG,
-				 /*command*/ATA_SECURITY_ERASE_UNIT,
-				 /*features*/0,
-				 /*lba*/0,
-				 /*sector_count*/0,
-				 /*data_ptr*/(u_int8_t *)pwd,
-				 /*dxfer_len*/sizeof(*pwd),
-				 /*timeout*/erase_timeout,
-				 /*quiet*/0);
+	error = ata_do_cmd(device,
+			   ccb,
+			   retry_count,
+			   /*flags*/CAM_DIR_OUT,
+			   /*protocol*/AP_PROTO_PIO_OUT,
+			   /*ata_flags*/AP_FLAG_BYT_BLOK_BLOCKS |
+			    AP_FLAG_TLEN_SECT_CNT,
+			   /*tag_action*/MSG_SIMPLE_Q_TAG,
+			   /*command*/ATA_SECURITY_ERASE_UNIT,
+			   /*features*/0,
+			   /*lba*/0,
+			   /*sector_count*/sizeof(*pwd) / 512,
+			   /*data_ptr*/(u_int8_t *)pwd,
+			   /*dxfer_len*/sizeof(*pwd),
+			   /*timeout*/erase_timeout,
+			   /*force48bit*/0);
 
 	if (error == 0 && quiet == 0)
 		printf("\nErase Complete\n");
@@ -2846,20 +2771,22 @@ atasecurity_set_password(struct cam_device *device, union ccb *ccb,
 	if (quiet == 0)
 		atasecurity_notify(ATA_SECURITY_SET_PASSWORD, pwd);
 
-	return ata_do_28bit_cmd(device,
-				 ccb,
-				 retry_count,
-				 /*flags*/CAM_DIR_OUT,
-				 /*protocol*/AP_PROTO_PIO_OUT,
-				 /*tag_action*/MSG_SIMPLE_Q_TAG,
-				 /*command*/ATA_SECURITY_SET_PASSWORD,
-				 /*features*/0,
-				 /*lba*/0,
-				 /*sector_count*/0,
-				 /*data_ptr*/(u_int8_t *)pwd,
-				 /*dxfer_len*/sizeof(*pwd),
-				 /*timeout*/timeout,
-				 /*quiet*/0);
+	return ata_do_cmd(device,
+			  ccb,
+			  retry_count,
+			  /*flags*/CAM_DIR_OUT,
+			  /*protocol*/AP_PROTO_PIO_OUT,
+			  /*ata_flags*/AP_FLAG_BYT_BLOK_BLOCKS |
+			   AP_FLAG_TLEN_SECT_CNT,
+			  /*tag_action*/MSG_SIMPLE_Q_TAG,
+			  /*command*/ATA_SECURITY_SET_PASSWORD,
+			  /*features*/0,
+			  /*lba*/0,
+			  /*sector_count*/sizeof(*pwd) / 512,
+			  /*data_ptr*/(u_int8_t *)pwd,
+			  /*dxfer_len*/sizeof(*pwd),
+			  /*timeout*/timeout,
+			  /*force48bit*/0);
 }
 
 static void
@@ -4164,13 +4091,7 @@ next_batch:
 	ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
 
 	if (cam_send_ccb(device, ccb) < 0) {
-		perror("error reading defect list");
-
-		if (arglist & CAM_ARG_VERBOSE) {
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-		}
-
+		warn("error sending READ DEFECT DATA command");
 		error = 1;
 		goto defect_bailout;
 	}
@@ -5305,7 +5226,7 @@ tagcontrol(struct cam_device *device, int argc, char **argv,
 
 
 		if (cam_send_ccb(device, ccb) < 0) {
-			perror("error sending XPT_REL_SIMQ CCB");
+			warn("error sending XPT_REL_SIMQ CCB");
 			retval = 1;
 			goto tagcontrol_bailout;
 		}
@@ -5329,7 +5250,7 @@ tagcontrol(struct cam_device *device, int argc, char **argv,
 	ccb->ccb_h.func_code = XPT_GDEV_STATS;
 
 	if (cam_send_ccb(device, ccb) < 0) {
-		perror("error sending XPT_GDEV_STATS CCB");
+		warn("error sending XPT_GDEV_STATS CCB");
 		retval = 1;
 		goto tagcontrol_bailout;
 	}
@@ -5545,9 +5466,6 @@ get_cpi(struct cam_device *device, struct ccb_pathinq *cpi)
 	ccb->ccb_h.func_code = XPT_PATH_INQ;
 	if (cam_send_ccb(device, ccb) < 0) {
 		warn("get_cpi: error sending Path Inquiry CCB");
-		if (arglist & CAM_ARG_VERBOSE)
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
 		retval = 1;
 		goto get_cpi_bailout;
 	}
@@ -5582,10 +5500,7 @@ get_cgd(struct cam_device *device, struct ccb_getdev *cgd)
 	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cgd);
 	ccb->ccb_h.func_code = XPT_GDEV_TYPE;
 	if (cam_send_ccb(device, ccb) < 0) {
-		warn("get_cgd: error sending Path Inquiry CCB");
-		if (arglist & CAM_ARG_VERBOSE)
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
+		warn("get_cgd: error sending Get type information CCB");
 		retval = 1;
 		goto get_cgd_bailout;
 	}
@@ -6141,10 +6056,7 @@ get_print_cts(struct cam_device *device, int user_settings, int quiet,
 		ccb->cts.type = CTS_TYPE_USER_SETTINGS;
 
 	if (cam_send_ccb(device, ccb) < 0) {
-		perror("error sending XPT_GET_TRAN_SETTINGS CCB");
-		if (arglist & CAM_ARG_VERBOSE)
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
+		warn("error sending XPT_GET_TRAN_SETTINGS CCB");
 		retval = 1;
 		goto get_print_cts_bailout;
 	}
@@ -6271,32 +6183,13 @@ ratecontrol(struct cam_device *device, int task_attr, int retry_count,
 			break;
 		}
 	}
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cpi);
 	/*
 	 * Grab path inquiry information, so we can determine whether
 	 * or not the initiator is capable of the things that the user
 	 * requests.
 	 */
-	ccb->ccb_h.func_code = XPT_PATH_INQ;
-	if (cam_send_ccb(device, ccb) < 0) {
-		perror("error sending XPT_PATH_INQ CCB");
-		if (arglist & CAM_ARG_VERBOSE) {
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-		}
-		retval = 1;
+	if ((retval = get_cpi(device, &cpi)) != 0)
 		goto ratecontrol_bailout;
-	}
-	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-		warnx("XPT_PATH_INQ CCB failed");
-		if (arglist & CAM_ARG_VERBOSE) {
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-		}
-		retval = 1;
-		goto ratecontrol_bailout;
-	}
-	bcopy(&ccb->cpi, &cpi, sizeof(struct ccb_pathinq));
 	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cts);
 	if (quiet == 0) {
 		fprintf(stdout, "%s parameters:\n",
@@ -6484,11 +6377,7 @@ ratecontrol(struct cam_device *device, int task_attr, int retry_count,
 		}
 		ccb->ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
 		if (cam_send_ccb(device, ccb) < 0) {
-			perror("error sending XPT_SET_TRAN_SETTINGS CCB");
-			if (arglist & CAM_ARG_VERBOSE) {
-				cam_error_print(device, ccb, CAM_ESF_ALL,
-						CAM_EPF_ALL, stderr);
-			}
+			warn("error sending XPT_SET_TRAN_SETTINGS CCB");
 			retval = 1;
 			goto ratecontrol_bailout;
 		}
@@ -6722,11 +6611,7 @@ doreport:
 		 * errors are expected.
 		 */
 		if (retval < 0) {
-			warn("error sending CAMIOCOMMAND ioctl");
-			if (arglist & CAM_ARG_VERBOSE) {
-				cam_error_print(device, ccb, CAM_ESF_ALL,
-						CAM_EPF_ALL, stderr);
-			}
+			warn("error sending TEST UNIT READY command");
 			error = 1;
 			goto scsiformat_bailout;
 		}
@@ -6913,11 +6798,7 @@ sanitize_wait_scsi(struct cam_device *device, union ccb *ccb, int task_attr, int
 		 * errors are expected.
 		 */
 		if (retval < 0) {
-			warn("error sending CAMIOCOMMAND ioctl");
-			if (arglist & CAM_ARG_VERBOSE) {
-				cam_error_print(device, ccb, CAM_ESF_ALL,
-						CAM_EPF_ALL, stderr);
-			}
+			warn("error sending TEST UNIT READY command");
 			return (1);
 		}
 
@@ -7455,11 +7336,6 @@ retry:
 
 	if (cam_send_ccb(device, ccb) < 0) {
 		warn("error sending REPORT LUNS command");
-
-		if (arglist & CAM_ARG_VERBOSE)
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-
 		retval = 1;
 		goto bailout;
 	}
@@ -7711,11 +7587,6 @@ scsireadcapacity(struct cam_device *device, int argc, char **argv,
 
 	if (cam_send_ccb(device, ccb) < 0) {
 		warn("error sending READ CAPACITY command");
-
-		if (arglist & CAM_ARG_VERBOSE)
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-
 		retval = 1;
 		goto bailout;
 	}
@@ -7758,11 +7629,6 @@ long_only:
 
 	if (cam_send_ccb(device, ccb) < 0) {
 		warn("error sending READ CAPACITY (16) command");
-
-		if (arglist & CAM_ARG_VERBOSE)
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-
 		retval = 1;
 		goto bailout;
 	}
@@ -9457,7 +9323,7 @@ atapm(struct cam_device *device, int argc, char **argv,
 	    /*data_ptr*/NULL,
 	    /*dxfer_len*/0,
 	    /*timeout*/timeout ? timeout : 30 * 1000,
-	    /*quiet*/1);
+	    /*force48bit*/0);
 
 	cam_freeccb(ccb);
 
@@ -9510,11 +9376,12 @@ ataaxm(struct cam_device *device, int argc, char **argv,
 		}
 	}
 
-	retval = ata_do_28bit_cmd(device,
+	retval = ata_do_cmd(device,
 	    ccb,
 	    /*retries*/retry_count,
 	    /*flags*/CAM_DIR_NONE,
 	    /*protocol*/AP_PROTO_NON_DATA,
+	    /*ata_flags*/0,
 	    /*tag_action*/MSG_SIMPLE_Q_TAG,
 	    /*command*/ATA_SETFEATURES,
 	    /*features*/cmd,
@@ -9523,7 +9390,7 @@ ataaxm(struct cam_device *device, int argc, char **argv,
 	    /*data_ptr*/NULL,
 	    /*dxfer_len*/0,
 	    /*timeout*/timeout ? timeout : 30 * 1000,
-	    /*quiet*/1);
+	    /*force48bit*/0);
 
 	cam_freeccb(ccb);
 	return (retval);
@@ -9615,7 +9482,7 @@ retry_alloc:
 		ccb->ccb_h.flags |= CAM_PASS_ERR_RECOVER;
 
 	if (cam_send_ccb(device, ccb) < 0) {
-		perror("error sending REPORT SUPPORTED OPERATION CODES");
+		warn("error sending REPORT SUPPORTED OPERATION CODES command");
 		retval = 1;
 		goto bailout;
 	}
