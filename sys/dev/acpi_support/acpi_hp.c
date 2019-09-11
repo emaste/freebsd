@@ -53,7 +53,7 @@
 #include <sys/sysctl.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
-#include <contrib/dev/acpica/include/accommon.h>                                
+#include <contrib/dev/acpica/include/accommon.h>
 #include <dev/acpica/acpivar.h>
 #include "acpi_wmi_if.h"
 
@@ -351,7 +351,7 @@ DRIVER_MODULE(acpi_hp, acpi_wmi, acpi_hp_driver, 0, 0);
 MODULE_DEPEND(acpi_hp, acpi_wmi, 1, 1, 1);
 MODULE_DEPEND(acpi_hp, acpi, 1, 1, 1);
 
-static void	
+static void
 acpi_hp_evaluate_auto_on_off(struct acpi_hp_softc *sc)
 {
 	int	res;
@@ -531,7 +531,7 @@ acpi_hp_attach(device_t dev)
 			sc->has_notify = 1;
 		}
 	}
-	if ((sc->has_cmi = 
+	if ((sc->has_cmi =
 	    ACPI_WMI_PROVIDES_GUID_STRING(sc->wmi_dev, ACPI_HP_WMI_CMI_GUID)
 	    )) {
 		device_printf(dev, "HP CMI GUID detected\n");
@@ -833,7 +833,7 @@ acpi_hp_sysctl_set(struct acpi_hp_softc *sc, int method, int arg, int oldarg)
 			break;
 		case ACPI_HP_METHOD_CMI_DETAIL:
 			sc->cmi_detail = arg;
-			if ((arg & ACPI_HP_CMI_DETAIL_SHOW_MAX_INSTANCE) != 
+			if ((arg & ACPI_HP_CMI_DETAIL_SHOW_MAX_INSTANCE) !=
 			    (oldarg & ACPI_HP_CMI_DETAIL_SHOW_MAX_INSTANCE)) {
 			    sc->cmi_order_size = -1;
 			}
@@ -961,7 +961,7 @@ acpi_hp_get_cmi_block(device_t wmi_dev, const char* guid, UINT8 instance,
 	int		enumbase;
 
 	outlen = 0;
-	outbuf[0] = 0;	
+	outbuf[0] = 0;
 	if (ACPI_FAILURE(ACPI_WMI_GET_BLOCK(wmi_dev, guid, instance, &out))) {
 		acpi_hp_free_buffer(&out);
 		return (-EINVAL);
@@ -1003,7 +1003,7 @@ acpi_hp_get_cmi_block(device_t wmi_dev, const char* guid, UINT8 instance,
 		return (-EINVAL);
 	}
 	enumbase = valuebase + 1;
-	if (obj->Package.Count <= valuebase + 
+	if (obj->Package.Count <= valuebase +
 	        obj->Package.Elements[enumbase].Integer.Value) {
 		acpi_hp_free_buffer(&out);
 		return (-EINVAL);
@@ -1118,7 +1118,7 @@ acpi_hp_hex_decode(char* buffer)
 		else
 			if (!((buffer[i] >= '0' && buffer[i] <= '9') ||
 		    	    (buffer[i] >= 'A' && buffer[i] <= 'F')))
-				return;			
+				return;
 	}
 
 	for (i = 0; i<length; i += 3) {
@@ -1218,7 +1218,7 @@ acpi_hp_hpcmi_read(struct cdev *dev, struct uio *buf, int flag)
 		if (!sbuf_done(&sc->hpcmi_sbuf)) {
 			if (sc->cmi_order_size < 0) {
 				maxInstance = sc->has_cmi;
-				if (!(sc->cmi_detail & 
+				if (!(sc->cmi_detail &
 				    ACPI_HP_CMI_DETAIL_SHOW_MAX_INSTANCE) &&
 				    maxInstance > 0) {
 					maxInstance--;
@@ -1239,7 +1239,7 @@ acpi_hp_hpcmi_read(struct cdev *dev, struct uio *buf, int flag)
 						     ++i) {
 				if (sc->cmi_order[i].sequence > sequence) {
 								pos = i;
-								break; 							
+								break;
 							}
 						}
 						for (i=sc->cmi_order_size;
