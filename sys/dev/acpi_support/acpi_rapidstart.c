@@ -72,7 +72,7 @@ acpi_rapidstart_probe(device_t dev)
 		device_set_desc(dev, "Intel Rapid Start ACPI device");
 
 	return (rv);
-	
+
 }
 
 static int
@@ -82,7 +82,7 @@ acpi_rapidstart_attach(device_t dev)
 	int i;
 
 	sc = device_get_softc(dev);
-	
+
 	sc->sysctl_ctx = device_get_sysctl_ctx(dev);
 	sc->sysctl_tree = device_get_sysctl_tree(dev);
 	for (i = 0 ; acpi_rapidstart_oids[i].nodename != NULL; i++){
@@ -105,7 +105,7 @@ acpi_rapidstart_attach(device_t dev)
 	return (0);
 }
 
-static int 
+static int
 sysctl_acpi_rapidstart_gen_handler(SYSCTL_HANDLER_ARGS)
 {
 	device_t	dev = arg1;
