@@ -1048,7 +1048,7 @@ main(int argc, char **argv)
 	uh = new_unrhdr(0, count - 1, NULL);
 	print_unrhdr(uh);
 
-	a = calloc(count, sizeof(char));
+	a = calloc(count, 1);
 	if (a == NULL)
 		err(1, "calloc failed");
 
