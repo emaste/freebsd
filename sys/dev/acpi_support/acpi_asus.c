@@ -484,7 +484,7 @@ static struct {
 	{
 		.name		= "camera",
 		.method		= ACPI_ASUS_METHOD_CAMERA,
-		.description	= "internal camera state",  
+		.description	= "internal camera state",
 	},
 	{
 		.name		= "cardreader",
@@ -622,7 +622,7 @@ good:
 			AcpiOsFree(Buf.Pointer);
 			return (rv);
 		}
-		
+
 		/*
 		 * Some models look exactly the same as other models, but have
 		 * their own ids.  If we spot these, set them up with the same
