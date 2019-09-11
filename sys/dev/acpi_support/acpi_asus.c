@@ -487,7 +487,7 @@ static struct {
 	{
 		.name		= "camera",
 		.method		= ACPI_ASUS_METHOD_CAMERA,
-		.description	= "internal camera state",  
+		.description	= "internal camera state",
 	},
 	{
 		.name		= "cardreader",
@@ -630,7 +630,7 @@ good:
 			AcpiOsFree(Buf.Pointer);
 			return (rv);
 		}
-		
+
 		/*
 		 * Some models look exactly the same as other models, but have
 		 * their own ids.  If we spot these, set them up with the same
@@ -867,7 +867,7 @@ acpi_asus_detach(device_t dev)
 	/* Remove notify handler */
 	AcpiRemoveNotifyHandler(sc->handle, ACPI_SYSTEM_NOTIFY,
 	    acpi_asus_notify);
-	
+
 	if (sc->lcdd_handle) {
 		KASSERT(sc->model->lcdd_n_func != NULL,
 		    ("model->lcdd_n_func is NULL, but lcdd_handle is non-zero"));
@@ -887,7 +887,7 @@ acpi_asus_led_task(struct acpi_asus_led *led, int pending __unused)
 	struct acpi_asus_softc	*sc;
 	char			*method;
 	int			state;
-	
+
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
 	sc = led->sc;
@@ -926,7 +926,7 @@ acpi_asus_led_task(struct acpi_asus_led *led, int pending __unused)
 	acpi_SetInteger(sc->handle, method, state);
 	led->busy = 0;
 }
-	
+
 static void
 acpi_asus_led(struct acpi_asus_led *led, int state)
 {
@@ -950,7 +950,7 @@ acpi_asus_sysctl(SYSCTL_HANDLER_ARGS)
 	int			error = 0;
 	int			function;
 	int			method;
-	
+
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
 	sc = (struct acpi_asus_softc *)oidp->oid_arg1;
