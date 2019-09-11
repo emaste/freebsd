@@ -418,9 +418,9 @@ acpi_ibm_probe(device_t dev)
 		return (ENXIO);
 	rv = ACPI_ID_PROBE(device_get_parent(dev), dev, ibm_ids, NULL);
 
-	if (rv <= 0) 
+	if (rv <= 0)
 		device_set_desc(dev, "IBM ThinkPad ACPI Extras");
-	
+
 	return (rv);
 }
 

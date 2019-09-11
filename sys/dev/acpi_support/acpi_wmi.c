@@ -76,7 +76,7 @@ struct acpi_wmi_softc {
 	pid_t		wmistat_open_pid; /* pid operating on /dev/wmistat */
 	int		wmistat_bufptr;	/* /dev/wmistat ptr to buffer position */
 	char 	        *mofbuf;
-	
+
 	TAILQ_HEAD(wmi_info_list_head, wmi_info) wmi_info_list;
 };
 
@@ -211,7 +211,7 @@ static char *wmi_ids[] = {"PNP0C14", NULL};
 static int
 acpi_wmi_probe(device_t dev)
 {
-	int rv; 
+	int rv;
 
 	if (acpi_disabled("wmi"))
 		return (ENXIO);
@@ -290,7 +290,7 @@ acpi_wmi_attach(device_t dev)
 				SYSCTL_ADD_OPAQUE(device_get_sysctl_ctx(dev),
 				    SYSCTL_CHILDREN(
 				        device_get_sysctl_tree(dev)),
-				    OID_AUTO, "bmof", 
+				    OID_AUTO, "bmof",
 				    CTLFLAG_RD | CTLFLAG_MPSAFE,
 				    obj->Buffer.Pointer,
 				    obj->Buffer.Length,
@@ -299,7 +299,7 @@ acpi_wmi_attach(device_t dev)
 		}
 		sc->mofbuf = out.Pointer;
 	}
-		
+
 	if (ret == 0) {
 		bus_generic_probe(dev);
 		ret = bus_generic_attach(dev);
@@ -508,7 +508,7 @@ acpi_wmi_get_event_data_method(device_t dev, UINT32 event_id, ACPI_BUFFER *out)
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
 	sc = device_get_softc(dev);
-	status = AE_NOT_FOUND;	
+	status = AE_NOT_FOUND;
 	ACPI_SERIAL_BEGIN(acpi_wmi);
 	params[0].Type = ACPI_TYPE_INTEGER;
 	params[0].Integer.Value = event_id;
@@ -801,7 +801,7 @@ acpi_wmi_toggle_we_event_generation(device_t dev, struct wmi_info *winfo,
 	params[0].Integer.Value = state==EVENT_GENERATION_ON?1:0;
 	input.Pointer = params;
 	input.Count = 1;
-	
+
 	UINT8 hi = ((UINT8) winfo->ginfo.oid[0]) >> 4;
 	UINT8 lo = ((UINT8) winfo->ginfo.oid[0]) & 0xf;
 	method[2] = (hi > 9 ? hi + 55: hi + 48);
@@ -978,7 +978,7 @@ acpi_wmi_wmistat_read(struct cdev *dev, struct uio *buf, int flag)
 	if (dev == NULL || dev->si_drv1 == NULL)
 		return (EBADF);
 	sc = dev->si_drv1;
-	
+
 	ACPI_SERIAL_BEGIN(acpi_wmi);
 	if (sc->wmistat_open_pid != buf->uio_td->td_proc->p_pid ||
 			sc->wmistat_bufptr == -1) {
