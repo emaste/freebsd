@@ -50,7 +50,7 @@
  *	a component of the tree; contains a filename, a pointer to
  *	fsinode, optional symlink name, and tree pointers
  *
- * fsinode - 
+ * fsinode -
  *	equivalent to an inode, containing target file system inode number,
  *	refcount (nlink), and stat buffer
  *
