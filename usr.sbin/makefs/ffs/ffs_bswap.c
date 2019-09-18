@@ -218,7 +218,7 @@ ffs_cg_swap(struct cg *o, struct cg *n, struct fs *fs)
 	n->cg_irotor = bswap32(o->cg_irotor);
 	for (i = 0; i < MAXFRAG; i++)
 		n->cg_frsum[i] = bswap32(o->cg_frsum[i]);
-	
+
 	n->cg_old_btotoff = bswap32(o->cg_old_btotoff);
 	n->cg_old_boff = bswap32(o->cg_old_boff);
 	n->cg_iusedoff = bswap32(o->cg_iusedoff);
@@ -250,7 +250,7 @@ ffs_cg_swap(struct cg *o, struct cg *n, struct fs *fs)
 
 	for (i = 0; i < fs->fs_old_cpg; i++)
 		n32[i] = bswap32(o32[i]);
-	
+
 	for (i = 0; i < fs->fs_old_cpg * fs->fs_old_nrpos; i++)
 		n16[i] = bswap16(o16[i]);
 
