@@ -166,7 +166,7 @@ mtree_file_path(fsnode *node)
 			break;
 		rp[++depth] = pnode->name;
 	}
-	
+
 	sb = sbuf_new_auto();
 	if (sb == NULL) {
 		errno = ENOMEM;
