@@ -98,7 +98,7 @@ static void unix2fattime(const struct timespec *tsp, uint16_t *ddp,
 
 int winChkName(const u_char *un, size_t unlen, struct winentry *wep,
     int chksum);
- 
+
 static void
 msdosfs_times(struct denode *dep, const struct stat *st)
 {
