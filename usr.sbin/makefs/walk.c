@@ -627,7 +627,7 @@ inode_type(mode_t mode)
  *	return pointer to fsinode matching `entry's st_ino & st_dev if it exists,
  *	otherwise add `entry' to table and return NULL
  */
-/* This was borrowed from du.c and tweaked to keep an fsnode 
+/* This was borrowed from du.c and tweaked to keep an fsnode
  * pointer instead. -- dbj@netbsd.org
  */
 fsinode *
@@ -646,7 +646,7 @@ link_check(fsinode *entry)
 	 */
 	const uint64_t HTCONST = 11400714819323198485ULL;
 	const int HTBITS = 64;
-	
+
 	/* Never store zero in hashtable */
 	assert(entry);
 
@@ -681,7 +681,7 @@ link_check(fsinode *entry)
 	tmp *= HTCONST;
 	h  = tmp >> (HTBITS - htshift);
 	h2 = 1 | ( tmp >> (HTBITS - (htshift<<1) - 1)); /* must be odd */
-	
+
 	/* open address hashtable search with double hash probing */
 	while (htable[h].data) {
 		if ((htable[h].data->st.st_ino == entry->st.st_ino) &&
