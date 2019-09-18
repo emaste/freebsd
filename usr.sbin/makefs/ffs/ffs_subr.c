@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include "ffs/ufs_bswap.h"
 
 /*
- * Update the frsum fields to reflect addition or deletion 
+ * Update the frsum fields to reflect addition or deletion
  * of some frags.
  */
 void
