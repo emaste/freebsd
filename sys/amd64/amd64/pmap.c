@@ -1539,13 +1539,13 @@ create_pagetables(vm_paddr_t *firstaddr)
 	}
 	for (j = 0; i < ndmpdp; i++, j++) {
 		pdp_p[i] = DMPDphys + ptoa(j);
-		pdp_p[i] |= X86_PG_RW | X86_PG_V;
+		pdp_p[i] |= X86_PG_RW | X86_PG_V | pg_nx;
 	}
 
 	/*
 	 * Instead of using a 1G page for the memory containing the kernel,
-	 * use 2M pages with appropriate permissions. (If using 1G pages,
-	 * this will partially overwrite the PDPEs above.)
+	 * use 2M pages with read-only and no-execute permissions.  (If using 1G
+	 * pages, this will partially overwrite the PDPEs above.)
 	 */
 	if (ndm1g) {
 		pd_p = (pd_entry_t *)DMPDkernphys;
@@ -1555,7 +1555,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 			    bootaddr_rwx(i << PDRSHIFT);
 		for (i = 0; i < nkdmpde; i++)
 			pdp_p[i] = (DMPDkernphys + ptoa(i)) | X86_PG_RW |
-			    X86_PG_V;
+			    X86_PG_V | pg_nx;
 	}
 
 	/* And recursively map PML4 to itself in order to get PTmap */
@@ -1566,7 +1566,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 	/* Connect the Direct Map slot(s) up to the PML4. */
 	for (i = 0; i < ndmpdpphys; i++) {
 		p4_p[DMPML4I + i] = DMPDPphys + ptoa(i);
-		p4_p[DMPML4I + i] |= X86_PG_RW | X86_PG_V;
+		p4_p[DMPML4I + i] |= X86_PG_RW | X86_PG_V | pg_nx;
 	}
 
 	/* Connect the KVA slots up to the PML4 */
@@ -3134,7 +3134,7 @@ pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 	pt_entry_t *pte;
 
 	pte = vtopte(va);
-	pte_store(pte, pa | X86_PG_RW | X86_PG_V | pg_g);
+	pte_store(pte, pa | X86_PG_RW | X86_PG_V | pg_g | pg_nx);
 }
 
 static __inline void
@@ -3145,7 +3145,7 @@ pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode)
 
 	pte = vtopte(va);
 	cache_bits = pmap_cache_bits(kernel_pmap, mode, 0);
-	pte_store(pte, pa | X86_PG_RW | X86_PG_V | pg_g | cache_bits);
+	pte_store(pte, pa | X86_PG_RW | X86_PG_V | pg_g | pg_nx | cache_bits);
 }
 
 /*
@@ -10023,6 +10023,9 @@ sysctl_kmaps_dump(struct sbuf *sb, struct pmap_kernel_map_range *range,
 	case PAT_UNCACHEABLE:
 		mode = "UC";
 		break;
+	case PAT_UNCACHED:
+		mode = "U-";
+		break;
 	case PAT_WRITE_PROTECTED:
 		mode = "WP";
 		break;
@@ -10030,13 +10033,13 @@ sysctl_kmaps_dump(struct sbuf *sb, struct pmap_kernel_map_range *range,
 		mode = "WC";
 		break;
 	default:
-		printf("%s: unknown PAT mode %#x for range %#016lx-%#016lx\n",
-		    __func__, i, range->sva, eva);
+		printf("%s: unknown PAT mode %#x for range 0x%016lx-0x%016lx\n",
+		    __func__, pat_idx, range->sva, eva);
 		mode = "??";
 		break;
 	}
 
-	sbuf_printf(sb, "%#016lx-%#016lx r%c%c%c%c %s %d %d %d\n",
+	sbuf_printf(sb, "0x%016lx-0x%016lx r%c%c%c%c %s %d %d %d\n",
 	    range->sva, eva,
 	    (range->attrs & X86_PG_RW) != 0 ? 'w' : '-',
 	    (range->attrs & pg_nx) != 0 ? '-' : 'x',
@@ -10271,25 +10274,25 @@ DB_SHOW_COMMAND(pte, pmap_print_pte)
 
 	PG_V = pmap_valid_bit(pmap);
 	pml4 = pmap_pml4e(pmap, va);
-	db_printf("VA %#016lx pml4e %#016lx", va, *pml4);
+	db_printf("VA 0x%016lx pml4e 0x%016lx", va, *pml4);
 	if ((*pml4 & PG_V) == 0) {
 		db_printf("\n");
 		return;
 	}
 	pdp = pmap_pml4e_to_pdpe(pml4, va);
-	db_printf(" pdpe %#016lx", *pdp);
+	db_printf(" pdpe 0x%016lx", *pdp);
 	if ((*pdp & PG_V) == 0 || (*pdp & PG_PS) != 0) {
 		db_printf("\n");
 		return;
 	}
 	pde = pmap_pdpe_to_pde(pdp, va);
-	db_printf(" pde %#016lx", *pde);
+	db_printf(" pde 0x%016lx", *pde);
 	if ((*pde & PG_V) == 0 || (*pde & PG_PS) != 0) {
 		db_printf("\n");
 		return;
 	}
 	pte = pmap_pde_to_pte(pde, va);
-	db_printf(" pte %#016lx\n", *pte);
+	db_printf(" pte 0x%016lx\n", *pte);
 }
 
 DB_SHOW_COMMAND(phys2dmap, pmap_phys2dmap)
