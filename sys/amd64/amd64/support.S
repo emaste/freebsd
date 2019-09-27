@@ -66,6 +66,22 @@ ENTRY(pagezero_erms)
 	ret
 END(pagezero_erms)
 
+ENTRY(pagezero_clzero)
+	PUSH_FRAME_POINTER
+	movq	%rdi,%rax
+	movl	cpu_clflush_line_size(%rip),%ecx
+	addq	$PAGE_SIZE,%rdi
+	sfence
+1:
+	clzero
+	addq	%rcx,%rax
+	cmpq	%rax,%rdi
+	jne	1b
+	sfence
+	POP_FRAME_POINTER
+	ret
+END(pagezero_clzero)
+
 /*
  * pagecopy(%rdi=from, %rsi=to)
  */
