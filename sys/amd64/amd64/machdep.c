@@ -2745,9 +2745,12 @@ DEFINE_IFUNC(, void *, memcpy, (void * _Nonnull, const void * _Nonnull,size_t))
 
 void	pagezero_std(void *addr);
 void	pagezero_erms(void *addr);
+void	pagezero_clzero(void *addr);
 DEFINE_IFUNC(, void , pagezero, (void *))
 {
 
+	if ((amd_extended_feature_extensions & AMDFEID_CLZERO) != 0)
+		return (pagezero_clzero);
 	return ((cpu_stdext_feature & CPUID_STDEXT_ERMS) != 0 ?
 	    pagezero_erms : pagezero_std);
 }
