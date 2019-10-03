@@ -26,11 +26,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
-201910xx:
+20191003:
 	The hpt27xx, hptmv, hptnr, and hptrr drivers have been removed from
-	GENERIC.  They are still available as modules and can be loaded by
-	adding to /boot/loader.conf hpt27xx_load="YES", hptmv_load="YES",
-	hptnr_load="YES", or hptrr_load="YES" respectively.
+	GENERIC.  They are available as modules and can be loaded by adding
+	to /boot/loader.conf hpt27xx_load="YES", hptmv_load="YES",
+	hptnr_load="YES", or hptrr_load="YES", respectively.
 
 20190913:
 	ntpd no longer by default locks its pages in memory, allowing them
