@@ -257,6 +257,7 @@ typedef	struct cap_rights	cap_rights_t;
  * used in place of size_t and (u)intptr_t in structs which contain such
  * types that are shared with userspace.
  */
+typedef	__uint64_t	kpaddr_t;
 typedef	__uint64_t	kvaddr_t;
 typedef	__uint64_t	ksize_t;
 
