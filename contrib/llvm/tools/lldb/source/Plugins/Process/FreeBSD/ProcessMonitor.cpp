@@ -735,7 +735,8 @@ ProcessMonitor::ProcessMonitor(
   }
 
   // Finally, start monitoring the child process for change in state.
-  auto monitor_thread = Host::StartMonitoringChildProcess(
+  llvm::Expected<lldb_private::HostThread> monitor_thread =
+    Host::StartMonitoringChildProcess(
       std::bind(&ProcessMonitor::MonitorCallback, this, _1, _2, _3, _4),
       GetPID(), true);
   if (!monitor_thread || !monitor_thread->IsJoinable()) {
@@ -774,7 +775,8 @@ ProcessMonitor::ProcessMonitor(ProcessFreeBSD *process, lldb::pid_t pid,
   }
 
   // Finally, start monitoring the child process for change in state.
-  auto monitor_thread = Host::StartMonitoringChildProcess(
+  llvm::Expected<lldb_private::HostThread> monitor_thread =
+    Host::StartMonitoringChildProcess(
       std::bind(&ProcessMonitor::MonitorCallback, this, _1, _2, _3, _4),
       GetPID(), true);
   if (!monitor_thread || !monitor_thread->IsJoinable()) {
@@ -791,11 +793,11 @@ ProcessMonitor::~ProcessMonitor() { StopMonitor(); }
 void ProcessMonitor::StartLaunchOpThread(LaunchArgs *args, Status &error) {
   static const char *g_thread_name = "freebsd.op";
 
-  if (m_operation_thread.IsJoinable())
+  if (m_operation_thread && m_operation_thread->IsJoinable())
     return;
 
-  auto operation_thread =
-      ThreadLauncher::LaunchThread(g_thread_name, LaunchOpThread, args);
+  llvm::Expected<lldb_private::HostThread> operation_thread =
+    ThreadLauncher::LaunchThread(g_thread_name, LaunchOpThread, args);
   if (operation_thread)
     m_operation_thread = *operation_thread;
   else
@@ -961,11 +963,11 @@ void ProcessMonitor::StartAttachOpThread(AttachArgs *args,
                                          lldb_private::Status &error) {
   static const char *g_thread_name = "freebsd.op";
 
-  if (m_operation_thread.IsJoinable())
+  if (m_operation_thread && m_operation_thread->IsJoinable())
     return;
 
-  auto operation_thread =
-      ThreadLauncher::LaunchThread(g_thread_name, AttachOpThread, args);
+  llvm::Expected<lldb_private::HostThread> operation_thread =
+    ThreadLauncher::LaunchThread(g_thread_name, AttachOpThread, args);
   if (operation_thread)
     m_operation_thread = *operation_thread;
   else
@@ -1389,10 +1391,10 @@ bool ProcessMonitor::DupDescriptor(const FileSpec &file_spec, int fd,
 }
 
 void ProcessMonitor::StopMonitoringChildProcess() {
-  if (m_monitor_thread.IsJoinable()) {
-    m_monitor_thread.Cancel();
-    m_monitor_thread.Join(nullptr);
-    m_monitor_thread.Reset();
+  if (m_monitor_thread && m_monitor_thread->IsJoinable()) {
+    m_monitor_thread->Cancel();
+    m_monitor_thread->Join(nullptr);
+    m_monitor_thread->Reset();
   }
 }
 
@@ -1427,10 +1429,9 @@ void ProcessMonitor::StopMonitor() {
 bool ProcessMonitor::WaitForInitialTIDStop(lldb::tid_t tid) { return true; }
 
 void ProcessMonitor::StopOpThread() {
-  if (!m_operation_thread.IsJoinable())
-    return;
-
-  m_operation_thread.Cancel();
-  m_operation_thread.Join(nullptr);
-  m_operation_thread.Reset();
+  if (m_operation_thread && m_operation_thread->IsJoinable()) {
+    m_operation_thread->Cancel();
+    m_operation_thread->Join(nullptr);
+    m_operation_thread->Reset();
+  }
 }

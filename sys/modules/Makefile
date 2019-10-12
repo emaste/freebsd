@@ -370,6 +370,7 @@ SUBDIR=	\
 	${_viawd} \
 	videomode \
 	vkbd \
+	${_vmd} \
 	${_vmm} \
 	${_vmware} \
 	${_vpo} \
@@ -706,6 +707,7 @@ _nvdimm=	nvdimm
 _pms=		pms
 _qlxge=		qlxge
 _qlxgb=		qlxgb
+_vmd=		vmd
 .if ${MK_SOURCELESS_UCODE} != "no"
 _qlxgbe=	qlxgbe
 _qlnx=		qlnx
