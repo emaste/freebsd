@@ -234,6 +234,17 @@ epoch_trace_exit(struct thread *td, epoch_t epoch, epoch_tracker_t et,
 	} else
 		SLIST_REMOVE_HEAD(&td->td_epochs, et_tlink);
 }
+
+/* Used by assertions that check thread state before going to sleep. */
+void
+epoch_trace_list(struct thread *td)
+{
+	epoch_tracker_t iet;
+
+	SLIST_FOREACH(iet, &td->td_epochs, et_tlink)
+		printf("Epoch %s entered at %s:%d\n", iet->et_epoch->e_name,
+		    iet->et_file, iet->et_line);
+}
 #endif /* EPOCH_TRACE */
 
 static void
@@ -258,7 +269,9 @@ epoch_init(void *arg __unused)
 		    DPCPU_ID_PTR(cpu, epoch_cb_task), NULL, cpu, NULL, NULL,
 		    "epoch call task");
 	}
+#ifdef EPOCH_TRACE
 	SLIST_INIT(&thread0.td_epochs);
+#endif
 	inited = 1;
 	global_epoch = epoch_alloc("Global", 0);
 	global_epoch_preempt = epoch_alloc("Global preemptible", EPOCH_PREEMPT);
