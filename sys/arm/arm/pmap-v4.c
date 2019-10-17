@@ -2979,8 +2979,12 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		pa = systempage.pv_pa;
 		m = NULL;
 	} else {
-		if ((m->oflags & VPO_UNMANAGED) == 0)
-			VM_PAGE_OBJECT_BUSY_ASSERT(m);
+		if ((m->oflags & VPO_UNMANAGED) == 0) {
+			if ((flags & PMAP_ENTER_QUICK_LOCKED) == 0)
+				VM_PAGE_OBJECT_BUSY_ASSERT(m);
+			else
+				VM_OBJECT_ASSERT_LOCKED(m->object);
+		}
 		pa = VM_PAGE_TO_PHYS(m);
 	}
 	nflags = 0;
@@ -3253,7 +3257,8 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	PMAP_LOCK(pmap);
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		pmap_enter_locked(pmap, start + ptoa(diff), m, prot &
-		    (VM_PROT_READ | VM_PROT_EXECUTE), PMAP_ENTER_NOSLEEP);
+		    (VM_PROT_READ | VM_PROT_EXECUTE), PMAP_ENTER_NOSLEEP |
+		    PMAP_ENTER_QUICK_LOCKED);
 		m = TAILQ_NEXT(m, listq);
 	}
 	rw_wunlock(&pvh_global_lock);
@@ -3276,7 +3281,7 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 	rw_wlock(&pvh_global_lock);
  	PMAP_LOCK(pmap);
 	pmap_enter_locked(pmap, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE),
-	    PMAP_ENTER_NOSLEEP);
+	    PMAP_ENTER_NOSLEEP | PMAP_ENTER_QUICK_LOCKED);
 	rw_wunlock(&pvh_global_lock);
  	PMAP_UNLOCK(pmap);
 }
@@ -4137,10 +4142,12 @@ pmap_remove_write(vm_page_t m)
 
 
 /*
- * perform the pmap work for mincore
+ * Perform the pmap work for mincore(2).  If the page is not both referenced and
+ * modified by this pmap, returns its physical address so that the caller can
+ * find other mappings.
  */
 int
-pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
+pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 {
 	struct l2_bucket *l2b;
 	pt_entry_t *ptep, pte;
@@ -4150,17 +4157,16 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
 	boolean_t managed;
 
 	PMAP_LOCK(pmap);
-retry:
 	l2b = pmap_get_l2_bucket(pmap, addr);
         if (l2b == NULL) {
-                val = 0;
-                goto out;
+		PMAP_UNLOCK(pmap);
+		return (0);
         }
 	ptep = &l2b->l2b_kva[l2pte_index(addr)];
 	pte = *ptep;
 	if (!l2pte_valid(pte)) {
-		val = 0;
-		goto out;
+		PMAP_UNLOCK(pmap);
+		return (0);
 	}
 	val = MINCORE_INCORE;
 	if (pte & L2_S_PROT_W)
@@ -4187,12 +4193,8 @@ retry:
 	}
 	if ((val & (MINCORE_MODIFIED_OTHER | MINCORE_REFERENCED_OTHER)) !=
 	    (MINCORE_MODIFIED_OTHER | MINCORE_REFERENCED_OTHER) && managed) {
-		/* Ensure that "PHYS_TO_VM_PAGE(pa)->object" doesn't change. */
-		if (vm_page_pa_tryrelock(pmap, pa, locked_pa))
-			goto retry;
-	} else
-out:
-		PA_UNLOCK_COND(*locked_pa);
+		*pap = pa;
+	}
 	PMAP_UNLOCK(pmap);
 	return (val);
 }
