@@ -307,6 +307,7 @@ MAN=	aac.4 \
 	net80211.4 \
 	netdump.4 \
 	netfpga10g_nf10bmac.4 \
+	netgdb.4 \
 	netgraph.4 \
 	netintro.4 \
 	netmap.4 \
@@ -350,6 +351,7 @@ MAN=	aac.4 \
 	ng_netflow.4 \
 	ng_one2many.4 \
 	ng_patch.4 \
+	ng_pipe.4 \
 	ng_ppp.4 \
 	ng_pppoe.4 \
 	ng_pptpgre.4 \
