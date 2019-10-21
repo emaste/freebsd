@@ -44,7 +44,8 @@ typedef int (*pcpu_ssbd)(int);
 	uint64_t pc_clock;						\
 	pcpu_bp_harden pc_bp_harden;					\
 	pcpu_ssbd pc_ssbd;						\
-	char __pad[225]
+	u_int	pc_bcast_tlbi_workaround;				\
+	char __pad[221]
 
 #ifdef _KERNEL
 

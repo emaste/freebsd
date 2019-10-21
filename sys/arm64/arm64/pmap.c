@@ -276,6 +276,13 @@ static u_int physmap_idx;
 
 static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 
+/* ASID allocator */
+static struct unrhdr asid_unr;
+static struct mtx asid_mtx;
+static int asid_bits;
+SYSCTL_INT(_vm_pmap, OID_AUTO, asid_bits, CTLFLAG_RD, &asid_bits, 0,
+    "The number of bits in an ASID");
+
 static int superpages_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, superpages_enabled,
     CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &superpages_enabled, 0,
@@ -786,6 +793,10 @@ pmap_bootstrap(vm_offset_t l0pt, vm_offset_t l1pt, vm_paddr_t kernstart,
 	uint64_t kern_delta;
 	int i;
 
+	/* Verify that the ASID is set through TTBR0. */
+	KASSERT((READ_SPECIALREG(tcr_el1) & TCR_A1) == 0,
+	    ("pmap_bootstrap: TCR_EL1.A1 != 0"));
+
 	kern_delta = KERNBASE - kernstart;
 
 	printf("pmap_bootstrap %lx %lx %lx\n", l1pt, kernstart, kernlen);
@@ -794,6 +805,7 @@ pmap_bootstrap(vm_offset_t l0pt, vm_offset_t l1pt, vm_paddr_t kernstart,
 
 	/* Set this early so we can use the pagetable walking functions */
 	kernel_pmap_store.pm_l0 = (pd_entry_t *)l0pt;
+	kernel_pmap->pm_asid = -1;
 	PMAP_LOCK_INIT(kernel_pmap);
 
 	/* Assume the address we were loaded to is a valid physical address */
@@ -908,6 +920,11 @@ pmap_init(void)
 	int i, pv_npg;
 
 	/*
+	 * Determine whether an ASID is 8 or 16 bits in size.
+	 */
+	asid_bits = (READ_SPECIALREG(tcr_el1) & TCR_ASID_16) != 0 ? 16 : 8;
+
+	/*
 	 * Are large page mappings enabled?
 	 */
 	TUNABLE_INT_FETCH("vm.pmap.superpages_enabled", &superpages_enabled);
@@ -916,6 +933,13 @@ pmap_init(void)
 		    ("pmap_init: can't assign to pagesizes[1]"));
 		pagesizes[1] = L2_SIZE;
 	}
+
+	/*
+	 * Initialize the ASID allocator.
+	 */
+	mtx_init(&asid_mtx, "asid", NULL, MTX_DEF);
+	init_unrhdr(&asid_unr, ASID_FIRST_AVAILABLE, (1 << asid_bits) - 1,
+	    &asid_mtx);
 
 	/*
 	 * Initialize the pv chunk list mutex.
@@ -971,30 +995,42 @@ SYSCTL_ULONG(_vm_pmap_l2, OID_AUTO, promotions, CTLFLAG_RD,
 static __inline void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
+	uint64_t r;
 
 	sched_pin();
-	__asm __volatile(
-	    "dsb  ishst		\n"
-	    "tlbi vaae1is, %0	\n"
-	    "dsb  ish		\n"
-	    "isb		\n"
-	    : : "r"(va >> PAGE_SHIFT));
+	dsb(ishst);
+	if (pmap == kernel_pmap) {
+		r = atop(va);
+		__asm __volatile("tlbi vaae1is, %0" : : "r" (r));
+	} else {
+		r = ASID_TO_OPERAND(pmap->pm_asid) | atop(va);
+		__asm __volatile("tlbi vae1is, %0" : : "r" (r));
+	}
+	dsb(ish);
+	isb();
 	sched_unpin();
 }
 
 static __inline void
 pmap_invalidate_range_nopin(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
-	vm_offset_t addr;
+	uint64_t end, r, start;
 
 	dsb(ishst);
-	for (addr = sva; addr < eva; addr += PAGE_SIZE) {
-		__asm __volatile(
-		    "tlbi vaae1is, %0" : : "r"(addr >> PAGE_SHIFT));
+	if (pmap == kernel_pmap) {
+		start = atop(sva);
+		end = atop(eva);
+		for (r = start; r < end; r++)
+			__asm __volatile("tlbi vaae1is, %0" : : "r" (r));
+	} else {
+		start = end = ASID_TO_OPERAND(pmap->pm_asid);
+		start |= atop(sva);
+		end |= atop(eva);
+		for (r = start; r < end; r++)
+			__asm __volatile("tlbi vae1is, %0" : : "r" (r));
 	}
-	__asm __volatile(
-	    "dsb  ish	\n"
-	    "isb	\n");
+	dsb(ish);
+	isb();
 }
 
 static __inline void
@@ -1009,13 +1045,18 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 static __inline void
 pmap_invalidate_all(pmap_t pmap)
 {
+	uint64_t r;
 
 	sched_pin();
-	__asm __volatile(
-	    "dsb  ishst		\n"
-	    "tlbi vmalle1is	\n"
-	    "dsb  ish		\n"
-	    "isb		\n");
+	dsb(ishst);
+	if (pmap == kernel_pmap) {
+		__asm __volatile("tlbi vmalle1is");
+	} else {
+		r = ASID_TO_OPERAND(pmap->pm_asid);
+		__asm __volatile("tlbi aside1is, %0" : : "r" (r));
+	}
+	dsb(ish);
+	isb();
 	sched_unpin();
 }
 
@@ -1442,9 +1483,16 @@ void
 pmap_pinit0(pmap_t pmap)
 {
 
+	printf("pmap_kextract(kernel_pmap->pm_l0) = %lx\n",
+	    pmap_kextract((vm_offset_t)kernel_pmap->pm_l0));
+	printf("ttbr0 = %lx\n", READ_SPECIALREG(ttbr0_el1));
+	printf("bcast_tlbi_workaround = %d\n",
+	    PCPU_GET(bcast_tlbi_workaround));
+
 	PMAP_LOCK_INIT(pmap);
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
-	pmap->pm_l0 = kernel_pmap->pm_l0;
+	pmap->pm_l0 = (pd_entry_t *)PHYS_TO_DMAP(READ_SPECIALREG(ttbr0_el1));
+	pmap->pm_asid = ASID_RESERVED_FOR_PID_0;
 	pmap->pm_root.rt_root = 0;
 }
 
@@ -1466,6 +1514,9 @@ pmap_pinit(pmap_t pmap)
 
 	if ((l0pt->flags & PG_ZERO) == 0)
 		pagezero(pmap->pm_l0);
+
+	if ((pmap->pm_asid = alloc_unr(&asid_unr)) == -1)
+		panic("alloc_unr: ASID allocation failed");
 
 	pmap->pm_root.rt_root = 0;
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
@@ -1716,6 +1767,9 @@ pmap_release(pmap_t pmap)
 	    pmap->pm_stats.resident_count));
 	KASSERT(vm_radix_is_empty(&pmap->pm_root),
 	    ("pmap_release: pmap has reserved page table page(s)"));
+
+	free_unr(&asid_unr, pmap->pm_asid);
+	pmap->pm_asid = -1;
 
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pmap->pm_l0));
 
@@ -3194,6 +3248,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		new_l3 |= ATTR_SW_WIRED;
 	if (va < VM_MAXUSER_ADDRESS)
 		new_l3 |= ATTR_AP(ATTR_AP_USER) | ATTR_PXN;
+	if (pmap != kernel_pmap)
+		new_l3 |= ATTR_nG;
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
 		new_l3 |= ATTR_SW_MANAGED;
 		if ((prot & VM_PROT_WRITE) != 0) {
@@ -3456,6 +3512,8 @@ pmap_enter_2mpage(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		new_l2 |= ATTR_XN;
 	if (va < VM_MAXUSER_ADDRESS)
 		new_l2 |= ATTR_AP(ATTR_AP_USER) | ATTR_PXN;
+	if (pmap != kernel_pmap)
+		new_l2 |= ATTR_nG;
 	return (pmap_enter_l2(pmap, va, new_l2, PMAP_ENTER_NOSLEEP |
 	    PMAP_ENTER_NOREPLACE | PMAP_ENTER_NORECLAIM, NULL, lockp) ==
 	    KERN_SUCCESS);
@@ -3754,6 +3812,8 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		l3_val |= ATTR_XN;
 	if (va < VM_MAXUSER_ADDRESS)
 		l3_val |= ATTR_AP(ATTR_AP_USER) | ATTR_PXN;
+	if (pmap != kernel_pmap)
+		l3_val |= ATTR_nG;
 
 	/*
 	 * Now validate mapping with RO protection
@@ -5662,20 +5722,31 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 	return (val);
 }
 
+uint64_t
+pmap_to_ttbr0(pmap_t pmap)
+{
+
+	return (ASID_TO_OPERAND(pmap->pm_asid) |
+	    pmap_kextract((vm_offset_t)pmap->pm_l0));
+}
+
 void
 pmap_activate(struct thread *td)
 {
-	pmap_t	pmap;
+	struct proc *p;
 
 	critical_enter();
-	pmap = vmspace_pmap(td->td_proc->p_vmspace);
-	td->td_proc->p_md.md_l0addr = vtophys(pmap->pm_l0);
-	__asm __volatile(
-	    "msr ttbr0_el1, %0	\n"
-	    "isb		\n"
-	    : : "r"(td->td_proc->p_md.md_l0addr));
-	pmap_invalidate_all(pmap);
+	p = td->td_proc;
+	p->p_md.md_ttbr0 = pmap_to_ttbr0(vmspace_pmap(p->p_vmspace));
+	set_ttbr0(p->p_md.md_ttbr0);
 	critical_exit();
+
+	if (PCPU_GET(bcast_tlbi_workaround) != 0)
+		invalidate_local_icache();
+
+	CTR3(KTR_SPARE5, "%s: pid=%d, ttbr0=%lx", __func__,
+	    p->p_pid,
+	    p->p_md.md_ttbr0);
 }
 
 struct pcb *
@@ -5697,18 +5768,15 @@ pmap_switch(struct thread *old, struct thread *new)
 	 */
 
 	if (old == NULL ||
-	    old->td_proc->p_md.md_l0addr != new->td_proc->p_md.md_l0addr) {
-		__asm __volatile(
-		    /* Switch to the new pmap */
-		    "msr	ttbr0_el1, %0	\n"
-		    "isb			\n"
+	    old->td_proc->p_md.md_ttbr0 != new->td_proc->p_md.md_ttbr0) {
+		set_ttbr0(new->td_proc->p_md.md_ttbr0);
 
-		    /* Invalidate the TLB */
-		    "dsb	ishst		\n"
-		    "tlbi	vmalle1is	\n"
-		    "dsb	ish		\n"
-		    "isb			\n"
-		    : : "r"(new->td_proc->p_md.md_l0addr));
+		if (PCPU_GET(bcast_tlbi_workaround) != 0)
+			invalidate_local_icache();
+
+		CTR3(KTR_SPARE5, "%s: pid=%d, ttbr0=%lx", __func__,
+		    new->td_proc->p_pid,
+		    new->td_proc->p_md.md_ttbr0);
 
 		/*
 		 * Stop userspace from training the branch predictor against
