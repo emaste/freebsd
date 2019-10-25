@@ -32,7 +32,28 @@ import argparse
 import scapy.all as sp
 import socket
 import sys
+from sniffer import Sniffer
 from time import sleep
+
+def check_icmp6_error(args, packet):
+	ip6 = packet.getlayer(sp.IPv6)
+	if not ip6:
+		return False
+	oip6 = sp.IPv6(src=args.src[0], dst=args.to[0])
+	if ip6.dst != oip6.src:
+		return False
+	icmp6 = packet.getlayer(sp.ICMPv6TimeExceeded)
+	if not icmp6:
+		return False
+	# ICMP6_TIME_EXCEED_REASSEMBLY 1
+	if icmp6.code != 1:
+		return False
+	# Should we check the payload as well?
+	# We are running in a very isolated environment and nothing else
+	# should trigger an ICMPv6 Time Exceeded / Frag reassembly so leave it.
+	#icmp6.display()
+	return True
+
 
 def main():
 	parser = argparse.ArgumentParser("frag6.py",
@@ -56,24 +77,59 @@ def main():
 	args = parser.parse_args()
 
 
+	# Start sniffing on recvif
+	sniffer = Sniffer(args, check_icmp6_error)
+
+
 	########################################################################
 	#
-	# A single middle fragment.
+	# Send a proper first fragment (off=0) and a second fragment which
+	# just fits the 64k.  The re-send the first fragment with an extra
+	# unfragmentable part making the 64k to exceed the limit.
+	# This is to make sure we don't allow to update meta-data for a
+	# 1st fragmented packet should a second arrive but given the
+	# fragmentable part is an exact duplicate only that fragment
+	# will be silently discarded.
 	#
-	# A:  Waiting for more data.
-	# R:  Timeout / Expiry.
+	# A:  Reassembly failure, timeout after
+	# R:  ICMPv6 time exceeded / statistics for the duplicate
 	#
-	ip6f01 = sp.Ether() / \
+	data = "6" * 8
+	ip6f00 = \
+		sp.Ether() / \
 		sp.IPv6(src=args.src[0], dst=args.to[0]) / \
-		sp.IPv6ExtHdrFragment(offset=161, m=1, id=7) / \
-		sp.UDP(dport=3456, sport=6543)
+		sp.IPv6ExtHdrFragment(offset=0, m=1, id=20) / \
+		sp.UDP(dport=3456, sport=6543) / \
+		data
+	data = "6" * 15
+	ip6f01 = \
+		sp.Ether() / \
+		sp.IPv6(src=args.src[0], dst=args.to[0]) / \
+		sp.IPv6ExtHdrFragment(offset=0x1ffc, m=0, id=20) / \
+		sp.UDP(dport=3456, sport=6543) / \
+		data
+	data = "6" * 8
+	ip6f02 = \
+		sp.Ether() / \
+		sp.IPv6(src=args.src[0], dst=args.to[0]) / \
+		sp.IPv6ExtHdrDestOpt(options = \
+		    sp.PadN(optdata="\x00\x00\x00\x00\x00\x00")) / \
+		sp.IPv6ExtHdrFragment(offset=0, m=1, id=20) / \
+		sp.UDP(dport=3456, sport=6543) / \
+		data
 	if args.debug :
+		ip6f00.display()
 		ip6f01.display()
+		ip6f02.display()
+	sp.sendp(ip6f00, iface=args.sendif[0], verbose=False)
 	sp.sendp(ip6f01, iface=args.sendif[0], verbose=False)
+	sp.sendp(ip6f02, iface=args.sendif[0], verbose=False)
 
-	# We do not generate ICMPv6 for non-off=0-segments.
-	# Wait for expiry.
 	sleep(75)
+	sniffer.setEnd()
+	sniffer.join()
+	if not sniffer.foundCorrectPacket:
+		sys.exit(1)
 
 	sys.exit(0)
 

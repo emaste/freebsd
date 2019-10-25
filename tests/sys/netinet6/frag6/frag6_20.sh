@@ -28,12 +28,7 @@
 
 . $(atf_get_srcdir)/frag6.subr
 
-atf_test_case "frag6_14" "cleanup"
-frag6_14_head() {
-	frag6_head 14
-}
-
-frag6_14_check_stats() {
+frag6_20_check_stats() {
 
 	local jname ifname
 	jname=$1
@@ -85,6 +80,7 @@ EOF
 		atf_fail "Global UDP statistics do not match: ${count} != 9" ;;
 	esac
 
+
 	#
 	# Check selection of global IPv6 stats.
 	#
@@ -93,9 +89,9 @@ EOF
     <dropped-short-packets>0</dropped-short-packets>
     <dropped-bad-options>0</dropped-bad-options>
     <dropped-bad-version>0</dropped-bad-version>
-    <received-fragments>6</received-fragments>
-    <dropped-fragment>2</dropped-fragment>
-    <dropped-fragment-after-timeout>4</dropped-fragment-after-timeout>
+    <received-fragments>3</received-fragments>
+    <dropped-fragment>1</dropped-fragment>
+    <dropped-fragment-after-timeout>2</dropped-fragment-after-timeout>
     <dropped-fragments-overflow>0</dropped-fragments-overflow>
     <atomic-fragments>0</atomic-fragments>
     <reassembled-packets>0</reassembled-packets>
@@ -120,6 +116,7 @@ EOF
 
 	#
 	# Check selection of global ICMPv6 stats.
+	# XXX-TODO check output histogram (just too hard to parse [no multi-line-grep])
 	#
 	cat <<EOF > ${HOME}/filter-${jname}.txt
     <icmp6-calls>1</icmp6-calls>
@@ -168,9 +165,9 @@ EOF
     <discard-fragments>0</discard-fragments>
     <fragments-failed>0</fragments-failed>
     <fragments-created>0</fragments-created>
-    <reassembly-required>6</reassembly-required>
+    <reassembly-required>3</reassembly-required>
     <reassembled-packets>0</reassembled-packets>
-    <reassembly-failed>2</reassembly-failed>
+    <reassembly-failed>1</reassembly-failed>
 EOF
 	count=`jexec ${jname} netstat -s -p ip6 -I ${ifname} --libxo xml,pretty | grep -E -x -c -f ${HOME}/filter-${jname}.txt`
 	rm -f ${HOME}/filter-${jname}.txt
@@ -214,15 +211,21 @@ EOF
 		atf_fail "Interface ICMPv6 statistics do not match: ${count} != 21" ;;
 	esac
 }
-frag6_14_body() {
-	frag6_body 14 frag6_14_check_stats
+
+atf_test_case "frag6_20" "cleanup"
+frag6_20_head() {
+	frag6_head 20
 }
 
-frag6_14_cleanup() {
-	frag6_cleanup 14
+frag6_20_body() {
+	frag6_body 20 frag6_20_check_stats
+}
+
+frag6_20_cleanup() {
+	frag6_cleanup 20
 }
 
 atf_init_test_cases()
 {
-	atf_add_test_case "frag6_14"
+	atf_add_test_case "frag6_20"
 }
