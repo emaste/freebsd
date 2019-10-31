@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/systm.h>
 #include <sys/vmmeter.h>
-#include <sys/ktr.h>
 
 #include <machine/metadata.h>
 #include <machine/pcb.h>
@@ -63,9 +62,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 
 static vm_object_t obj_1t1_pt;
-static vm_pindex_t efi_1t1_idx;
+static vm_page_t efi_l0_page;
 static pd_entry_t *efi_l0;
-static uint64_t efi_ttbr0;
+static vm_pindex_t efi_1t1_idx;
 
 void
 efi_destroy_1t1_map(void)
@@ -82,9 +81,8 @@ efi_destroy_1t1_map(void)
 	}
 
 	obj_1t1_pt = NULL;
-	efi_1t1_idx = 0;
 	efi_l0 = NULL;
-	efi_ttbr0 = 0;
+	efi_l0_page = NULL;
 }
 
 static vm_page_t
@@ -166,7 +164,6 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 	struct efi_md *p;
 	pt_entry_t *l3, l3_attr;
 	vm_offset_t va;
-	vm_page_t efi_l0_page;
 	uint64_t idx;
 	int i, mode;
 
@@ -175,11 +172,10 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 	    L0_ENTRIES * Ln_ENTRIES * Ln_ENTRIES * Ln_ENTRIES,
 	    VM_PROT_ALL, 0, NULL);
 	VM_OBJECT_WLOCK(obj_1t1_pt);
+	efi_1t1_idx = 0;
 	efi_l0_page = efi_1t1_page();
 	VM_OBJECT_WUNLOCK(obj_1t1_pt);
 	efi_l0 = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(efi_l0_page));
-	efi_ttbr0 = ASID_TO_OPERAND(ASID_RESERVED_FOR_EFI) |
-	    VM_PAGE_TO_PHYS(efi_l0_page);
 
 	for (i = 0, p = map; i < ndesc; i++, p = efi_next_descriptor(p,
 	    descsz)) {
@@ -217,7 +213,7 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 		printf("MAP %lx mode %x pages %lu\n", p->md_phys, mode, p->md_pages);
 
 		l3_attr = ATTR_DEFAULT | ATTR_IDX(mode) | ATTR_AP(ATTR_AP_RW) |
-		    ATTR_nG | L3_PAGE;
+		    L3_PAGE;
 		if (mode == VM_MEMATTR_DEVICE || p->md_attr & EFI_MD_ATTR_XP)
 			l3_attr |= ATTR_UXN | ATTR_PXN;
 
@@ -240,12 +236,14 @@ int
 efi_arch_enter(void)
 {
 
-	CTR1(KTR_SPARE5, "%s: xxx", __func__);
-
-	set_ttbr0(efi_ttbr0);
-
-	if (PCPU_GET(bcast_tlbi_workaround) != 0)
-		invalidate_local_icache();
+	__asm __volatile(
+	    "msr ttbr0_el1, %0	\n"
+	    "isb		\n"
+	    "dsb  ishst		\n"
+	    "tlbi vmalle1is	\n"
+	    "dsb  ish		\n"
+	    "isb		\n"
+	     : : "r"(VM_PAGE_TO_PHYS(efi_l0_page)));
 
 	return (0);
 }
@@ -266,14 +264,14 @@ efi_arch_leave(void)
 	    "mrs x18, tpidr_el1	\n"
 	);
 	td = curthread;
-	set_ttbr0(td->td_proc->p_md.md_ttbr0);
-
-	if (PCPU_GET(bcast_tlbi_workaround) != 0)
-		invalidate_local_icache();
-
-	CTR3(KTR_SPARE5, "%s: pid=%d, ttbr0=%lx", __func__,
-	    td->td_proc->p_pid,
-	    td->td_proc->p_md.md_ttbr0);
+	__asm __volatile(
+	    "msr ttbr0_el1, %0	\n"
+	    "isb		\n"
+	    "dsb  ishst		\n"
+	    "tlbi vmalle1is	\n"
+	    "dsb  ish		\n"
+	    "isb		\n"
+	     : : "r"(td->td_proc->p_md.md_l0addr));
 }
 
 int

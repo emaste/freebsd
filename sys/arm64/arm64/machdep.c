@@ -755,7 +755,7 @@ init_proc0(vm_offset_t kstack)
 	pcpup->pc_curpcb = thread0.td_pcb;
 
 	/* Set the base address of translation table 0. */
-	thread0.td_proc->p_md.md_ttbr0 = READ_SPECIALREG(ttbr0_el1);
+	thread0.td_proc->p_md.md_l0addr = READ_SPECIALREG(ttbr0_el1);
 }
 
 typedef struct {
