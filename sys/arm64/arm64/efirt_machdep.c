@@ -239,6 +239,13 @@ int
 efi_arch_enter(void)
 {
 
+	CRITICAL_ASSERT(curthread);
+
+	/*
+	 * Temporarily switch to EFI's page table.  However, we leave curpmap
+	 * unchanged in order to prevent its ASID from being reclaimed before
+	 * we switch back to its page table in efi_arch_leave().
+	 */
 	set_ttbr0(efi_ttbr0);
 	if (PCPU_GET(bcast_tlbi_workaround) != 0)
 		invalidate_local_icache();
@@ -249,20 +256,18 @@ efi_arch_enter(void)
 void
 efi_arch_leave(void)
 {
-	struct thread *td;
 
 	/*
 	 * Restore the pcpu pointer. Some UEFI implementations trash it and
 	 * we don't store it before calling into them. To fix this we need
 	 * to restore it after returning to the kernel context. As reading
-	 * curthread will access x18 we need to restore it before loading
-	 * the thread pointer.
+	 * curpmap will access x18 we need to restore it before loading
+	 * the pmap pointer.
 	 */
 	__asm __volatile(
 	    "mrs x18, tpidr_el1	\n"
 	);
-	td = curthread;
-	set_ttbr0(pmap_to_ttbr0(vmspace_pmap(td->td_proc->p_vmspace)));
+	set_ttbr0(pmap_to_ttbr0(PCPU_GET(curpmap)));
 	if (PCPU_GET(bcast_tlbi_workaround) != 0)
 		invalidate_local_icache();
 }

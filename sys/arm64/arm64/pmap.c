@@ -279,13 +279,14 @@ static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 
 /*
  * This ASID allocator uses a bit vector ("asid_set") to remember which ASIDs
- * it has currently allocated to a pmap, a cursor ("asid_next") to optimize
- * its search for a free ASID in the bit vector, and a generation number
- * ("asid_generation") to indicate when it has reclaimed all previously
- * allocated ASIDs that are not currently active on a processor.
+ * that it has currently allocated to a pmap, a cursor ("asid_next") to
+ * optimize its search for a free ASID in the bit vector, and an epoch number
+ * ("asid_epoch") to indicate when it has reclaimed all previously allocated
+ * ASIDs that are not currently active on a processor.
  *
- * The current generation number is always from the range [0, INT_MAX).
- * Negative numbers and INT_MAX are reserved for special cases.
+ * The current epoch number is always in the range [0, INT_MAX).  Negative
+ * numbers and INT_MAX are reserved for special cases that are described
+ * below.
  */
 static SYSCTL_NODE(_vm_pmap, OID_AUTO, asid, CTLFLAG_RD, 0, "ASID allocator");
 static int asid_bits;
@@ -296,15 +297,15 @@ static int asid_set_size;
 static int asid_next;
 SYSCTL_INT(_vm_pmap_asid, OID_AUTO, next, CTLFLAG_RD, &asid_next, 0,
     "The last allocated ASID plus one");
-static int asid_generation;
-SYSCTL_INT(_vm_pmap_asid, OID_AUTO, generation, CTLFLAG_RD, &asid_generation, 0,
-    "The current generation number");
+static int asid_epoch;
+SYSCTL_INT(_vm_pmap_asid, OID_AUTO, epoch, CTLFLAG_RD, &asid_epoch, 0,
+    "The current epoch number");
 static struct mtx asid_set_mutex;
 
 /*
- * A pmap's cookie encodes an ASID and generation number.  Cookies for reserved
- * ASIDs have a negative generation number, specifically, INT_MIN.  Cookies for
- * dynamically allocated ASIDs have a non-negative generation number.
+ * A pmap's cookie encodes an ASID and epoch number.  Cookies for reserved
+ * ASIDs have a negative epoch number, specifically, INT_MIN.  Cookies for
+ * dynamically allocated ASIDs have a non-negative epoch number.
  *
  * An invalid ASID is represented by -1.
  *
@@ -313,10 +314,10 @@ static struct mtx asid_set_mutex;
  * (2) COOKIE_FROM(-1, INT_MAX), which indicates that an ASID should be
  * allocated when the pmap is next activated.
  */
-#define	COOKIE_FROM(asid, generation)	((long)((u_int)(asid) |	\
-					    ((u_long)(generation) << 32)))
+#define	COOKIE_FROM(asid, epoch)	((long)((u_int)(asid) |	\
+					    ((u_long)(epoch) << 32)))
 #define	COOKIE_TO_ASID(cookie)		((int)(cookie))
-#define	COOKIE_TO_GENERATION(cookie)	((int)((u_long)(cookie) >> 32))
+#define	COOKIE_TO_EPOCH(cookie)		((int)((u_long)(cookie) >> 32))
 
 static int superpages_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, superpages_enabled,
@@ -1810,7 +1811,7 @@ pmap_release(pmap_t pmap)
 	    ("pmap_release: pmap has reserved page table page(s)"));
 
 	mtx_lock_spin(&asid_set_mutex);
-	if (COOKIE_TO_GENERATION(pmap->pm_cookie) == asid_generation) {
+	if (COOKIE_TO_EPOCH(pmap->pm_cookie) == asid_epoch) {
 		asid = COOKIE_TO_ASID(pmap->pm_cookie);
 		KASSERT(asid >= ASID_FIRST_AVAILABLE && asid < asid_set_size,
 		    ("pmap_release: pmap cookie has out-of-range asid"));
@@ -5777,22 +5778,26 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 	return (val);
 }
 
+/*
+ * Garbage collect every ASID that is neither active on a processor nor
+ * reserved.
+ */
 static void
 pmap_reset_asid_set(void)
 {
 	pmap_t pmap;
-	int asid, cpuid, generation;
+	int asid, cpuid, epoch;
 
 	mtx_assert(&asid_set_mutex, MA_OWNED);
 
 	/*
-	 * Ensure that the store to asid_generation is globally visible
-	 * before the loads from pc_curpmap are performed.
+	 * Ensure that the store to asid_epoch is globally visible before the
+	 * loads from pc_curpmap are performed.
 	 */
-	generation = asid_generation + 1;
-	if (generation == INT_MAX)
-		generation = 0;
-	asid_generation = generation;
+	epoch = asid_epoch + 1;
+	if (epoch == INT_MAX)
+		epoch = 0;
+	asid_epoch = epoch;
 	dsb(ishst);
 	__asm __volatile("tlbi vmalle1is");
 	dsb(ish);
@@ -5805,18 +5810,29 @@ pmap_reset_asid_set(void)
 		if (asid == -1)
 			continue;
 		bit_set(asid_set, asid);
-		pmap->pm_cookie = COOKIE_FROM(asid, generation);
+		pmap->pm_cookie = COOKIE_FROM(asid, epoch);
 	}
 }
 
+/*
+ * Allocate a new ASID for the specified pmap.
+ */
 static void
 pmap_alloc_asid(pmap_t pmap)
 {
 	int new_asid;
 
 	mtx_lock_spin(&asid_set_mutex);
-	if (COOKIE_TO_GENERATION(pmap->pm_cookie) == asid_generation)
+
+	/*
+	 * While this processor was waiting to acquire the asid set mutex,
+	 * pmap_reset_asid_set() running on another processor might have
+	 * updated this pmap's cookie to the current epoch.  In which case, we
+	 * don't need to allocate a new ASID.
+	 */
+	if (COOKIE_TO_EPOCH(pmap->pm_cookie) == asid_epoch)
 		goto out;
+
 	bit_ffc_at(asid_set, asid_next, asid_set_size, &new_asid);
 	if (new_asid == -1) {
 		bit_ffc_at(asid_set, ASID_FIRST_AVAILABLE, asid_next,
@@ -5830,11 +5846,15 @@ pmap_alloc_asid(pmap_t pmap)
 	}
 	bit_set(asid_set, new_asid);
 	asid_next = new_asid + 1;
-	pmap->pm_cookie = COOKIE_FROM(new_asid, asid_generation);
+	pmap->pm_cookie = COOKIE_FROM(new_asid, asid_epoch);
 out:
 	mtx_unlock_spin(&asid_set_mutex);
 }
 
+/*
+ * Compute the value that should be stored in ttbr0 to activate the specified
+ * pmap.  This value may change from time to time.
+ */
 uint64_t
 pmap_to_ttbr0(pmap_t pmap)
 {
@@ -5846,7 +5866,7 @@ pmap_to_ttbr0(pmap_t pmap)
 static bool
 pmap_activate_int(pmap_t pmap)
 {
-	int generation;
+	int epoch;
 
 	KASSERT(PCPU_GET(curpmap) != NULL, ("no active pmap"));
 	KASSERT(pmap != kernel_pmap, ("kernel pmap activation"));
@@ -5855,12 +5875,12 @@ pmap_activate_int(pmap_t pmap)
 
 	/*
 	 * Ensure that the store to curpmap is globally visible before the
-	 * load from asid_generation is performed.
+	 * load from asid_epoch is performed.
 	 */
 	PCPU_SET(curpmap, pmap);
 	dsb(ish);
-	generation = COOKIE_TO_GENERATION(pmap->pm_cookie);
-	if (generation >= 0 && generation != asid_generation)
+	epoch = COOKIE_TO_EPOCH(pmap->pm_cookie);
+	if (epoch >= 0 && epoch != asid_epoch)
 		pmap_alloc_asid(pmap);
 
 	set_ttbr0(pmap_to_ttbr0(pmap));
