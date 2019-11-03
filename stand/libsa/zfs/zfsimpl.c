@@ -1102,13 +1102,14 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t *pvdev,
     vdev_t **vdevp, int is_newer)
 {
 	int rc;
-	uint64_t guid, id, ashift, nparity;
+	uint64_t guid, id, ashift, asize, nparity;
 	const char *type;
 	const char *path;
 	vdev_t *vdev, *kid;
 	const unsigned char *kids;
 	int nkids, i, is_new;
 	uint64_t is_offline, is_faulted, is_degraded, is_removed, isnt_present;
+	uint64_t is_log;
 
 	if (nvlist_find(nvlist, ZPOOL_CONFIG_GUID, DATA_TYPE_UINT64,
 	    NULL, &guid)
@@ -1132,17 +1133,20 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t *pvdev,
 	}
 
 	is_offline = is_removed = is_faulted = is_degraded = isnt_present = 0;
+	is_log = 0;
 
 	nvlist_find(nvlist, ZPOOL_CONFIG_OFFLINE, DATA_TYPE_UINT64, NULL,
-			&is_offline);
+	    &is_offline);
 	nvlist_find(nvlist, ZPOOL_CONFIG_REMOVED, DATA_TYPE_UINT64, NULL,
-			&is_removed);
+	    &is_removed);
 	nvlist_find(nvlist, ZPOOL_CONFIG_FAULTED, DATA_TYPE_UINT64, NULL,
-			&is_faulted);
+	    &is_faulted);
 	nvlist_find(nvlist, ZPOOL_CONFIG_DEGRADED, DATA_TYPE_UINT64, NULL,
-			&is_degraded);
+	    &is_degraded);
 	nvlist_find(nvlist, ZPOOL_CONFIG_NOT_PRESENT, DATA_TYPE_UINT64, NULL,
-			&isnt_present);
+	    &isnt_present);
+	nvlist_find(nvlist, ZPOOL_CONFIG_IS_LOG, DATA_TYPE_UINT64, NULL,
+	    &is_log);
 
 	vdev = vdev_find(guid);
 	if (!vdev) {
@@ -1181,6 +1185,11 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t *pvdev,
 		} else {
 			vdev->v_ashift = 0;
 		}
+		if (nvlist_find(nvlist, ZPOOL_CONFIG_ASIZE,
+		    DATA_TYPE_UINT64, NULL, &asize) == 0) {
+			vdev->v_psize = asize +
+			    VDEV_LABEL_START_SIZE + VDEV_LABEL_END_SIZE;
+		}
 		if (nvlist_find(nvlist, ZPOOL_CONFIG_NPARITY,
 			DATA_TYPE_UINT64, NULL, &nparity) == 0) {
 			vdev->v_nparity = nparity;
@@ -1212,6 +1221,7 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t *pvdev,
 				return (ENOMEM);
 			vdev->v_name = name;
 		}
+		vdev->v_islog = is_log == 1;
 	} else {
 		is_new = 0;
 	}
@@ -1428,6 +1438,12 @@ vdev_status(vdev_t *vdev, int indent)
 {
 	vdev_t *kid;
 	int ret;
+
+	if (vdev->v_islog) {
+		(void)pager_output("        logs\n");
+		indent++;
+	}
+
 	ret = print_state(indent, vdev->v_name, vdev->v_state);
 	if (ret != 0)
 		return (ret);
@@ -1547,7 +1563,6 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 	uint64_t guid;
 	uint64_t best_txg = 0;
 	uint64_t pool_txg, pool_guid;
-	uint64_t psize;
 	const char *pool_name;
 	const unsigned char *vdevs;
 	const unsigned char *features;
@@ -1562,17 +1577,17 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 	memset(&vtmp, 0, sizeof(vtmp));
 	vtmp.v_phys_read = _read;
 	vtmp.v_read_priv = read_priv;
-	psize = P2ALIGN(ldi_get_size(read_priv),
+	vtmp.v_psize = P2ALIGN(ldi_get_size(read_priv),
 	    (uint64_t)sizeof (vdev_label_t));
 
 	/* Test for minimum pool size. */
-	if (psize < SPA_MINDEVSIZE)
+	if (vtmp.v_psize < SPA_MINDEVSIZE)
 		return (EIO);
 
 	tmp_label = zfs_alloc(sizeof(vdev_phys_t));
 
 	for (l = 0; l < VDEV_LABELS; l++) {
-		off = vdev_label_offset(psize, l,
+		off = vdev_label_offset(vtmp.v_psize, l,
 		    offsetof(vdev_label_t, vl_vdev_phys));
 
 		BP_ZERO(&bp);
@@ -1595,8 +1610,20 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 			continue;
 
 		if (best_txg <= pool_txg) {
+			uint64_t asize;
+
 			best_txg = pool_txg;
 			memcpy(vdev_label, tmp_label, sizeof (vdev_phys_t));
+
+			/*
+			 * Use asize from pool config. We need this
+			 * because we can get bad value from BIOS.
+			 */
+			if (nvlist_find(nvlist, ZPOOL_CONFIG_ASIZE,
+			    DATA_TYPE_UINT64, NULL, &asize) == 0) {
+				vtmp.v_psize = asize +
+				    VDEV_LABEL_START_SIZE + VDEV_LABEL_END_SIZE;
+			}
 		}
 	}
 
@@ -1716,10 +1743,17 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 		vdev->v_phys_read = _read;
 		vdev->v_read_priv = read_priv;
 		vdev->v_state = VDEV_STATE_HEALTHY;
+		vdev->v_psize = vtmp.v_psize;
 	} else {
 		printf("ZFS: inconsistent nvlist contents\n");
 		return (EIO);
 	}
+
+	/*
+	 * We do not support reading pools with log device.
+	 */
+	if (vdev->v_islog)
+		spa->spa_with_log = vdev->v_islog;
 
 	/*
 	 * Re-evaluate top-level vdev state.
@@ -1735,7 +1769,7 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 	up = (const struct uberblock *)upbuf;
 	for (l = 0; l < VDEV_LABELS; l++) {
 		for (i = 0; i < VDEV_UBERBLOCK_COUNT(vdev); i++) {
-			off = vdev_label_offset(psize, l,
+			off = vdev_label_offset(vdev->v_psize, l,
 			    VDEV_UBERBLOCK_OFFSET(vdev, i));
 			BP_ZERO(&bp);
 			DVA_SET_OFFSET(&bp.blk_dva[0], off);
