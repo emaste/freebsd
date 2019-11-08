@@ -2127,17 +2127,17 @@ tcp_notify(struct inpcb *inp, int error)
 static int
 tcp_pcblist(SYSCTL_HANDLER_ARGS)
 {
-	int error, i, m, n, pcb_count;
-	struct inpcb *inp, **inp_list;
-	inp_gen_t gencnt;
-	struct xinpgen xig;
 	struct epoch_tracker et;
+	struct inpcb *inp;
+	struct xinpgen xig;
+	int error;
 
-	/*
-	 * The process of preparing the TCB list is too time-consuming and
-	 * resource-intensive to repeat twice on every request.
-	 */
+	if (req->newptr != NULL)
+		return (EPERM);
+
 	if (req->oldptr == NULL) {
+		int n;
+
 		n = V_tcbinfo.ipi_count +
 		    counter_u64_fetch(V_tcps_states[TCPS_SYN_RECEIVED]);
 		n += imax(n / 8, 10);
@@ -2145,44 +2145,29 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		return (0);
 	}
 
-	if (req->newptr != NULL)
-		return (EPERM);
-
-	/*
-	 * OK, now we're committed to doing something.
-	 */
-	INP_LIST_RLOCK(&V_tcbinfo);
-	gencnt = V_tcbinfo.ipi_gencnt;
-	n = V_tcbinfo.ipi_count;
-	INP_LIST_RUNLOCK(&V_tcbinfo);
-
-	m = counter_u64_fetch(V_tcps_states[TCPS_SYN_RECEIVED]);
-
-	error = sysctl_wire_old_buffer(req, 2 * (sizeof xig)
-		+ (n + m) * sizeof(struct xtcpcb));
-	if (error != 0)
+	if ((error = sysctl_wire_old_buffer(req, 0)) != 0)
 		return (error);
 
 	bzero(&xig, sizeof(xig));
 	xig.xig_len = sizeof xig;
-	xig.xig_count = n + m;
-	xig.xig_gen = gencnt;
+	xig.xig_count = V_tcbinfo.ipi_count +
+	    counter_u64_fetch(V_tcps_states[TCPS_SYN_RECEIVED]);
+	xig.xig_gen = V_tcbinfo.ipi_gencnt;
 	xig.xig_sogen = so_gencnt;
 	error = SYSCTL_OUT(req, &xig, sizeof xig);
 	if (error)
 		return (error);
 
-	error = syncache_pcblist(req, m, &pcb_count);
+	error = syncache_pcblist(req);
 	if (error)
 		return (error);
 
-	inp_list = malloc(n * sizeof *inp_list, M_TEMP, M_WAITOK);
-
-	INP_INFO_WLOCK(&V_tcbinfo);
-	for (inp = CK_LIST_FIRST(V_tcbinfo.ipi_listhead), i = 0;
-	    inp != NULL && i < n; inp = CK_LIST_NEXT(inp, inp_list)) {
-		INP_WLOCK(inp);
-		if (inp->inp_gencnt <= gencnt) {
+	NET_EPOCH_ENTER(et);
+	for (inp = CK_LIST_FIRST(V_tcbinfo.ipi_listhead);
+	    inp != NULL;
+	    inp = CK_LIST_NEXT(inp, inp_list)) {
+		INP_RLOCK(inp);
+		if (inp->inp_gencnt <= xig.xig_gen) {
 			/*
 			 * XXX: This use of cr_cansee(), introduced with
 			 * TCP state changes, is not quite right, but for
@@ -2197,36 +2182,18 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 			} else
 				error = cr_canseeinpcb(req->td->td_ucred, inp);
 			if (error == 0) {
-				in_pcbref(inp);
-				inp_list[i++] = inp;
+				struct xtcpcb xt;
+
+				tcp_inptoxtp(inp, &xt);
+				INP_RUNLOCK(inp);
+				error = SYSCTL_OUT(req, &xt, sizeof xt);
+				if (error)
+					break;
 			}
-		}
-		INP_WUNLOCK(inp);
-	}
-	INP_INFO_WUNLOCK(&V_tcbinfo);
-	n = i;
-
-	error = 0;
-	for (i = 0; i < n; i++) {
-		inp = inp_list[i];
-		INP_RLOCK(inp);
-		if (inp->inp_gencnt <= gencnt) {
-			struct xtcpcb xt;
-
-			tcp_inptoxtp(inp, &xt);
-			INP_RUNLOCK(inp);
-			error = SYSCTL_OUT(req, &xt, sizeof xt);
 		} else
 			INP_RUNLOCK(inp);
 	}
-	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
-	for (i = 0; i < n; i++) {
-		inp = inp_list[i];
-		INP_RLOCK(inp);
-		if (!in_pcbrele_rlocked(inp))
-			INP_RUNLOCK(inp);
-	}
-	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+	NET_EPOCH_EXIT(et);
 
 	if (!error) {
 		/*
@@ -2236,14 +2203,13 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		 * while we were processing this request, and it
 		 * might be necessary to retry.
 		 */
-		INP_LIST_RLOCK(&V_tcbinfo);
 		xig.xig_gen = V_tcbinfo.ipi_gencnt;
 		xig.xig_sogen = so_gencnt;
-		xig.xig_count = V_tcbinfo.ipi_count + pcb_count;
-		INP_LIST_RUNLOCK(&V_tcbinfo);
+		xig.xig_count = V_tcbinfo.ipi_count +
+		    counter_u64_fetch(V_tcps_states[TCPS_SYN_RECEIVED]);
 		error = SYSCTL_OUT(req, &xig, sizeof xig);
 	}
-	free(inp_list, M_TEMP);
+
 	return (error);
 }
 
@@ -2257,6 +2223,7 @@ tcp_getcred(SYSCTL_HANDLER_ARGS)
 {
 	struct xucred xuc;
 	struct sockaddr_in addrs[2];
+	struct epoch_tracker et;
 	struct inpcb *inp;
 	int error;
 
@@ -2266,8 +2233,10 @@ tcp_getcred(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_IN(req, addrs, sizeof(addrs));
 	if (error)
 		return (error);
+	NET_EPOCH_ENTER(et);
 	inp = in_pcblookup(&V_tcbinfo, addrs[1].sin_addr, addrs[1].sin_port,
 	    addrs[0].sin_addr, addrs[0].sin_port, INPLOOKUP_RLOCKPCB, NULL);
+	NET_EPOCH_EXIT(et);
 	if (inp != NULL) {
 		if (inp->inp_socket == NULL)
 			error = ENOENT;
@@ -2292,6 +2261,7 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, getcred,
 static int
 tcp6_getcred(SYSCTL_HANDLER_ARGS)
 {
+	struct epoch_tracker et;
 	struct xucred xuc;
 	struct sockaddr_in6 addrs[2];
 	struct inpcb *inp;
@@ -2319,6 +2289,7 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 			return (EINVAL);
 	}
 
+	NET_EPOCH_ENTER(et);
 #ifdef INET
 	if (mapped == 1)
 		inp = in_pcblookup(&V_tcbinfo,
@@ -2332,6 +2303,7 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 			&addrs[1].sin6_addr, addrs[1].sin6_port,
 			&addrs[0].sin6_addr, addrs[0].sin6_port,
 			INPLOOKUP_RLOCKPCB, NULL);
+	NET_EPOCH_EXIT(et);
 	if (inp != NULL) {
 		if (inp->inp_socket == NULL)
 			error = ENOENT;
@@ -2365,7 +2337,6 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	struct inpcb *(*notify)(struct inpcb *, int) = tcp_notify;
 	struct icmp *icp;
 	struct in_conninfo inc;
-	struct epoch_tracker et;
 	tcp_seq icmp_tcp_seq;
 	int mtu;
 
@@ -2397,7 +2368,6 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 
 	icp = (struct icmp *)((caddr_t)ip - offsetof(struct icmp, icmp_ip));
 	th = (struct tcphdr *)((caddr_t)ip + (ip->ip_hl << 2));
-	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 	inp = in_pcblookup(&V_tcbinfo, faddr, th->th_dport, ip->ip_src,
 	    th->th_sport, INPLOOKUP_WLOCKPCB, NULL);
 	if (inp != NULL && PRC_IS_REDIRECT(cmd)) {
@@ -2462,7 +2432,6 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 out:
 	if (inp != NULL)
 		INP_WUNLOCK(inp);
-	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 }
 #endif /* INET */
 
@@ -2480,7 +2449,6 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 	struct ip6ctlparam *ip6cp = NULL;
 	const struct sockaddr_in6 *sa6_src = NULL;
 	struct in_conninfo inc;
-	struct epoch_tracker et;
 	struct tcp_ports {
 		uint16_t th_sport;
 		uint16_t th_dport;
@@ -2542,7 +2510,6 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 	}
 	bzero(&t_ports, sizeof(struct tcp_ports));
 	m_copydata(m, off, sizeof(struct tcp_ports), (caddr_t)&t_ports);
-	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
 	inp = in6_pcblookup(&V_tcbinfo, &ip6->ip6_dst, t_ports.th_dport,
 	    &ip6->ip6_src, t_ports.th_sport, INPLOOKUP_WLOCKPCB, NULL);
 	if (inp != NULL && PRC_IS_REDIRECT(cmd)) {
@@ -2614,7 +2581,6 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 out:
 	if (inp != NULL)
 		INP_WUNLOCK(inp);
-	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 }
 #endif /* INET6 */
 
