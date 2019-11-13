@@ -276,6 +276,7 @@ __LLVM_TARGETS= \
 		arm \
 		mips \
 		powerpc \
+		riscv \
 		sparc \
 		x86
 __LLVM_TARGET_FILT=	C/(amd64|i386)/x86/:S/sparc64/sparc/:S/arm64/aarch64/:S/powerpc64/powerpc/
@@ -298,7 +299,6 @@ __DEFAULT_DEPENDENT_OPTIONS+=	LLVM_TARGET_${__llt:${__LLVM_TARGET_FILT}:tu}/LLVM
 .endfor
 
 __DEFAULT_NO_OPTIONS+=LLVM_TARGET_BPF
-__DEFAULT_NO_OPTIONS+=LLVM_TARGET_RISCV
 
 .include <bsd.compiler.mk>
 # If the compiler is not C++11 capable, disable Clang and use GCC instead.
