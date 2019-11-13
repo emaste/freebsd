@@ -949,6 +949,7 @@ typedef struct {
 #define	AT_GID		13	/* Real gid. */
 #define	AT_EGID		14	/* Effective gid. */
 #define	AT_EXECPATH	15	/* Path to the executable. */
+#define	AT_EXECFN	AT_EXECPATH	/* Linux name for exec pathname. */
 #define	AT_CANARY	16	/* Canary for SSP. */
 #define	AT_CANARYLEN	17	/* Length of the canary. */
 #define	AT_OSRELDATE	18	/* OSRELDATE. */
