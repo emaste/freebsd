@@ -154,6 +154,13 @@ private:
 
   VersionInfoType VersionInfo;
 
+  /// A lookup table from fragments to no-variable symbols, whose offset is 0.
+  /// This table is empty if there is no branch to be aligned.
+  //
+  // FIXME: We really would like this in target specific code rather than here.
+  mutable DenseMap<const MCFragment *, std::vector<const MCSymbol *>>
+      DefiningSymbolMap;
+
   /// Evaluate a fixup to a relocatable expression and the value which should be
   /// placed into the fixup.
   ///
@@ -190,12 +197,21 @@ private:
   /// if any offsets were adjusted.
   bool layoutSectionOnce(MCAsmLayout &Layout, MCSection &Sec);
 
+  /// Scan the symbol table to update the lookup table from fragments to
+  /// no-variable symbols, whose offset is 0.
+  void updateSymbolMap() const;
+
+  /// Move symbol from the fragment Src to fragment Dst to avoid instructions
+  /// jump to the internal of an instruction.
+  void moveSymbol(const MCFragment *Src, MCFragment *Dst) const;
+
   bool relaxInstruction(MCAsmLayout &Layout, MCRelaxableFragment &IF);
 
   bool relaxPaddingFragment(MCAsmLayout &Layout, MCPaddingFragment &PF);
 
   bool relaxLEB(MCAsmLayout &Layout, MCLEBFragment &IF);
-
+  bool relaxMachineDependent(MCAsmLayout &Layout,
+                             MCMachineDependentFragment &MF);
   bool relaxDwarfLineAddr(MCAsmLayout &Layout, MCDwarfLineAddrFragment &DF);
   bool relaxDwarfCallFrameFragment(MCAsmLayout &Layout,
                                    MCDwarfCallFrameFragment &DF);

@@ -316,7 +316,9 @@ bool MCObjectStreamer::mayHaveInstructions(MCSection &Sec) const {
 void MCObjectStreamer::EmitInstruction(const MCInst &Inst,
                                        const MCSubtargetInfo &STI) {
   getAssembler().getBackend().handleCodePaddingInstructionBegin(Inst);
+  getAssembler().getBackend().alignBranchesBegin(*this, Inst);
   EmitInstructionImpl(Inst, STI);
+  getAssembler().getBackend().alignBranchesEnd(*this, Inst);
   getAssembler().getBackend().handleCodePaddingInstructionEnd(Inst);
 }
 

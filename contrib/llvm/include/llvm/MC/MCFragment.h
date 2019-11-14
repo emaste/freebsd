@@ -41,6 +41,7 @@ public:
     FT_Dwarf,
     FT_DwarfFrame,
     FT_LEB,
+    FT_MachineDependent,
     FT_Padding,
     FT_SymbolId,
     FT_CVInlineLines,
@@ -658,6 +659,75 @@ public:
   }
 };
 
+class MCMachineDependentFragment : public MCFragment {
+public:
+  enum SubType : uint8_t {
+    BranchPadding,
+    BranchPrefix,
+    BranchSplit,
+    FusedJccPadding
+  };
+
+  static unsigned AlignBoundarySize;
+  static unsigned AlignMaxPrefixSize;
+  mutable SubType SubKind;
+
+private:
+  unsigned Size = 0;
+  char Prefix = 0;
+  const MCFragment *Branch = nullptr;
+  unsigned ExistingSegmentPrefixSize = 0;
+
+public:
+  MCMachineDependentFragment(SubType SubKind, unsigned ExistingPrefixSize,
+                             MCSection *Sec = nullptr)
+      : MCFragment(FT_MachineDependent, false, Sec), SubKind(SubKind),
+        ExistingSegmentPrefixSize(ExistingPrefixSize) {}
+
+  void setSize(unsigned Value) {
+    assert(SubKind != BranchSplit &&
+           "Should not set the size of BranchSplit Fragment");
+    Size = Value;
+  }
+
+  uint64_t getSize() const { return Size; }
+
+  void setPrefix(char Value) {
+    assert(SubKind == BranchPrefix &&
+           "Unsupported subtype of MCMachineDependentFragment");
+    Prefix = Value;
+  }
+
+  char getPrefix() const {
+    assert(SubKind == BranchPrefix &&
+           "Unsupported subtype of MCMachineDependentFragment");
+    return Prefix;
+  }
+
+  unsigned getRemaingSegmentPrefix() const {
+    assert(SubKind == BranchPrefix &&
+           "Unsupported subtype of MCMachineDependentFragment");
+    return (AlignMaxPrefixSize >= ExistingSegmentPrefixSize)
+               ? (AlignMaxPrefixSize - ExistingSegmentPrefixSize)
+               : 0;
+  }
+
+  void setBranch(const MCFragment *Fragment) {
+    assert(SubKind != BranchSplit &&
+           "Unsupported subtype of MCMachineDependentFragment");
+    Branch = Fragment;
+  }
+
+  const MCFragment *getBranch() const {
+    assert(SubKind != BranchSplit &&
+           "Unsupported subtype of MCMachineDependentFragment");
+    return Branch;
+  }
+
+  static bool classof(const MCFragment *F) {
+    return F->getKind() == MCFragment::FT_MachineDependent;
+  }
+};
 } // end namespace llvm
 
 #endif // LLVM_MC_MCFRAGMENT_H

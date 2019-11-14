@@ -1003,7 +1003,7 @@ include "X86InstrFormats.td"
 def X86_COND_O   : PatLeaf<(i8 0)>;
 def X86_COND_NO  : PatLeaf<(i8 1)>;
 def X86_COND_B   : PatLeaf<(i8 2)>;  // alt. COND_C
-def X86_COND_AE  : PatLeaf<(i8 3)>;  // alt. COND_NC
+def X86_COND_AE  : PatLeaf<(i8 3)>;  // alt. COND_NC,COND_NB
 def X86_COND_E   : PatLeaf<(i8 4)>;  // alt. COND_Z
 def X86_COND_NE  : PatLeaf<(i8 5)>;  // alt. COND_NZ
 def X86_COND_BE  : PatLeaf<(i8 6)>;  // alt. COND_NA

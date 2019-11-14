@@ -51,6 +51,9 @@ public:
 
   const support::endianness Endian;
 
+  virtual void alignBranchesBegin(MCObjectStreamer &OS, const MCInst &Inst) {}
+  virtual void alignBranchesEnd(MCObjectStreamer &OS, const MCInst &Inst) {}
+
   /// lifetime management
   virtual void reset() {}
 
@@ -166,6 +169,14 @@ public:
   ///
   /// \return - True on success.
   virtual bool writeNopData(raw_ostream &OS, uint64_t Count) const = 0;
+
+  /// Write a segment prefix sequence of Count bytes to the given output.
+  ///
+  /// \return - True on success.
+  virtual bool writeSegmentPrefixData(raw_ostream &OS, uint64_t Count,
+                                      char Prefix) const {
+    return true;
+  }
 
   /// Give backend an opportunity to finish layout after relaxation
   virtual void finishLayout(MCAssembler const &Asm,

@@ -28,6 +28,8 @@
 #include <utility>
 
 using namespace llvm;
+unsigned MCMachineDependentFragment::AlignBoundarySize = 0;
+unsigned MCMachineDependentFragment::AlignMaxPrefixSize = 0;
 
 MCAsmLayout::MCAsmLayout(MCAssembler &Asm) : Assembler(Asm) {
   // Compute the section layout order. Virtual sections must go last.
@@ -277,6 +279,9 @@ void MCFragment::destroy() {
     case FT_LEB:
       delete cast<MCLEBFragment>(this);
       return;
+    case FT_MachineDependent:
+      delete cast<MCMachineDependentFragment>(this);
+      return;
     case FT_Padding:
       delete cast<MCPaddingFragment>(this);
       return;
@@ -324,6 +329,7 @@ LLVM_DUMP_METHOD void MCFragment::dump() const {
   case MCFragment::FT_Dwarf: OS << "MCDwarfFragment"; break;
   case MCFragment::FT_DwarfFrame: OS << "MCDwarfCallFrameFragment"; break;
   case MCFragment::FT_LEB:   OS << "MCLEBFragment"; break;
+  case MCFragment::FT_MachineDependent: OS<<"MCMachineDependentFragment"; break;
   case MCFragment::FT_Padding: OS << "MCPaddingFragment"; break;
   case MCFragment::FT_SymbolId:    OS << "MCSymbolIdFragment"; break;
   case MCFragment::FT_CVInlineLines: OS << "MCCVInlineLineTableFragment"; break;
@@ -422,6 +428,13 @@ LLVM_DUMP_METHOD void MCFragment::dump() const {
     const MCLEBFragment *LF = cast<MCLEBFragment>(this);
     OS << "\n       ";
     OS << " Value:" << LF->getValue() << " Signed:" << LF->isSigned();
+    break;
+  }
+  case MCFragment::FT_MachineDependent: {
+    const MCMachineDependentFragment *MF =
+        cast<MCMachineDependentFragment>(this);
+    OS << "\n       ";
+    OS << "Subtype:" << MF->SubKind << "Size: " << MF->getSize();
     break;
   }
   case MCFragment::FT_Padding: {

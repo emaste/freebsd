@@ -17,13 +17,18 @@
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCFixupKindInfo.h"
 #include "llvm/MC/MCInst.h"
+#include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCMachObjectWriter.h"
+#include "llvm/MC/MCObjectStreamer.h"
 #include "llvm/MC/MCObjectWriter.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/TargetRegistry.h"
+
 using namespace llvm;
 
 static unsigned getFixupKindSize(unsigned Kind) {
@@ -61,6 +66,81 @@ static unsigned getFixupKindSize(unsigned Kind) {
 }
 
 namespace {
+class X86AlignBranchKind {
+private:
+  uint8_t AlignBranchKind = 0;
+
+public:
+  enum Flag : uint8_t {
+    AlignBranchNone = 0,
+    AlignBranchFused = 1U << 0,
+    AlignBranchJcc = 1U << 1,
+    AlignBranchJmp = 1U << 2,
+    AlignBranchCall = 1U << 3,
+    AlignBranchRet = 1U << 4,
+    AlignBranchIndirect = 1U << 5
+  };
+
+  void operator=(const std::string &Val) {
+    if (Val.empty())
+      return;
+    SmallVector<StringRef, 6> BranchTypes;
+    StringRef(Val).split(BranchTypes, '-', -1, false);
+    for (auto BranchType : BranchTypes) {
+      if (BranchType == "fused")
+        addKind(AlignBranchFused);
+      else if (BranchType == "jcc")
+        addKind(AlignBranchJcc);
+      else if (BranchType == "jmp")
+        addKind(AlignBranchJmp);
+      else if (BranchType == "call")
+        addKind(AlignBranchCall);
+      else if (BranchType == "ret")
+        addKind(AlignBranchRet);
+      else if (BranchType == "indirect")
+        addKind(AlignBranchIndirect);
+    }
+  }
+
+  operator uint8_t() const { return AlignBranchKind; }
+  void addKind(Flag Value) { AlignBranchKind |= Value; }
+};
+
+X86AlignBranchKind X86AlignBranchKindLoc;
+
+cl::opt<unsigned> X86AlignBranchBoundary(
+    "x86-align-branch-boundary", cl::init(0), cl::Hidden,
+    cl::desc("Control how the assembler should align branches with segment "
+             "prefixes or NOP. The boundary's size must be a power of 2. It "
+             "should be 0 or no less than 32. Branches will be aligned within "
+             "the boundary of specifies size. -x86-align-branch-boundary=0 "
+             "doesn't align branches."));
+
+cl::opt<X86AlignBranchKind, true, cl::parser<std::string>> X86AlignBranch(
+    "x86-align-branch",
+    cl::desc("Specify types of branches to align (dash separated list of "
+             "types). The branches's types is combination of jcc, fused, "
+             "jmp, call, ret, indirect."),
+    cl::Hidden,
+    cl::value_desc(
+        "jcc, which aligns conditional jumps; fused, which aligns fused "
+        "conditional jumps; jmp, which aligns unconditional jumps; call, "
+        "which aligns calls; ret, which aligns rets; indirect, which "
+        "aligns indirect jumps."),
+    cl::location(X86AlignBranchKindLoc));
+
+cl::opt<unsigned> X86AlignBranchPrefixSize(
+    "x86-align-branch-prefix-size", cl::init(0), cl::Hidden,
+    cl::desc("Specify the maximum number of prefixes on an instruction to "
+             "align branches. The number should be between 0 and 5."));
+
+cl::opt<bool> X86AlignBranchWithin32BBoundaries(
+    "x86-branches-within-32B-boundaries", cl::init(false),
+    cl::desc(
+        "Aligns conditional jumps, fused conditional jumps, and unconditional "
+        "jumps within 32 byte boundary with up to 5 segment prefixes on an "
+        "instruction. It is equivalent to -x86-align-branch-boundary=32, "
+        "-x86-align-branch=fused-jcc-jmp, -x86-align-branch-prefix-size=5."));
 
 class X86ELFObjectWriter : public MCELFObjectTargetWriter {
 public:
@@ -71,9 +151,59 @@ public:
 
 class X86AsmBackend : public MCAsmBackend {
   const MCSubtargetInfo &STI;
+  const MCInstrInfo &MCII;
+  X86AlignBranchKind AlignBranchType;
+  unsigned AlignBoundarySize = 0;
+  unsigned AlignMaxPrefixSize = 0;
+
+  bool isCall(const MCInst &MI) const;
+  bool isTLSCall(const MCInst &MI) const;
+  bool isReturn(const MCInst &MI) const;
+  bool isBranch(const MCInst &MI) const;
+  bool isConditionalBranch(const MCInst &MI) const;
+  bool isUnconditionalBranch(const MCInst &MI) const;
+  bool isIndirectBranch(const MCInst &MI) const;
+
+  bool isFirstMFInst(const MCInst &Inst) const;
+  bool isFused(const MCInst &Cmp, const MCInst &Jcc) const;
+  char choosePrefixValue(const MCInst &MI) const;
+  unsigned getSegmentPrefixSize(const MCInst &MI) const;
+  bool isRIPRelative(const MCInst &MI) const;
+
+  bool needAlignBranch() const;
+  bool needAlignJcc() const;
+  bool needAlignFused() const;
+  bool needAlignJmp() const;
+  bool needAlignCall() const;
+  bool needAlignRet() const;
+  bool needAlignIndirect() const;
+  bool needAlign(const MCAssembler &Assembler, MCSection *Sec) const;
+  bool needAlign(const MCInst &Inst) const;
+  bool shouldAddPrefix(const MCInst& Inst) const;
+  std::vector<MCMachineDependentFragment *> PendingAlignmentFragments;
+  MCInst PrevInst;
+
 public:
   X86AsmBackend(const Target &T, const MCSubtargetInfo &STI)
-      : MCAsmBackend(support::little), STI(STI) {}
+      : MCAsmBackend(support::little), STI(STI),
+        MCII(*(T.createMCInstrInfo())) {
+    if (X86AlignBranchWithin32BBoundaries) {
+      AlignBoundarySize = 32;
+      AlignBranchType.addKind(X86AlignBranchKind::AlignBranchFused);
+      AlignBranchType.addKind(X86AlignBranchKind::AlignBranchJcc);
+      AlignBranchType.addKind(X86AlignBranchKind::AlignBranchJmp);
+      AlignMaxPrefixSize = 5;
+    } else {
+      AlignBoundarySize = X86AlignBranchBoundary;
+      AlignBranchType = X86AlignBranchKindLoc;
+      AlignMaxPrefixSize = X86AlignBranchPrefixSize;
+    }
+    MCMachineDependentFragment::AlignBoundarySize = AlignBoundarySize;
+    MCMachineDependentFragment::AlignMaxPrefixSize = AlignMaxPrefixSize;
+  }
+
+  void alignBranchesBegin(MCObjectStreamer &OS, const MCInst &Inst) override;
+  void alignBranchesEnd(MCObjectStreamer &OS, const MCInst &Inst) override;
 
   unsigned getNumFixupKinds() const override {
     return X86::NumTargetFixupKinds;
@@ -136,6 +266,8 @@ public:
                         MCInst &Res) const override;
 
   bool writeNopData(raw_ostream &OS, uint64_t Count) const override;
+  bool writeSegmentPrefixData(raw_ostream &OS, uint64_t Count,
+                              char Prefix) const override;
 };
 } // end anonymous namespace
 
@@ -243,6 +375,289 @@ static unsigned getRelaxedOpcode(const MCInst &Inst, bool is16BitMode) {
   return getRelaxedOpcodeBranch(Inst, is16BitMode);
 }
 
+static X86::CondCode getCondFromBranch(const MCInst &MI,
+                                       const MCInstrInfo &MCII) {
+  unsigned Opcode = MI.getOpcode();
+  switch (Opcode) {
+  default:
+    return X86::COND_INVALID;
+  case X86::JCC_1: {
+    const MCInstrDesc &Desc = MCII.get(Opcode);
+    return static_cast<X86::CondCode>(
+        MI.getOperand(Desc.getNumOperands() - 1).getImm());
+  }
+  }
+}
+
+static X86::SecondMFInstKind classifySecond(const MCInst &MI,
+                                            const MCInstrInfo &MCII) {
+  X86::CondCode CC = getCondFromBranch(MI, MCII);
+  return classifySecondCondCode(CC);
+}
+
+bool X86AsmBackend::isCall(const MCInst &MI) const {
+  unsigned Opcode = MI.getOpcode();
+  const MCInstrDesc &Desc = MCII.get(Opcode);
+  return Desc.isCall();
+}
+
+bool X86AsmBackend::isTLSCall(const MCInst &MI) const {
+  if (!isCall(MI))
+    return false;
+  for (auto &Operand : MI) {
+    if (Operand.isExpr()) {
+      StringRef SymbolName =
+          cast<MCSymbolRefExpr>(*Operand.getExpr()).getSymbol().getName();
+      if (SymbolName.contains("__tls_get_addr"))
+        return true;
+    }
+  }
+  return false;
+}
+
+bool X86AsmBackend::isReturn(const MCInst &MI) const {
+  unsigned Opcode = MI.getOpcode();
+  const MCInstrDesc &Desc = MCII.get(Opcode);
+  return Desc.isReturn();
+}
+
+bool X86AsmBackend::isBranch(const MCInst &MI) const {
+  unsigned Opcode = MI.getOpcode();
+  const MCInstrDesc &Desc = MCII.get(Opcode);
+  return Desc.isBranch();
+}
+
+bool X86AsmBackend::isConditionalBranch(const MCInst &MI) const {
+  unsigned Opcode = MI.getOpcode();
+  const MCInstrDesc &Desc = MCII.get(Opcode);
+  return Desc.isConditionalBranch();
+}
+
+bool X86AsmBackend::isUnconditionalBranch(const MCInst &MI) const {
+  unsigned Opcode = MI.getOpcode();
+  const MCInstrDesc &Desc = MCII.get(Opcode);
+  return Desc.isUnconditionalBranch();
+}
+
+bool X86AsmBackend::isIndirectBranch(const MCInst &MI) const {
+  unsigned Opcode = MI.getOpcode();
+  const MCInstrDesc &Desc = MCII.get(Opcode);
+  return Desc.isIndirectBranch();
+}
+
+bool X86AsmBackend::isFirstMFInst(const MCInst &Inst) const {
+  if (isRIPRelative(Inst))
+    return false;
+  X86::FirstMFInstKind FIK = X86::classifyFirstOpcode(Inst.getOpcode());
+  return FIK != X86::FirstMFInstKind::Invalid;
+}
+
+bool X86AsmBackend::isFused(const MCInst &Cmp, const MCInst &Jcc) const {
+  if (!isConditionalBranch(Jcc))
+    return false;
+  if (!isFirstMFInst(Cmp))
+    return false;
+  const X86::FirstMFInstKind CmpKind =
+      X86::classifyFirstOpcode(Cmp.getOpcode());
+  const X86::SecondMFInstKind BranchKind = classifySecond(Jcc, MCII);
+  return X86::isMacroFused(CmpKind,BranchKind);
+  llvm_unreachable("unknown fusion type");
+}
+
+char X86AsmBackend::choosePrefixValue(const MCInst &MI) const {
+  for (const auto &Operand : MI) {
+    if (Operand.isReg())
+      switch (Operand.getReg()) {
+      default:
+        break;
+      case X86::CS:
+        return 0x2e;
+      case X86::SS:
+        return 0x36;
+      case X86::DS:
+        return 0x3e;
+      case X86::ES:
+        return 0x26;
+      case X86::FS:
+        return 0x64;
+      case X86::GS:
+        return 0x65;
+      }
+  }
+  if (STI.getFeatureBits()[X86::Mode64Bit])
+    return 0x2e;
+
+  unsigned Opcode = MI.getOpcode();
+  const MCInstrDesc &Desc = MCII.get(Opcode);
+  uint64_t TSFlags = Desc.TSFlags;
+  int MemoryOperand = X86II::getMemoryOperandNo(TSFlags);
+  if (MemoryOperand >= 0) {
+    unsigned CurOp = X86II::getOperandBias(Desc);
+    unsigned BaseRegNum = MemoryOperand + CurOp + X86::AddrBaseReg;
+    unsigned BaseReg = MI.getOperand(BaseRegNum).getReg();
+    if (BaseReg == X86::ESP || BaseReg == X86::EBP)
+      return 0x36;
+  }
+  return 0x3e;
+}
+
+unsigned X86AsmBackend::getSegmentPrefixSize(const MCInst &MI) const {
+  unsigned Size = 0;
+  for (const auto &Operand : MI) {
+    if (Operand.isReg()) {
+      unsigned Reg = Operand.getReg();
+      if (Reg == X86::CS || Reg == X86::SS || Reg == X86::DS ||
+          Reg == X86::ES || Reg == X86::FS || Reg == X86::GS)
+        ++Size;
+    }
+  }
+  return Size;
+}
+
+bool X86AsmBackend::isRIPRelative(const MCInst &MI) const {
+  unsigned Opcode = MI.getOpcode();
+  const MCInstrDesc &Desc = MCII.get(Opcode);
+  uint64_t TSFlags = Desc.TSFlags;
+  unsigned CurOp = X86II::getOperandBias(Desc);
+  int MemoryOperand = X86II::getMemoryOperandNo(TSFlags);
+  if (MemoryOperand >= 0) {
+    unsigned BaseRegNum = MemoryOperand + CurOp + X86::AddrBaseReg;
+    unsigned BaseReg = MI.getOperand(BaseRegNum).getReg();
+    if (BaseReg == X86::RIP)
+      return true;
+  }
+  return false;
+}
+
+bool X86AsmBackend::needAlignBranch() const {
+  return AlignBoundarySize != 0 &&
+         AlignBranchType != X86AlignBranchKind::AlignBranchNone;
+}
+
+bool X86AsmBackend::needAlignJcc() const {
+  return AlignBoundarySize != 0 &&
+         AlignBranchType & X86AlignBranchKind::AlignBranchJcc;
+}
+
+bool X86AsmBackend::needAlignFused() const {
+  return AlignBoundarySize != 0 &&
+         AlignBranchType & X86AlignBranchKind::AlignBranchFused;
+}
+
+bool X86AsmBackend::needAlignJmp() const {
+  return AlignBoundarySize != 0 &&
+         AlignBranchType & X86AlignBranchKind::AlignBranchJmp;
+}
+
+bool X86AsmBackend::needAlignCall() const {
+  return AlignBoundarySize != 0 &&
+         AlignBranchType & X86AlignBranchKind::AlignBranchCall;
+}
+
+bool X86AsmBackend::needAlignRet() const {
+  return AlignBoundarySize != 0 &&
+         AlignBranchType & X86AlignBranchKind::AlignBranchRet;
+}
+
+bool X86AsmBackend::needAlignIndirect() const {
+  return AlignBoundarySize != 0 &&
+         AlignBranchType & X86AlignBranchKind::AlignBranchIndirect;
+}
+
+bool X86AsmBackend::needAlign(const MCAssembler &Assembler,
+                              MCSection *Sec) const {
+  // To be Done: Currently don't deal with Bundle cases.
+  if (Assembler.isBundlingEnabled() && Sec->isBundleLocked())
+    return false;
+
+  if (!(STI.getFeatureBits()[X86::Mode64Bit] ||
+        STI.getFeatureBits()[X86::Mode32Bit]))
+    return false;
+  return needAlignBranch();
+}
+
+bool X86AsmBackend::needAlign(const MCInst &Inst) const {
+  return (isConditionalBranch(Inst) && needAlignJcc()) ||
+         (isUnconditionalBranch(Inst) && needAlignJmp()) ||
+         (isCall(Inst) && !isTLSCall(Inst) && needAlignCall()) ||
+         (isReturn(Inst) && needAlignRet()) ||
+         (isIndirectBranch(Inst) && needAlignIndirect());
+}
+
+bool X86AsmBackend::shouldAddPrefix(const MCInst &Inst) const {
+  return !(isBranch(Inst) || isCall(Inst) || isReturn(Inst));
+}
+
+void X86AsmBackend::alignBranchesBegin(MCObjectStreamer &OS,
+                                       const MCInst &Inst) {
+  MCAssembler &Assembler = OS.getAssembler();
+  MCSection *Sec = OS.getCurrentSectionOnly();
+
+  if (!needAlign(Assembler, Sec))
+    return;
+
+  MCFragment *CF = OS.getCurrentFragment();
+  MCFragment *PF = CF ? CF->getPrevNode() : nullptr;
+  bool IsPFFusedJccPadding = isa_and_nonnull<MCMachineDependentFragment>(PF) &&
+                             cast<MCMachineDependentFragment>(PF)->SubKind ==
+                                 MCMachineDependentFragment::FusedJccPadding;
+  bool IsFused = isFused(PrevInst, Inst);
+  if (IsPFFusedJccPadding && !IsFused) {
+    cast<MCMachineDependentFragment>(PF)->SubKind =
+        MCMachineDependentFragment::BranchPrefix;
+    cast<MCMachineDependentFragment>(PF)->setPrefix(
+        choosePrefixValue(PrevInst));
+  }
+  unsigned SegmentPrefixSize = getSegmentPrefixSize(Inst);
+  if (isFirstMFInst(Inst) && needAlignFused()) {
+    OS.insert(new MCMachineDependentFragment(
+        MCMachineDependentFragment::FusedJccPadding, SegmentPrefixSize));
+  } else if (IsPFFusedJccPadding && IsFused) {
+    OS.insert(new MCMachineDependentFragment(
+        MCMachineDependentFragment::BranchSplit, SegmentPrefixSize));
+  } else if (needAlign(Inst)) {
+    OS.insert(new MCMachineDependentFragment(
+        MCMachineDependentFragment::BranchPadding, SegmentPrefixSize));
+  } else {
+    OS.insert(new MCMachineDependentFragment(
+        MCMachineDependentFragment::BranchPrefix, SegmentPrefixSize));
+  }
+  MCMachineDependentFragment *NewCF =
+      cast<MCMachineDependentFragment>(OS.getCurrentFragment());
+  auto Kind = NewCF->SubKind;
+  if (Kind != MCMachineDependentFragment::BranchSplit) {
+    if (Kind == MCMachineDependentFragment::BranchPrefix) {
+      NewCF->setPrefix(choosePrefixValue(Inst));
+    }
+    if (Kind != MCMachineDependentFragment::BranchPrefix ||
+        shouldAddPrefix(Inst)) {
+      PendingAlignmentFragments.push_back(NewCF);
+    }
+  }
+  PrevInst = Inst;
+  return;
+}
+
+void X86AsmBackend::alignBranchesEnd(MCObjectStreamer &OS, const MCInst &Inst) {
+  MCSection *Sec = OS.getCurrentSectionOnly();
+  MCAssembler &Assembler = OS.getAssembler();
+  if (!needAlign(Assembler, Sec))
+    return;
+  if (!needAlign(Inst))
+    return;
+  MCFragment *CF = OS.getCurrentFragment();
+  for (MCMachineDependentFragment *MDF : PendingAlignmentFragments) {
+    if (MDF->getParent() != Sec)
+      continue;
+    MDF->setBranch(CF);
+  }
+  PendingAlignmentFragments.clear();
+
+  // Update the maximum alignment on the current section if necessary.
+  if (AlignBoundarySize > Sec->getAlignment())
+    Sec->setAlignment(Align(AlignBoundarySize));
+}
+
 Optional<MCFixupKind> X86AsmBackend::getFixupKind(StringRef Name) const {
   if (STI.getTargetTriple().isOSBinFormatELF()) {
     if (STI.getTargetTriple().getArch() == Triple::x86_64) {
@@ -309,6 +724,16 @@ void X86AsmBackend::relaxInstruction(const MCInst &Inst,
 
   Res = Inst;
   Res.setOpcode(RelaxedOp);
+}
+
+bool X86AsmBackend::writeSegmentPrefixData(raw_ostream &OS, uint64_t Count,
+                                    char Prefix) const {
+  if (!(Prefix == 0x2e || Prefix == 0x36 || Prefix == 0x3e || Prefix == 0x26 ||
+        Prefix == 0x64 || Prefix == 0x65))
+    return false;
+  for (uint64_t i = 0; i < Count; ++i)
+    OS << Prefix;
+  return true;
 }
 
 /// Write a sequence of optimal nops to the output, covering \p Count

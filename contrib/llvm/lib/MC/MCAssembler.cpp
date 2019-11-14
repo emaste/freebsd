@@ -312,6 +312,9 @@ uint64_t MCAssembler::computeFragmentSize(const MCAsmLayout &Layout,
   case MCFragment::FT_LEB:
     return cast<MCLEBFragment>(F).getContents().size();
 
+  case MCFragment::FT_MachineDependent:
+    return cast<MCMachineDependentFragment>(F).getSize();
+
   case MCFragment::FT_Padding:
     return cast<MCPaddingFragment>(F).getSize();
 
@@ -608,6 +611,24 @@ static void writeFragment(raw_ostream &OS, const MCAssembler &Asm,
   case MCFragment::FT_LEB: {
     const MCLEBFragment &LF = cast<MCLEBFragment>(F);
     OS << LF.getContents();
+    break;
+  }
+
+  case MCFragment::FT_MachineDependent: {
+    const MCMachineDependentFragment &MDF = cast<MCMachineDependentFragment>(F);
+    if (FragmentSize == 0)
+      break;
+    if (MDF.SubKind == MCMachineDependentFragment::BranchPrefix) {
+      if (!Asm.getBackend().writeSegmentPrefixData(OS, FragmentSize,
+                                                   MDF.getPrefix()))
+        report_fatal_error("unable to write segment prefix sequence of " +
+                           Twine(FragmentSize) + " bytes");
+    } else if (MDF.SubKind == MCMachineDependentFragment::BranchPadding ||
+               MDF.SubKind == MCMachineDependentFragment::FusedJccPadding) {
+      if (!Asm.getBackend().writeNopData(OS, FragmentSize))
+        report_fatal_error("unable to write nop sequence of " +
+                           Twine(FragmentSize) + " bytes");
+    }
     break;
   }
 
@@ -968,6 +989,125 @@ bool MCAssembler::relaxLEB(MCAsmLayout &Layout, MCLEBFragment &LF) {
   return OldSize != LF.getContents().size();
 }
 
+static unsigned getFixedValue(const MCMachineDependentFragment *MF) {
+  unsigned FixValue = 0;
+  const MCFragment *CurrFragment = MF;
+  const MCFragment *const BranchFragment = MF->getBranch();
+  while (CurrFragment && CurrFragment != BranchFragment) {
+    if (auto *MCF =
+            dyn_cast_or_null<MCMachineDependentFragment>(CurrFragment)) {
+      FixValue += MCF->getSize();
+    }
+    CurrFragment = CurrFragment->getNextNode();
+  }
+  return FixValue;
+}
+
+static bool mayCrossBoundary(unsigned StartAddr, unsigned Size) {
+  unsigned EndAddr = StartAddr + Size;
+  return StartAddr / MCMachineDependentFragment::AlignBoundarySize !=
+         ((EndAddr - 1) / MCMachineDependentFragment::AlignBoundarySize);
+}
+
+static bool isAgainstBoundary(unsigned StartAddr, unsigned Size) {
+  unsigned EndAddr = StartAddr + Size;
+  return EndAddr % MCMachineDependentFragment::AlignBoundarySize == 0;
+}
+
+static bool needPadding(unsigned StartAddr, unsigned Size) {
+  return mayCrossBoundary(StartAddr, Size) ||
+         isAgainstBoundary(StartAddr, Size);
+}
+
+static unsigned getPaddingSize(unsigned StartAddr) {
+  return MCMachineDependentFragment::AlignBoundarySize -
+         (StartAddr % MCMachineDependentFragment::AlignBoundarySize);
+}
+
+static unsigned getInstSize(const MCFragment &F) {
+  switch (F.getKind()) {
+  default:
+    llvm_unreachable("Illegal fragment type");
+  case MCFragment::FT_Data:
+    return cast<MCDataFragment>(F).getContents().size();
+  case MCFragment::FT_Relaxable:
+    return cast<MCRelaxableFragment>(F).getContents().size();
+  case MCFragment::FT_CompactEncodedInst:
+    return cast<MCCompactEncodedInstFragment>(F).getContents().size();
+  }
+}
+
+void MCAssembler::moveSymbol(const MCFragment *Src, MCFragment *Dst) const {
+  if (!(Src && Dst && Dst->getKind() == MCFragment::FT_MachineDependent))
+    return;
+  updateSymbolMap();
+  for (auto *Symb : DefiningSymbolMap[Src]) {
+    Symb->setFragment(Dst);
+  }
+  return;
+}
+
+void MCAssembler::updateSymbolMap() const {
+  if(!DefiningSymbolMap.empty()) return;
+  for (const MCSymbol &Symbol : symbols()) {
+    if (Symbol.isInSection() && !Symbol.isVariable() &&
+        Symbol.getOffset() == 0) {
+      DefiningSymbolMap[Symbol.getFragment()].push_back(&Symbol);
+    }
+  }
+  return;
+}
+
+bool MCAssembler::relaxMachineDependent(MCAsmLayout &Layout,
+                                        MCMachineDependentFragment &MF) {
+  if (MF.SubKind == MCMachineDependentFragment::BranchSplit || !MF.getBranch())
+    return false;
+  unsigned OldSize = MF.getSize();
+  const MCFragment *BranchFragment = MF.getBranch();
+  for (MCFragment *F = &MF; F != BranchFragment; F = F->getNextNode()) {
+    if (F->getKind() != MCFragment::FT_Data &&
+        F->getKind() != MCFragment::FT_MachineDependent &&
+        F->getKind() != MCFragment::FT_Relaxable &&
+        F->getKind() != MCFragment::FT_CompactEncodedInst) {
+      return false;
+    }
+  }
+  const MCMachineDependentFragment *HintFragment =
+      cast<MCMachineDependentFragment>(BranchFragment->getPrevNode());
+  unsigned AlignedSize = getInstSize(*BranchFragment);
+  unsigned AlignedOffset = Layout.getFragmentOffset(BranchFragment);
+  if (HintFragment->SubKind == MCMachineDependentFragment::BranchSplit) {
+    unsigned CmpSize = getInstSize(*(HintFragment->getPrevNode()));
+    AlignedSize += CmpSize;
+    AlignedOffset -= CmpSize;
+  }
+  unsigned FixedValue = getFixedValue(&MF);
+  AlignedOffset -= FixedValue;
+  unsigned NewSize = 0;
+  if (needPadding(AlignedOffset, AlignedSize)) {
+    NewSize = getPaddingSize(AlignedOffset);
+  }
+  if (MF.SubKind == MCMachineDependentFragment::BranchPrefix) {
+    unsigned NextFragmentSize = getInstSize(*(MF.getNextNode()));
+    if (NextFragmentSize >= 15)
+      NewSize = 0;
+    else {
+      NewSize = std::min(
+          {NewSize, 15 - NextFragmentSize, MF.getRemaingSegmentPrefix()});
+    }
+  }
+  if (NewSize != OldSize) {
+    MF.setSize(NewSize);
+    if (OldSize == 0) {
+      moveSymbol(MF.getNextNode(), &MF);
+    }
+    Layout.invalidateFragmentsFrom(&MF);
+    return true;
+  } else {
+    return false;
+  }
+}
+
 bool MCAssembler::relaxDwarfLineAddr(MCAsmLayout &Layout,
                                      MCDwarfLineAddrFragment &DF) {
   MCContext &Context = Layout.getAssembler().getContext();
@@ -1083,6 +1223,10 @@ bool MCAssembler::layoutSectionOnce(MCAsmLayout &Layout, MCSection &Sec) {
       break;
     case MCFragment::FT_LEB:
       RelaxedFrag = relaxLEB(Layout, *cast<MCLEBFragment>(I));
+      break;
+    case MCFragment::FT_MachineDependent:
+      RelaxedFrag =
+          relaxMachineDependent(Layout, *cast<MCMachineDependentFragment>(I));
       break;
     case MCFragment::FT_Padding:
       RelaxedFrag = relaxPaddingFragment(Layout, *cast<MCPaddingFragment>(I));
