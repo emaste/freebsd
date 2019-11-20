@@ -281,6 +281,28 @@ OLD_FILES+=usr/share/man/man9/untimeout.9.gz
 OLD_FILES+=usr/share/man/man4/trm.4.gz
 # 20191121: Removal of sio(4)
 OLD_FILES+=usr/share/man/man4/sio.4.gz
+# 2019xxxx: amd(8) deorbited
+OLD_FILES+=etc/amd.map
+OLD_FILES+=etc/newsyslog.conf.d/amd.conf
+OLD_FILES+=etc/rc.d/amd
+OLD_FILES+=usr/bin/pawd
+OLD_FILES+=usr/sbin/amd
+OLD_FILES+=usr/sbin/amq
+OLD_FILES+=usr/sbin/fixmount
+OLD_FILES+=usr/sbin/fsinfo
+OLD_FILES+=usr/sbin/hlfsd
+OLD_FILES+=usr/sbin/mk-amd-map
+OLD_FILES+=usr/sbin/wire-test
+OLD_FILES+=usr/share/examples/etc/amd.map
+OLD_FILES+=usr/share/man/man1/pawd.1.gz
+OLD_FILES+=usr/share/man/man5/amd.conf.5.gz
+OLD_FILES+=usr/share/man/man8/amd.8.gz
+OLD_FILES+=usr/share/man/man8/amq.8.gz
+OLD_FILES+=usr/share/man/man8/fixmount.8.gz
+OLD_FILES+=usr/share/man/man8/fsinfo.8.gz
+OLD_FILES+=usr/share/man/man8/hlfsd.8.gz
+OLD_FILES+=usr/share/man/man8/mk-amd-map.8.gz
+OLD_FILES+=usr/share/man/man8/wire-test.8.gz
 # 20191105: picobsd(8), et al, removed.
 OLD_FILES+=usr/share/man/man8/picobsd.8.gz
 # 20191009: new clang import which bumps version from 8.0.1 to 9.0.0.
