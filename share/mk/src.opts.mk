@@ -55,7 +55,6 @@ __<src.opts.mk>__:
 __DEFAULT_YES_OPTIONS = \
     ACCT \
     ACPI \
-    AMD \
     APM \
     AT \
     ATM \
