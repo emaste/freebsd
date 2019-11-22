@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20191121: Removal of sio(4)
+OLD_FILES+=usr/share/man/man4/sio.4.gz
 # 2019xxxx: amd(8) deorbited
 OLD_FILES+=etc/amd.map
 OLD_FILES+=etc/newsyslog.conf.d/amd.conf
