@@ -1764,7 +1764,7 @@ OLD_FILES+=usr/share/man/man5/ftpchroot.5.gz
 OLD_FILES+=usr/share/man/man8/ftpd.8.gz
 .endif
 
-.if ${MK_GNUCXX} == no
+# Move to ObsoleteFiles.inc
 .if !defined(WITH_PORT_BASE_GCC)
 OLD_FILES+=usr/bin/g++
 .endif
@@ -2341,7 +2341,6 @@ OLD_LIBS+=usr/lib32/libsupc++.so.1
 OLD_FILES+=usr/lib32/libsupc++_p.a
 .endif
 OLD_FILES+=usr/libexec/cc1plus
-.endif
 
 .if ${MK_DICT} == no
 OLD_FILES+=usr/share/dict/README
@@ -2763,7 +2762,7 @@ OLD_FILES+=usr/share/man/man8/strfile.8.gz
 OLD_FILES+=usr/share/man/man8/unstr.8.gz
 .endif
 
-.if ${MK_GCC} == no
+# move to ObsoleteFiles.inc
 .if !defined(WITH_PORT_BASE_GCC)
 OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/bin/gcc
@@ -2815,9 +2814,8 @@ OLD_FILES+=usr/share/man/man1/gcc.1.gz
 OLD_FILES+=usr/share/man/man1/gcpp.1.gz
 OLD_FILES+=usr/share/man/man1/gperf.1.gz
 OLD_FILES+=usr/share/man/man1/gperf.7.gz
-.endif
 
-.if (${MK_GCOV} == no || ${MK_GCC} == no) && ${MK_LLVM_COV} == no && \
+.if (${MK_GCOV} == no) && ${MK_LLVM_COV} == no && \
     !defined(WITH_PORT_BASE_GCC)
 OLD_FILES+=usr/bin/gcov
 OLD_FILES+=usr/share/man/man1/gcov.1.gz
@@ -7803,11 +7801,9 @@ OLD_FILES+=usr/share/man/man8/vendstat.8.gz
 .endif
 
 .if ${MK_OPENMP} == no
-.if ${MK_GCC} == no
 OLD_FILES+=usr/include/omp.h
 OLD_LIBS+=usr/lib/libgomp.so
 OLD_LIBS+=usr/lib32/libgomp.so
-.endif
 OLD_LIBS+=usr/lib/libomp.so
 OLD_LIBS+=usr/lib32/libomp.so
 .endif
