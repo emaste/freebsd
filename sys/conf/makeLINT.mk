@@ -12,9 +12,7 @@ clean:
 	rm -f LINT-NOINET LINT-NOINET6 LINT-NOIP
 .endif
 .if ${TARGET} == "arm"
-	# LINT-V5 removed 2019-11-26.  The clean rule is left here temporarily
-	# to avoid having stale copies left behind.
-	rm -f LINT-V5 LINT-V7
+	rm -f LINT-V7
 .endif
 .if ${TARGET} == "powerpc"
 	rm -f LINT64
