@@ -2471,9 +2471,6 @@ _dtrace_tools= cddl/lib/libctf cddl/usr.bin/ctfconvert \
 
 # If we're given an XAS, don't build binutils.
 .if ${XAS:M/*} == ""
-.if ${MK_BINUTILS_BOOTSTRAP} != "no"
-_binutils=	gnu/usr.bin/binutils
-.endif
 .if ${MK_ELFTOOLCHAIN_BOOTSTRAP} != "no"
 _elftctools=	lib/libelftc \
 		lib/libpe \
@@ -2517,7 +2514,6 @@ cross-tools: .MAKE .PHONY
     ${_clang_libs} \
     ${_clang} \
     ${_lld} \
-    ${_binutils} \
     ${_elftctools} \
     ${_dtrace_tools} \
     ${_btxld} \
@@ -2614,9 +2610,6 @@ SUBDIR_DEPEND_usr.bin/clang=	lib/clang
 .if ${MK_CLANG} != "no"
 NXBDIRS+=	lib/clang
 NXBDIRS+=	usr.bin/clang
-.endif
-.if ${MK_BINUTILS} != "no"
-NXBDIRS+=	gnu/usr.bin/binutils
 .endif
 # XXX: native-xtools passes along ${NXBDIRS} in SUBDIR_OVERRIDE that needs
 # to be evaluated after NXBDIRS is set.
@@ -3321,7 +3314,6 @@ _xb-build-tools: .PHONY
 XDEVDIRS= \
     ${_clang_libs} \
     ${_lld} \
-    ${_binutils} \
     ${_elftctools} \
     usr.bin/ar \
     ${_clang}
