@@ -2137,10 +2137,6 @@ BOOTSTRAPPING_OSRELDATE:=	0
 _strfile=	usr.bin/fortune/strfile
 .endif
 
-.if ${MK_GCC} != "no" && ${MK_CXX} != "no"
-_gperf=		gnu/usr.bin/gperf
-.endif
-
 .if ${MK_VT} != "no"
 _vtfontcvt=	usr.bin/vtfontcvt
 .endif
@@ -2261,9 +2257,6 @@ ${_bt}-usr.bin/clang/lldb-tblgen: ${_bt}-lib/clang/libllvmminimal
 
 # Build BSDL or GPL DTC depending on GPL_DTC option.
 _dtc= usr.bin/dtc
-.if ${MK_GPL_DTC} != "no"
-_dtc= gnu/usr.bin/dtc
-.endif
 
 .if ${MK_LOCALES} != "no"
 _localedef=	usr.bin/localedef
@@ -2388,7 +2381,6 @@ bootstrap-tools: ${_bt}-links .PHONY
     ${_clang_tblgen} \
     ${_kerberos5_bootstrap_tools} \
     ${_strfile} \
-    ${_gperf} \
     ${_dtc} \
     ${_cat} \
     ${_kbdcontrol} \
@@ -2430,10 +2422,6 @@ bootstrap-tools: ${_bt}-${_tool}
 _share=	share/syscons/scrnmaps
 .endif
 
-.if ${MK_GCC} != "no"
-_gcc_tools= gnu/usr.bin/cc/cc_tools
-.endif
-
 .if ${MK_RESCUE} != "no"
 # rescue includes programs that have build-tools targets
 _rescue=rescue/rescue
@@ -2471,8 +2459,7 @@ _bt_clean=	${CLEANDIR}
     ${_libmagic} \
     usr.bin/mkesdb_static \
     usr.bin/mkcsmapper_static \
-    usr.bin/vi/catalog \
-    ${_gcc_tools}
+    usr.bin/vi/catalog
 build-tools_${_tool}: .PHONY
 	${_+_}@${ECHODIR} "===> ${_tool} (${_bt_clean:D${_bt_clean},}obj,build-tools)"; \
 		cd ${.CURDIR}/${_tool}; \
@@ -2510,9 +2497,6 @@ _dtrace_tools= cddl/lib/libctf cddl/usr.bin/ctfconvert \
 
 # If we're given an XAS, don't build binutils.
 .if ${XAS:M/*} == ""
-.if ${MK_BINUTILS_BOOTSTRAP} != "no"
-_binutils=	gnu/usr.bin/binutils
-.endif
 .if ${MK_ELFTOOLCHAIN_BOOTSTRAP} != "no"
 _elftctools=	lib/libelftc \
 		lib/libpe \
@@ -2541,9 +2525,6 @@ _lld=		usr.bin/clang/lld
 .if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_LLD_BOOTSTRAP} != "no"
 _clang_libs=	lib/clang
 .endif
-.if ${MK_GCC_BOOTSTRAP} != "no"
-_gcc=		gnu/usr.bin/cc
-.endif
 .if ${MK_USB} != "no"
 _usb_tools=	stand/usb/tools
 .endif
@@ -2559,10 +2540,8 @@ cross-tools: .MAKE .PHONY
     ${_clang_libs} \
     ${_clang} \
     ${_lld} \
-    ${_binutils} \
     ${_elftctools} \
     ${_dtrace_tools} \
-    ${_gcc} \
     ${_btxld} \
     ${_usb_tools}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,all,install)"; \
@@ -2658,12 +2637,6 @@ SUBDIR_DEPEND_usr.bin/clang=	lib/clang
 NXBDIRS+=	lib/clang
 NXBDIRS+=	usr.bin/clang
 .endif
-.if ${MK_GCC} != "no"
-NXBDIRS+=	gnu/usr.bin/cc
-.endif
-.if ${MK_BINUTILS} != "no"
-NXBDIRS+=	gnu/usr.bin/binutils
-.endif
 # XXX: native-xtools passes along ${NXBDIRS} in SUBDIR_OVERRIDE that needs
 # to be evaluated after NXBDIRS is set.
 .if make(install) && !empty(SUBDIR_OVERRIDE)
@@ -2744,7 +2717,6 @@ native-xtools: .PHONY
 	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _includes MK_CLANG=no MK_GCC=no
 	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _libraries MK_CLANG=no MK_GCC=no
 	# Clean out improper TARGET=MACHINE files
-	${_+_}cd ${.CURDIR}/gnu/usr.bin/cc/cc_tools; ${NXBTMAKE} cleandir
 .if !defined(NO_OBJWALK)
 	${_+_}cd ${.CURDIR}; ${NXBMAKE} _obj
 .endif
@@ -3381,7 +3353,6 @@ _xb-worldtmp: .PHONY
 _xb-bootstrap-tools: .PHONY
 .for _tool in \
     ${_clang_tblgen} \
-    ${_gperf} \
     ${_yacc}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,all,install)"; \
 	cd ${.CURDIR}/${_tool}; \
@@ -3397,11 +3368,9 @@ _xb-build-tools: .PHONY
 XDEVDIRS= \
     ${_clang_libs} \
     ${_lld} \
-    ${_binutils} \
     ${_elftctools} \
     usr.bin/ar \
-    ${_clang} \
-    ${_gcc}
+    ${_clang}
 
 _xb-cross-tools: .PHONY
 .for _tool in ${XDEVDIRS}
