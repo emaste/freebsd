@@ -3,7 +3,6 @@
 #
 # Make command line options:
 #	-DNO_CLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
-#	-DNO_CLEAN do not clean at all
 #	-DDB_FROM_SRC use the user/group databases in src/etc instead of
 #	    the system database when installing.
 #	-DNO_SHARE do not go into share subdir
@@ -438,11 +437,11 @@ SUBDIR+=etc
 .endif	# !empty(SUBDIR_OVERRIDE)
 
 .if defined(NOCLEAN)
-.warning The src.conf WITHOUT_CLEAN option can now be used instead of NOCLEAN.
+.warning NOCLEAN option is deprecated. Use WITHOUT_CLEAN instead.
 MK_CLEAN:=	no
 .endif
 .if defined(NO_CLEAN)
-.info The src.conf WITHOUT_CLEAN option can now be used instead of NO_CLEAN.
+.warning NO_CLEAN option is deprecated. Use WITHOUT_CLEAN instead.
 MK_CLEAN:=	no
 .endif
 .if defined(NO_CLEANDIR)
