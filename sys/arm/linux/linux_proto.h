@@ -1214,7 +1214,7 @@ struct linux_process_vm_writev_args {
 	register_t dummy;
 };
 struct linux_set_tls_args {
-	char tls_l_[PADL_(void *)]; void * tls; char tls_r_[PADR_(void *)];
+	char tls_l_[PADL_(void*)]; void* tls; char tls_r_[PADR_(void*)];
 };
 #define	nosys	linux_nosys
 int	linux_exit(struct thread *, struct linux_exit_args *);
@@ -1534,6 +1534,13 @@ int	linux_set_tls(struct thread *, struct linux_set_tls_args *);
 #define	nosys	linux_nosys
 
 #endif /* COMPAT_FREEBSD11 */
+
+
+#ifdef COMPAT_FREEBSD12
+
+#define	nosys	linux_nosys
+
+#endif /* COMPAT_FREEBSD12 */
 
 #define	LINUX_SYS_AUE_linux_exit	AUE_EXIT
 #define	LINUX_SYS_AUE_linux_fork	AUE_FORK

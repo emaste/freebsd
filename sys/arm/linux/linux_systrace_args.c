@@ -975,7 +975,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* poll */
 	case 168: {
 		struct poll_args *p = params;
-		uarg[0] = (intptr_t) p->fds; /* struct pollfd * */
+		uarg[0] = (intptr_t) p->fds; /* struct pollfd* */
 		uarg[1] = p->nfds; /* unsigned int */
 		iarg[2] = p->timeout; /* long */
 		*n_args = 3;
@@ -2463,7 +2463,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* linux_set_tls */
 	case 405: {
 		struct linux_set_tls_args *p = params;
-		uarg[0] = (intptr_t) p->tls; /* void * */
+		uarg[0] = (intptr_t) p->tls; /* void* */
 		*n_args = 1;
 		break;
 	}
@@ -3956,7 +3956,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 168:
 		switch(ndx) {
 		case 0:
-			p = "userland struct pollfd *";
+			p = "userland struct pollfd*";
 			break;
 		case 1:
 			p = "unsigned int";
@@ -6260,7 +6260,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 405:
 		switch(ndx) {
 		case 0:
-			p = "userland void *";
+			p = "userland void*";
 			break;
 		default:
 			break;
