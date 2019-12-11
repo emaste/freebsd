@@ -1,0 +1,2 @@
+.\" $FreeBSD$
+Clean before building world and/or kernel.
