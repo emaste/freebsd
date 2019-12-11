@@ -80,6 +80,7 @@ __DEFAULT_YES_OPTIONS = \
     CCD \
     CDDL \
     CLANG \
+    CLEAN \
     CPP \
     CROSS_COMPILER \
     CRYPT \
