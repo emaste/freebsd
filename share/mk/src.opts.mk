@@ -81,6 +81,7 @@ __DEFAULT_YES_OPTIONS = \
     CLANG \
     CLANG_BOOTSTRAP \
     CLANG_IS_CC \
+    CLEAN \
     CPP \
     CROSS_COMPILER \
     CRYPT \
