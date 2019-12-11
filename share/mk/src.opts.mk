@@ -78,7 +78,6 @@ __DEFAULT_YES_OPTIONS = \
     CASPER \
     CCD \
     CDDL \
-    CLEAN \
     CPP \
     CROSS_COMPILER \
     CRYPT \
@@ -192,6 +191,7 @@ __DEFAULT_NO_OPTIONS = \
     BINUTILS \
     BINUTILS_BOOTSTRAP \
     CLANG_EXTRAS \
+    CLEAN \
     DTRACE_TESTS \
     EXPERIMENTAL \
     GCOV \
