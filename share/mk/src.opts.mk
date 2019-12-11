@@ -80,7 +80,6 @@ __DEFAULT_YES_OPTIONS = \
     CCD \
     CDDL \
     CLANG \
-    CLEAN \
     CPP \
     CROSS_COMPILER \
     CRYPT \
@@ -193,6 +192,7 @@ __DEFAULT_YES_OPTIONS = \
 __DEFAULT_NO_OPTIONS = \
     BEARSSL \
     CLANG_EXTRAS \
+    CLEAN \
     DTRACE_TESTS \
     EXPERIMENTAL \
     GDB \
