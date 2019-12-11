@@ -3,7 +3,6 @@
 #
 # Make command line options:
 #	-DNO_CLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
-#	-DNO_CLEAN do not clean at all
 #	-DDB_FROM_SRC use the user/group databases in src/etc instead of
 #	    the system database when installing.
 #	-DNO_SHARE do not go into share subdir
@@ -428,8 +427,12 @@ SUBDIR+=etc
 .endif	# !empty(SUBDIR_OVERRIDE)
 
 .if defined(NOCLEAN)
-.warning NOCLEAN option is deprecated. Use NO_CLEAN instead.
-NO_CLEAN=	${NOCLEAN}
+.warning NOCLEAN option is deprecated. Use WITHOUT_CLEAN instead.
+MK_CLEAN:=	no
+.endif
+.if defined(NO_CLEAN)
+.warning NO_CLEAN option is deprecated. Use WITHOUT_CLEAN instead.
+MK_CLEAN:=	no
 .endif
 .if defined(NO_CLEANDIR)
 CLEANDIR=	clean cleandepend
@@ -438,7 +441,7 @@ CLEANDIR=	cleandir
 .endif
 
 .if defined(WORLDFAST)
-NO_CLEAN=	t
+MK_CLEAN:=	no
 NO_OBJWALK=	t
 .endif
 
@@ -447,7 +450,7 @@ NO_OBJWALK=	t
 # The .meta files will also track the build command and rebuild should
 # it change.
 .if empty(.MAKE.MODE:Mnofilemon)
-NO_CLEAN=	t
+MK_CLEAN:=	no
 .endif
 .endif
 .if defined(NO_OBJWALK) || ${MK_AUTO_OBJ} == "yes"
@@ -789,7 +792,7 @@ _LIBCOMPAT= SOFT
 # timestamps (see NO_META_IGNORE_HOST in sys.mk).  There are known times
 # when the ABI breaks though that we want to force rebuilding WORLDTMP
 # to get updated host tools.
-.if ${MK_META_MODE} == "yes" && defined(NO_CLEAN) && \
+.if ${MK_META_MODE} == "yes" && ${MK_CLEAN} == "no" && \
     !defined(NO_META_IGNORE_HOST) && !defined(NO_META_IGNORE_HOST_HEADERS) && \
     !defined(_MKSHOWCONFIG)
 # r318736 - ino64 major ABI breakage
@@ -821,7 +824,7 @@ NO_META_IGNORE_HOST_HEADERS=	1
 .export NO_META_IGNORE_HOST_HEADERS
 .endif	# defined(_meta_mode_need_rebuild)
 .endif	# defined(OBJDIR_HOST_OSRELDATE)
-.endif	# ${MK_META_MODE} == "yes" && defined(NO_CLEAN) ...
+.endif	# ${MK_META_MODE} == "yes" && ${MK_CLEAN} == "no" ...
 # This is only used for META_MODE+filemon to track what the oldest
 # __FreeBSD_version is in WORLDTMP.  This purposely does NOT have
 # a make dependency on /usr/include/osreldate.h as the file should
@@ -959,7 +962,7 @@ _worldtmp: .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Rebuilding the temporary build tree"
 	@echo "--------------------------------------------------------------"
-.if !defined(NO_CLEAN)
+.if ${MK_CLEAN} == "yes"
 	rm -rf ${WORLDTMP}
 .else
 # Note: for delete-old we need to set $PATH to also include the host $PATH
@@ -984,7 +987,7 @@ _worldtmp: .PHONY
 .if ${USING_SYSTEM_LINKER} == "yes"
 	@rm -f ${WORLDTMP}/usr/bin/ld ${WORLDTMP}/usr/bin/ld.lld
 .endif	# ${USING_SYSTEM_LINKER} == "yes"
-.endif	# !defined(NO_CLEAN)
+.endif	# ${MK_CLEAN} == "yes"
 	@mkdir -p ${WORLDTMP}
 	@touch ${WORLDTMP}/${.TARGET}
 # We can't use mtree to create the worldtmp directories since it may not be
@@ -1022,7 +1025,7 @@ _bootstrap-tools:
 	${WORLDTMP_MTREE} -f ${.CURDIR}/${_mtree} -p ${WORLDTMP} > /dev/null
 .endfor
 _cleanobj:
-.if !defined(NO_CLEAN)
+.if ${MK_CLEAN} == "yes"
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.1: cleaning up the object tree"
@@ -1035,7 +1038,7 @@ _cleanobj:
 .endif
 .else
 	${_+_}cd ${.CURDIR}; ${WMAKE} _NO_INCLUDE_COMPILERMK=t _cleanobj_fast_depend_hack
-.endif	# !defined(NO_CLEAN)
+.endif	# ${MK_CLEAN} == "yes"
 _obj:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -1607,7 +1610,7 @@ buildkernel: .MAKE .PHONY
 			-I '${KERNCONFDIR}' -I '${KRNLCONFDIR}' \
 			'${KERNCONFDIR}/${_kernel}'
 .endif
-.if !defined(NO_CLEAN) && !defined(NO_KERNELCLEAN)
+.if ${MK_CLEAN} == "yes" && !defined(NO_KERNELCLEAN)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.1: cleaning up the object tree"
@@ -2366,7 +2369,7 @@ _jevents=lib/libpmc/pmu-events
 
 # kernel-toolchain skips _cleanobj, so handle cleaning up previous
 # build-tools directories if needed.
-.if !defined(NO_CLEAN) && make(kernel-toolchain)
+.if ${MK_CLEAN} == "yes" && make(kernel-toolchain)
 _bt_clean=	${CLEANDIR}
 .endif
 
