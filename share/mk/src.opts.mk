@@ -78,6 +78,7 @@ __DEFAULT_YES_OPTIONS = \
     CASPER \
     CCD \
     CDDL \
+    CLEAN \
     CPP \
     CROSS_COMPILER \
     CRYPT \
