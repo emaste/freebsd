@@ -1584,6 +1584,10 @@ vm_page_object_remove(vm_page_t m)
 	KASSERT((m->ref_count & VPRC_OBJREF) != 0,
 	    ("page %p is missing its object ref", m));
 
+	/* Deferred free of swap space. */
+	if ((m->a.flags & PGA_SWAP_FREE) != 0)
+		vm_pager_page_unswapped(m);
+
 	mrem = vm_radix_remove(&object->rtree, m->pindex);
 	KASSERT(mrem == m, ("removed page %p, expected page %p", mrem, m));
 
@@ -4333,15 +4337,18 @@ out:
 
 /*
  * Grab a page and make it valid, paging in if necessary.  Pages missing from
- * their pager are zero filled and validated.
+ * their pager are zero filled and validated.  If a VM_ALLOC_COUNT is supplied
+ * and the page is not valid as many as VM_INITIAL_PAGEIN pages can be brought
+ * in simultaneously.  Additional pages will be left on a paging queue but
+ * will neither be wired nor busy regardless of allocflags.
  */
 int
 vm_page_grab_valid(vm_page_t *mp, vm_object_t object, vm_pindex_t pindex, int allocflags)
 {
 	vm_page_t m;
+	vm_page_t ma[VM_INITIAL_PAGEIN];
 	bool sleep, xbusy;
-	int pflags;
-	int rv;
+	int after, i, pflags, rv;
 
 	KASSERT((allocflags & VM_ALLOC_SBUSY) == 0 ||
 	    (allocflags & VM_ALLOC_IGN_SBUSY) != 0,
@@ -4400,15 +4407,40 @@ retrylookup:
 
 	vm_page_assert_xbusied(m);
 	MPASS(xbusy);
-	if (vm_pager_has_page(object, pindex, NULL, NULL)) {
-		rv = vm_pager_get_pages(object, &m, 1, NULL, NULL);
+	if (vm_pager_has_page(object, pindex, NULL, &after)) {
+		after = MIN(after, VM_INITIAL_PAGEIN);
+		after = MIN(after, allocflags >> VM_ALLOC_COUNT_SHIFT);
+		after = MAX(after, 1);
+		ma[0] = m;
+		for (i = 1; i < after; i++) {
+			if ((ma[i] = vm_page_next(ma[i - 1])) != NULL) {
+				if (ma[i]->valid || !vm_page_tryxbusy(ma[i]))
+					break;
+			} else {
+				ma[i] = vm_page_alloc(object, m->pindex + i,
+				    VM_ALLOC_NORMAL);
+				if (ma[i] == NULL)
+					break;
+			}
+		}
+		after = i;
+		rv = vm_pager_get_pages(object, ma, after, NULL, NULL);
+		/* Pager may have replaced a page. */
+		m = ma[0];
 		if (rv != VM_PAGER_OK) {
-			if (allocflags & VM_ALLOC_WIRED)
+			if ((allocflags & VM_ALLOC_WIRED) != 0)
 				vm_page_unwire_noq(m);
-			vm_page_free(m);
+			for (i = 0; i < after; i++) {
+				if (!vm_page_wired(ma[i]))
+					vm_page_free(ma[i]);
+				else
+					vm_page_xunbusy(ma[i]);
+			}
 			*mp = NULL;
 			return (rv);
 		}
+		for (i = 1; i < after; i++)
+			vm_page_readahead_finish(ma[i]);
 		MPASS(vm_page_all_valid(m));
 	} else {
 		vm_page_zero_invalid(m, TRUE);
@@ -4605,6 +4637,62 @@ vm_page_bits_clear(vm_page_t m, vm_page_bits_t *bits, vm_page_bits_t clear)
 #endif		/* PAGE_SIZE */
 }
 
+static inline vm_page_bits_t
+vm_page_bits_swap(vm_page_t m, vm_page_bits_t *bits, vm_page_bits_t newbits)
+{
+#if PAGE_SIZE == 32768
+	uint64_t old;
+
+	old = *bits;
+	while (atomic_fcmpset_64(bits, &old, newbits) == 0);
+	return (old);
+#elif PAGE_SIZE == 16384
+	uint32_t old;
+
+	old = *bits;
+	while (atomic_fcmpset_32(bits, &old, newbits) == 0);
+	return (old);
+#elif (PAGE_SIZE == 8192) && defined(atomic_fcmpset_16)
+	uint16_t old;
+
+	old = *bits;
+	while (atomic_fcmpset_16(bits, &old, newbits) == 0);
+	return (old);
+#elif (PAGE_SIZE == 4096) && defined(atomic_fcmpset_8)
+	uint8_t old;
+
+	old = *bits;
+	while (atomic_fcmpset_8(bits, &old, newbits) == 0);
+	return (old);
+#else		/* PAGE_SIZE <= 4096*/
+	uintptr_t addr;
+	uint32_t old, new, mask;
+	int shift;
+
+	addr = (uintptr_t)bits;
+	/*
+	 * Use a trick to perform a 32-bit atomic on the
+	 * containing aligned word, to not depend on the existence
+	 * of atomic_{set, swap, clear}_{8, 16}.
+	 */
+	shift = addr & (sizeof(uint32_t) - 1);
+#if BYTE_ORDER == BIG_ENDIAN
+	shift = (sizeof(uint32_t) - sizeof(vm_page_bits_t) - shift) * NBBY;
+#else
+	shift *= NBBY;
+#endif
+	addr &= ~(sizeof(uint32_t) - 1);
+	mask = VM_PAGE_BITS_ALL << shift;
+
+	old = *bits;
+	do {
+		new = old & ~mask;
+		new |= newbits << shift;
+	} while (atomic_fcmpset_32((uint32_t *)addr, &old, new) == 0);
+	return (old >> shift);
+#endif		/* PAGE_SIZE */
+}
+
 /*
  *	vm_page_set_valid_range:
  *
@@ -4660,6 +4748,28 @@ vm_page_set_valid_range(vm_page_t m, int base, int size)
 		m->valid |= pagebits;
 	else
 		vm_page_bits_set(m, &m->valid, pagebits);
+}
+
+/*
+ * Set the page dirty bits and free the invalid swap space if
+ * present.  Returns the previous dirty bits.
+ */
+vm_page_bits_t
+vm_page_set_dirty(vm_page_t m)
+{
+	vm_page_bits_t old;
+
+	VM_PAGE_OBJECT_BUSY_ASSERT(m);
+
+	if (vm_page_xbusied(m) && !pmap_page_is_write_mapped(m)) {
+		old = m->dirty;
+		m->dirty = VM_PAGE_BITS_ALL;
+	} else
+		old = vm_page_bits_swap(m, &m->dirty, VM_PAGE_BITS_ALL);
+	if (old == 0 && (m->a.flags & PGA_SWAP_SPACE) != 0)
+		vm_pager_page_unswapped(m);
+
+	return (old);
 }
 
 /*

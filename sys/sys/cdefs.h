@@ -468,6 +468,14 @@
 #define	__hidden
 #endif
 
+#if __GNUC_PREREQ__(4, 5) || defined(__clang__)
+#define	__deprecated(m)	__attribute__((__deprecated__(m)))
+#elif defined(__GNUC__)
+#define	__deprecated(m)	__attribute__((__deprecated__))
+#else
+#define	__deprecated(m)
+#endif
+
 /*
  * We define this here since <stddef.h>, <sys/queue.h>, and <sys/types.h>
  * require it.
@@ -774,7 +782,8 @@
 #endif
 #endif /* __STDC_WANT_LIB_EXT1__ */
 
-#if defined(__mips) || defined(__powerpc64__) || defined(__riscv)
+#if defined(__mips) || defined(__riscv) || \
+    (defined(__powerpc64__) && (!defined(_CALL_ELF) || _CALL_ELF == 1))
 #define	__NO_TLS 1
 #endif
 
