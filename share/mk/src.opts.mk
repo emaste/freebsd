@@ -199,6 +199,7 @@ __DEFAULT_NO_OPTIONS = \
     GNU_DIFF \
     GNU_GREP \
     GNU_GREP_COMPAT \
+    GPL_DTC \
     HESIOD \
     HTTPD \
     LIBSOFT \
@@ -306,7 +307,7 @@ __DEFAULT_NO_OPTIONS+=LLVM_TARGET_BPF
 # build Clang without using an external compiler.
 
 __DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_IS_CC LLD
-__DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX GPL_DTC
+__DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
 # In-tree binutils/gcc are older versions without modern architecture support.
 .if ${__T} == "aarch64" || ${__T:Mriscv*} != ""
 BROKEN_OPTIONS+=BINUTILS BINUTILS_BOOTSTRAP GCC GCC_BOOTSTRAP GDB
