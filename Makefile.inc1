@@ -2795,7 +2795,6 @@ _prereq_libs+= gnu/lib/libssp/libssp_nonshared
 # all shared libraries for ELF.
 #
 _startup_libs=	lib/csu
-_startup_libs+=	lib/libcompiler_rt
 _startup_libs+=	lib/libc
 _startup_libs+=	lib/libc_nonshared
 .if ${MK_LIBCPLUSPLUS} != "no"
