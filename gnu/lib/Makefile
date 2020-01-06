@@ -7,7 +7,6 @@ SUBDIR.${MK_DIALOG}+=	libdialog
 .if ${MK_GCC} != "no" && ${MK_OPENMP} == "no"
 SUBDIR+=		libgomp
 .endif
-SUBDIR.${MK_SSP}+=	libssp
 SUBDIR.${MK_TESTS}+=	tests
 
 .if ${MK_GNU_GREP} != "no" || ${MK_GNU_GREP_COMPAT} != "no" || \

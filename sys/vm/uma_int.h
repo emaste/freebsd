@@ -166,13 +166,16 @@ struct uma_hash {
 };
 
 /*
- * align field or structure to cache line
+ * Align field or structure to cache 'sector' in intel terminology.  This
+ * is more efficient with adjacent line prefetch.
  */
 #if defined(__amd64__) || defined(__powerpc64__)
-#define UMA_ALIGN	__aligned(128)
+#define UMA_SUPER_ALIGN	(CACHE_LINE_SIZE * 2)
 #else
-#define UMA_ALIGN	__aligned(CACHE_LINE_SIZE)
+#define UMA_SUPER_ALIGN	CACHE_LINE_SIZE
 #endif
+
+#define	UMA_ALIGN	__aligned(UMA_SUPER_ALIGN)
 
 /*
  * The uma_bucket structure is used to queue and manage buckets divorced
@@ -305,7 +308,7 @@ typedef struct uma_keg	* uma_keg_t;
 
 #ifdef _KERNEL
 #define	KEG_ASSERT_COLD(k)						\
-	KASSERT((k)->uk_domain[0].ud_pages == 0,			\
+	KASSERT(uma_keg_get_allocs((k)) == 0,				\
 	    ("keg %s initialization after use.", (k)->uk_name))
 
 /*
@@ -497,8 +500,9 @@ struct uma_zone {
     "\33CACHE"				\
     "\32LIMIT"				\
     "\31CTORDTOR"			\
-    "\22MINBUCKET"			\
-    "\21NUMA"				\
+    "\23ROUNDROBIN"			\
+    "\22FIRSTTOUCH"			\
+    "\21MINBUCKET"			\
     "\20PCPU"				\
     "\17NODUMP"				\
     "\16VTOSLAB"			\
@@ -528,10 +532,10 @@ struct uma_zone {
 #define	UZ_ITEMS_SLEEPER	(1LL << UZ_ITEMS_SLEEPER_SHIFT)
 
 #define	ZONE_ASSERT_COLD(z)						\
-	KASSERT((z)->uz_bkt_count == 0,					\
+	KASSERT(uma_zone_get_allocs((z)) == 0,				\
 	    ("zone %s initialization after use.", (z)->uz_name))
 
-#undef UMA_ALIGN
+#undef	UMA_ALIGN
 
 #ifdef _KERNEL
 /* Internal prototypes */

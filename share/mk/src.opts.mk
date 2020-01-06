@@ -102,6 +102,7 @@ __DEFAULT_YES_OPTIONS = \
     FREEBSD_UPDATE \
     FTP \
     GAMES \
+    GOOGLETEST \
     GPIO \
     HAST \
     HTML \
@@ -194,6 +195,9 @@ __DEFAULT_NO_OPTIONS = \
     CLEAN \
     DTRACE_TESTS \
     EXPERIMENTAL \
+    GCC \
+    GCC_BOOTSTRAP \
+    GNUCXX \
     GCOV \
     GDB \
     GNU_DIFF \
@@ -263,15 +267,6 @@ __TT=${TARGET}
 __TT=${MACHINE}
 .endif
 
-# Default GOOGLETEST to off for MIPS while LLVM PR 43263 is active.  Part
-# of the fusefs tests trigger excessively long compile times.  It does
-# eventually succeed, but this shouldn't be forced on those building by default.
-.if ${__TT} == "mips"
-__DEFAULT_NO_OPTIONS+=	GOOGLETEST
-.else
-__DEFAULT_YES_OPTIONS+=	GOOGLETEST
-.endif
-
 # All supported backends for LLVM_TARGET_XXX
 __LLVM_TARGETS= \
 		aarch64 \
@@ -298,12 +293,8 @@ __DEFAULT_DEPENDENT_OPTIONS+=	LLVM_TARGET_${__llt:${__LLVM_TARGET_FILT}:tu}/LLVM
 __DEFAULT_NO_OPTIONS+=LLVM_TARGET_BPF
 
 .include <bsd.compiler.mk>
-# If the compiler is not C++11 capable, disable Clang and use GCC instead.
-# This means that architectures that have GCC 4.2 as default can not
-# build Clang without using an external compiler.
 
 __DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_IS_CC LLD
-__DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
 # In-tree binutils/gcc are older versions without modern architecture support.
 .if ${__T} == "aarch64" || ${__T:Mriscv*} != ""
 BROKEN_OPTIONS+=BINUTILS BINUTILS_BOOTSTRAP GCC GCC_BOOTSTRAP GDB
@@ -456,6 +447,10 @@ MK_BSDINSTALL:=	no
 
 .if ${MK_FILE} == "no"
 MK_SVNLITE:=	no
+.endif
+
+.if (${__TT} == "mips" || ${__TT} == "sparc64") && ${MK_GCC} == "no"
+MK_BINUTILS_BOOTSTRAP:=	no
 .endif
 
 .if ${MK_MAIL} == "no"
