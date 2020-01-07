@@ -139,7 +139,7 @@ static int	v_inval_buf_range_locked(struct vnode *vp, struct bufobj *bo,
  * Number of vnodes in existence.  Increased whenever getnewvnode()
  * allocates a new vnode, decreased in vdropl() for VIRF_DOOMED vnode.
  */
-static unsigned long	numvnodes;
+static u_long __exclusive_cache_line numvnodes;
 
 SYSCTL_ULONG(_vfs, OID_AUTO, numvnodes, CTLFLAG_RD, &numvnodes, 0,
     "Number of vnodes in existence");
@@ -227,7 +227,7 @@ static struct mtx mntid_mtx;
  *	numvnodes
  *	freevnodes
  */
-static struct mtx vnode_free_list_mtx;
+static struct mtx __exclusive_cache_line vnode_free_list_mtx;
 
 /* Publicly exported FS */
 struct nfs_public nfs_pub;
@@ -458,6 +458,28 @@ PCTRIE_DEFINE(BUF, buf, b_lblkno, buf_trie_alloc, buf_trie_free);
 #ifndef	MAXVNODES_MAX
 #define	MAXVNODES_MAX	(512 * 1024 * 1024 / 64)	/* 8M */
 #endif
+
+static MALLOC_DEFINE(M_VNODE_MARKER, "vnodemarker", "vnode marker");
+
+static struct vnode *
+vn_alloc_marker(struct mount *mp)
+{
+	struct vnode *vp;
+
+	vp = malloc(sizeof(struct vnode), M_VNODE_MARKER, M_WAITOK | M_ZERO);
+	vp->v_type = VMARKER;
+	vp->v_mount = mp;
+
+	return (vp);
+}
+
+static void
+vn_free_marker(struct vnode *vp)
+{
+
+	MPASS(vp->v_type == VMARKER);
+	free(vp, M_VNODE_MARKER);
+}
 
 /*
  * Initialize a vnode as it first enters the zone.
@@ -1189,16 +1211,19 @@ vnlru_free(int count, struct vfsops *mnt_op)
 static int
 vspace(void)
 {
+	u_long rnumvnodes, rfreevnodes;
 	int space;
 
 	gapvnodes = imax(desiredvnodes - wantfreevnodes, 100);
 	vhiwat = gapvnodes / 11; /* 9% -- just under the 10% in vlrureclaim() */
 	vlowat = vhiwat / 2;
-	if (numvnodes > desiredvnodes)
+	rnumvnodes = atomic_load_long(&numvnodes);
+	rfreevnodes = atomic_load_long(&freevnodes);
+	if (rnumvnodes > desiredvnodes)
 		return (0);
-	space = desiredvnodes - numvnodes;
+	space = desiredvnodes - rnumvnodes;
 	if (freevnodes > wantfreevnodes)
-		space += freevnodes - wantfreevnodes;
+		space += rfreevnodes - wantfreevnodes;
 	return (space);
 }
 
@@ -1270,6 +1295,7 @@ static int vnlruproc_sig;
 static void
 vnlru_proc(void)
 {
+	u_long rnumvnodes, rfreevnodes;
 	struct mount *mp, *nmp;
 	unsigned long onumvnodes;
 	int done, force, trigger, usevnodes, vsp;
@@ -1282,13 +1308,14 @@ vnlru_proc(void)
 	for (;;) {
 		kproc_suspend_check(vnlruproc);
 		mtx_lock(&vnode_free_list_mtx);
+		rnumvnodes = atomic_load_long(&numvnodes);
 		/*
 		 * If numvnodes is too large (due to desiredvnodes being
 		 * adjusted using its sysctl, or emergency growth), first
 		 * try to reduce it by discarding from the free list.
 		 */
-		if (numvnodes > desiredvnodes)
-			vnlru_free_locked(numvnodes - desiredvnodes, NULL);
+		if (rnumvnodes > desiredvnodes)
+			vnlru_free_locked(rnumvnodes - desiredvnodes, NULL);
 		/*
 		 * Sleep if the vnode cache is in a good state.  This is
 		 * when it is not over-full and has space for about a 4%
@@ -1310,7 +1337,10 @@ vnlru_proc(void)
 		}
 		mtx_unlock(&vnode_free_list_mtx);
 		done = 0;
-		onumvnodes = numvnodes;
+		rnumvnodes = atomic_load_long(&numvnodes);
+		rfreevnodes = atomic_load_long(&freevnodes);
+
+		onumvnodes = rnumvnodes;
 		/*
 		 * Calculate parameters for recycling.  These are the same
 		 * throughout the loop to give some semblance of fairness.
@@ -1318,10 +1348,10 @@ vnlru_proc(void)
 		 * of resident pages.  We aren't trying to free memory; we
 		 * are trying to recycle or at least free vnodes.
 		 */
-		if (numvnodes <= desiredvnodes)
-			usevnodes = numvnodes - freevnodes;
+		if (rnumvnodes <= desiredvnodes)
+			usevnodes = rnumvnodes - rfreevnodes;
 		else
-			usevnodes = numvnodes;
+			usevnodes = rnumvnodes;
 		if (usevnodes <= 0)
 			usevnodes = 1;
 		/*
@@ -1494,14 +1524,17 @@ getnewvnode_wait(int suspended)
 void
 getnewvnode_reserve(u_int count)
 {
+	u_long rnumvnodes, rfreevnodes;
 	struct thread *td;
 
 	/* Pre-adjust like the pre-adjust in getnewvnode(), with any count. */
 	/* XXX no longer so quick, but this part is not racy. */
 	mtx_lock(&vnode_free_list_mtx);
-	if (numvnodes + count > desiredvnodes && freevnodes > wantfreevnodes)
-		vnlru_free_locked(ulmin(numvnodes + count - desiredvnodes,
-		    freevnodes - wantfreevnodes), NULL);
+	rnumvnodes = atomic_load_long(&numvnodes);
+	rfreevnodes = atomic_load_long(&freevnodes);
+	if (rnumvnodes + count > desiredvnodes && rfreevnodes > wantfreevnodes)
+		vnlru_free_locked(ulmin(rnumvnodes + count - desiredvnodes,
+		    rfreevnodes - wantfreevnodes), NULL);
 	mtx_unlock(&vnode_free_list_mtx);
 
 	td = curthread;
@@ -1635,7 +1668,6 @@ alloc:
 	KASSERT(vp->v_lockf == NULL, ("stale v_lockf %p", vp));
 	KASSERT(vp->v_pollinfo == NULL, ("stale v_pollinfo %p", vp));
 	vp->v_type = VNON;
-	vp->v_tag = tag;
 	vp->v_op = vops;
 	v_init_counters(vp);
 	vp->v_bufobj.bo_ops = &buf_ops_bio;
@@ -3657,7 +3689,7 @@ vgonel(struct vnode *vp)
 	if (mp != NULL)
 		vn_finished_secondary_write(mp);
 	VNASSERT(vp->v_object == NULL, vp,
-	    ("vop_reclaim left v_object vp=%p, tag=%s", vp, vp->v_tag));
+	    ("vop_reclaim left v_object vp=%p", vp));
 	/*
 	 * Clear the advisory locks and wake up waiting threads.
 	 */
@@ -3675,7 +3707,6 @@ vgonel(struct vnode *vp)
 	VI_LOCK(vp);
 	vp->v_vnlock = &vp->v_lock;
 	vp->v_op = &dead_vnodeops;
-	vp->v_tag = "none";
 	vp->v_type = VBAD;
 }
 
@@ -3711,7 +3742,7 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 	vprintf(fmt, ap);
 	va_end(ap);
 	printf("%p: ", (void *)vp);
-	printf("tag %s, type %s\n", vp->v_tag, typename[vp->v_type]);
+	printf("type %s\n", typename[vp->v_type]);
 	printf("    usecount %d, writecount %d, refcount %d",
 	    vp->v_usecount, vp->v_writecount, vp->v_holdcnt);
 	switch (vp->v_type) {
@@ -5785,7 +5816,6 @@ vfs_cache_root_set(struct mount *mp, struct vnode *vp)
  * This interface replaces MNT_VNODE_FOREACH.
  */
 
-MALLOC_DEFINE(M_VNODE_MARKER, "vnodemarker", "vnode marker");
 
 struct vnode *
 __mnt_vnode_next_all(struct vnode **mvp, struct mount *mp)
@@ -5825,11 +5855,9 @@ __mnt_vnode_first_all(struct vnode **mvp, struct mount *mp)
 {
 	struct vnode *vp;
 
-	*mvp = malloc(sizeof(struct vnode), M_VNODE_MARKER, M_WAITOK | M_ZERO);
+	*mvp = vn_alloc_marker(mp);
 	MNT_ILOCK(mp);
 	MNT_REF(mp);
-	(*mvp)->v_mount = mp;
-	(*mvp)->v_type = VMARKER;
 
 	TAILQ_FOREACH(vp, &mp->mnt_nvnodelist, v_nmntvnodes) {
 		/* Allow a racy peek at VIRF_DOOMED to save a lock acquisition. */
@@ -5845,7 +5873,7 @@ __mnt_vnode_first_all(struct vnode **mvp, struct mount *mp)
 	if (vp == NULL) {
 		MNT_REL(mp);
 		MNT_IUNLOCK(mp);
-		free(*mvp, M_VNODE_MARKER);
+		vn_free_marker(*mvp);
 		*mvp = NULL;
 		return (NULL);
 	}
@@ -5869,7 +5897,7 @@ __mnt_vnode_markerfree_all(struct vnode **mvp, struct mount *mp)
 	TAILQ_REMOVE(&mp->mnt_nvnodelist, *mvp, v_nmntvnodes);
 	MNT_REL(mp);
 	MNT_IUNLOCK(mp);
-	free(*mvp, M_VNODE_MARKER);
+	vn_free_marker(*mvp);
 	*mvp = NULL;
 }
 
@@ -5886,7 +5914,7 @@ mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *mp)
 	MNT_ILOCK(mp);
 	MNT_REL(mp);
 	MNT_IUNLOCK(mp);
-	free(*mvp, M_VNODE_MARKER);
+	vn_free_marker(*mvp);
 	*mvp = NULL;
 }
 
@@ -6029,12 +6057,10 @@ __mnt_vnode_first_active(struct vnode **mvp, struct mount *mp)
 {
 	struct vnode *vp;
 
-	*mvp = malloc(sizeof(struct vnode), M_VNODE_MARKER, M_WAITOK | M_ZERO);
+	*mvp = vn_alloc_marker(mp);
 	MNT_ILOCK(mp);
 	MNT_REF(mp);
 	MNT_IUNLOCK(mp);
-	(*mvp)->v_type = VMARKER;
-	(*mvp)->v_mount = mp;
 
 	mtx_lock(&mp->mnt_listmtx);
 	vp = TAILQ_FIRST(&mp->mnt_activevnodelist);
