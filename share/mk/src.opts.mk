@@ -127,7 +127,6 @@ __DEFAULT_YES_OPTIONS = \
     LIBPTHREAD \
     LIBTHR \
     LLVM_COV \
-    LLVM_LIBUNWIND \
     LLVM_TARGET_ALL \
     LOADER_GELI \
     LOADER_LUA \
@@ -388,11 +387,6 @@ BROKEN_OPTIONS+=HYPERV
 BROKEN_OPTIONS+=NVME
 .endif
 
-.if ${__T:Msparc64}
-# PR 233405
-BROKEN_OPTIONS+=LLVM_LIBUNWIND
-.endif
-
 .if ${COMPILER_FEATURES:Mc++11} && \
     (${__T} == "amd64" || ${__T} == "i386" || ${__T} == "powerpc64")
 __DEFAULT_YES_OPTIONS+=OPENMP
@@ -430,7 +424,6 @@ MK_${var}:=	no
 #
 .if !${COMPILER_FEATURES:Mc++11}
 MK_GOOGLETEST:=	no
-MK_LLVM_LIBUNWIND:=	no
 .endif
 
 .if ${MK_CAPSICUM} == "no"
