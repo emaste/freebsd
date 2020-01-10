@@ -1,6 +1,7 @@
 /*-
- * Copyright (c) 2014 Andrew Turner <andrew@FreeBSD.org>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2019 Vincenzo Maffione <vmaffione@freebsd.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -11,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,37 +27,21 @@
  * $FreeBSD$
  */
 
-#ifndef FDT_PLATFORM_H
-#define FDT_PLATFORM_H
+#ifndef _DEBUG_H_
+#define _DEBUG_H_
 
-struct fdt_header;
 
-struct fdt_mem_region {
-	unsigned long	start;
-	unsigned long	size;
-};
+extern int raw_stdio;
 
-#define	TMP_MAX_ETH	8
+#define FPRINTLN(filep, fmt, arg...)				\
+	do {							\
+		if (raw_stdio)					\
+			fprintf(filep, fmt "\r\n", ##arg);	\
+		else						\
+			fprintf(filep, fmt "\n", ##arg);	\
+	} while (0)
 
-int fdt_copy(vm_offset_t);
-void fdt_fixup_cpubusfreqs(unsigned long, unsigned long);
-void fdt_fixup_ethernet(const char *, char *, int);
-void fdt_fixup_memory(struct fdt_mem_region *, size_t);
-void fdt_fixup_stdout(const char *);
-int fdt_apply_overlays(void);
-int fdt_pad_dtb(size_t);
-int fdt_load_dtb_addr(struct fdt_header *);
-int fdt_load_dtb_file(const char *);
-void fdt_load_dtb_overlays(const char *);
-int fdt_setup_fdtp(void);
-int fdt_is_setup(void);
+#define PRINTLN(fmt, arg...)	FPRINTLN(stdout, fmt, ##arg)
+#define EPRINTLN(fmt, arg...)	FPRINTLN(stderr, fmt, ##arg)
 
-/* The platform library needs to implement these functions */
-int fdt_platform_load_dtb(void);
-void fdt_platform_load_overlays(void);
-void fdt_platform_fixups(void);
-
-/* Devmatch/pnp function */
-const char *fdt_devmatch_next(int *tag, int *compatlen);
-
-#endif /* FDT_PLATFORM_H */
+#endif

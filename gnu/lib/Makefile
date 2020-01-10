@@ -14,10 +14,6 @@ SUBDIR.${MK_TESTS}+=	tests
 SUBDIR+=		libregex
 .endif
 
-.if ${MK_LLVM_LIBUNWIND} == "no"
-SUBDIR+=		libgcc
-.endif
-
 # libsupc++ uses libstdc++ headers, although 'make includes' should
 # have taken care of that already.
 .if ${MK_GNUCXX} != "no"

@@ -326,7 +326,6 @@ static struct fileops cryptofops = {
 
 static struct csession *csefind(struct fcrypt *, u_int);
 static bool csedelete(struct fcrypt *, u_int);
-static void cseadd(struct fcrypt *, struct csession *);
 static struct csession *csecreate(struct fcrypt *, crypto_session_t, caddr_t,
     u_int64_t, caddr_t, u_int64_t, u_int32_t, u_int32_t, struct enc_xform *,
     struct auth_hash *);
@@ -586,8 +585,8 @@ cryptof_ioctl(
 		if (thash) {
 			cria.cri_alg = thash->type;
 			cria.cri_klen = sop->mackeylen * 8;
-			if (thash->keysize != 0 &&
-			    sop->mackeylen > thash->keysize) {
+			if (sop->mackeylen > thash->keysize ||
+			    sop->mackeylen < 0) {
 				CRYPTDEB("invalid mac key length");
 				error = EINVAL;
 				SDT_PROBE1(opencrypto, dev, ioctl, error,
@@ -1473,24 +1472,6 @@ csefree(struct csession *cse)
 }
 
 static int
-cryptoopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
-{
-	return (0);
-}
-
-static int
-cryptoread(struct cdev *dev, struct uio *uio, int ioflag)
-{
-	return (EIO);
-}
-
-static int
-cryptowrite(struct cdev *dev, struct uio *uio, int ioflag)
-{
-	return (EIO);
-}
-
-static int
 cryptoioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct file *f;
@@ -1499,20 +1480,21 @@ cryptoioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread 
 
 	switch (cmd) {
 	case CRIOGET:
+		error = falloc_noinstall(td, &f);
+		if (error)
+			break;
+
 		fcr = malloc(sizeof(struct fcrypt), M_XDATA, M_WAITOK | M_ZERO);
 		TAILQ_INIT(&fcr->csessions);
 		mtx_init(&fcr->lock, "fcrypt", NULL, MTX_DEF);
 
-		error = falloc(td, &f, &fd, 0);
-
+		finit(f, FREAD | FWRITE, DTYPE_CRYPTO, fcr, &cryptofops);
+		error = finstall(td, f, &fd, 0, NULL);
 		if (error) {
 			mtx_destroy(&fcr->lock);
 			free(fcr, M_XDATA);
-			return (error);
-		}
-		/* falloc automatically provides an extra reference to 'f'. */
-		finit(f, FREAD | FWRITE, DTYPE_CRYPTO, fcr, &cryptofops);
-		*(u_int32_t *)data = fd;
+		} else
+			*(uint32_t *)data = fd;
 		fdrop(f, td);
 		break;
 	case CRIOFINDDEV:
@@ -1530,10 +1512,6 @@ cryptoioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread 
 
 static struct cdevsw crypto_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
-	.d_open =	cryptoopen,
-	.d_read =	cryptoread,
-	.d_write =	cryptowrite,
 	.d_ioctl =	cryptoioctl,
 	.d_name =	"crypto",
 };
