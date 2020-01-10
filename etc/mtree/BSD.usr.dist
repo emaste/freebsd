@@ -164,6 +164,10 @@
     local
     ..
     obj             nochange
+        usr
+            home    mode=01777
+            ..
+        ..
     ..
     sbin
     ..
