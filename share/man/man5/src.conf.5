@@ -396,9 +396,6 @@ Do not install links to the Clang C/C++ compiler as
 .Pa /usr/bin/c++
 and
 .Pa /usr/bin/cpp .
-If
-.Va WITH_GCC
-is set then links to the GCC C/C++ compiler will be installed instead.
 .Pp
 This is a default setting on
 mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf and sparc64/sparc64.
@@ -436,8 +433,6 @@ When set, it enforces these options:
 .Va WITHOUT_CLANG_BOOTSTRAP
 .It
 .Va WITHOUT_ELFTOOLCHAIN_BOOTSTRAP
-.It
-.Va WITHOUT_GCC_BOOTSTRAP
 .It
 .Va WITHOUT_LLD_BOOTSTRAP
 .El
@@ -509,8 +504,6 @@ When set, it enforces these options:
 .Va WITHOUT_CLANG_FULL
 .It
 .Va WITHOUT_DTRACE_TESTS
-.It
-.Va WITHOUT_GNUCXX
 .It
 .Va WITHOUT_GOOGLETEST
 .It
@@ -714,14 +707,6 @@ and
 .Xr ftpd 8 .
 .It Va WITHOUT_GAMES
 Set to not build games.
-.It Va WITH_GCC
-Set to build and install gcc and g++.
-This option is deprecated and will be removed before
-.Fx 13 .
-.It Va WITH_GCC_BOOTSTRAP
-Set to build gcc and g++ as part of the bootstrap process.
-This option is deprecated and will be removed before
-.Fx 13 .
 .It Va WITHOUT_GCOV
 Set to not build the
 .Xr gcov 1
@@ -759,10 +744,6 @@ if a newer version is not installed.
 .Pp
 This is a default setting on
 amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf, powerpc/powerpc, powerpc/powerpc64, riscv/riscv64 and riscv/riscv64sf.
-.It Va WITH_GNUCXX
-Build the GNU C++ stack (g++, libstdc++).
-This option is deprecated and will be removed before
-.Fx 13 .
 .It Va WITHOUT_GNU_DIFF
 Set to not build GNU
 .Xr diff 1
@@ -784,9 +765,6 @@ and dependent tests.
 Set to not build
 .Xr gpioctl 8
 as part of the base system.
-.It Va WITH_GPL_DTC
-Set to build the GPL'd version of the device tree compiler from elinux.org,
-instead of the BSD licensed one.
 .It Va WITHOUT_GSSAPI
 Set to not build libgssapi.
 .It Va WITHOUT_HAST
@@ -1032,16 +1010,6 @@ sparc64/sparc64.
 Set to build the
 .Xr llvm-cov 1
 tool.
-.Pp
-This is a default setting on
-amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf, powerpc/powerpc, powerpc/powerpc64, riscv/riscv64 and riscv/riscv64sf.
-.It Va WITHOUT_LLVM_LIBUNWIND
-Set to use GCC's stack unwinder (instead of LLVM's libunwind).
-.Pp
-This is a default setting on
-sparc64/sparc64.
-.It Va WITH_LLVM_LIBUNWIND
-Set to use LLVM's libunwind stack unwinder (instead of GCC's unwinder).
 .Pp
 This is a default setting on
 amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf, powerpc/powerpc, powerpc/powerpc64, riscv/riscv64 and riscv/riscv64sf.
@@ -1675,9 +1643,7 @@ This does not prevent a compiler from being built for installation though,
 only for building one for the build itself.
 The
 .Va WITHOUT_CLANG
-and
-.Va WITHOUT_GCC
-options control those.
+option controls that.
 .It Va WITHOUT_SYSTEM_LINKER
 Set to not opportunistically skip building a cross-linker during the
 bootstrap phase of the build.
@@ -1771,8 +1737,6 @@ When set, it enforces these options:
 .Va WITHOUT_CLANG_EXTRAS
 .It
 .Va WITHOUT_CLANG_FULL
-.It
-.Va WITHOUT_GCC
 .It
 .Va WITHOUT_GDB
 .It
