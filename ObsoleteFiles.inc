@@ -36,6 +36,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20200115: objdump disconnected
+OLD_FILES+=usr/bin/objdump
+OLD_FILES+=usr/share/man/man1/objdump.1.gz
+
 # 20200204: simple_httpd removed
 OLD_FILES+=usr/sbin/simple_httpd
 
