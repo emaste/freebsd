@@ -77,6 +77,8 @@ ACPI_MODULE_NAME("IBM")
 #define ACPI_IBM_METHOD_HANDLEREVENTS	14
 #define ACPI_IBM_METHOD_MIC_LED		15
 #define ACPI_IBM_METHOD_PRIVACYGUARD	16
+#define ACPI_IBM_METHOD_BAT0_CHRG_START	17 /* XXX conflict */
+#define ACPI_IBM_METHOD_BAT0_CHRG_STOP	18 /* XXX conflict */
 
 /* Hotkeys/Buttons */
 #define IBM_RTC_HOTKEY1			0x64
@@ -153,6 +155,9 @@ ACPI_MODULE_NAME("IBM")
 /* Device-specific register flags */
 #define IBM_FLAG_PRIVACYGUARD_DEVICE_PRESENT	0x10000
 #define IBM_FLAG_PRIVACYGUARD_ON	0x1
+/* Batteries */
+#define IBM_BAT_PRIMARY			1
+
 
 #define ABS(x) (((x) < 0)? -(x) : (x))
 
@@ -281,6 +286,16 @@ static struct {
 		.name		= "privacyguard",
 		.method		= ACPI_IBM_METHOD_PRIVACYGUARD,
 		.description	= "PrivacyGuard enable",
+	},
+	{
+		.name		= "bat0_charge_start",
+		.method		= ACPI_IBM_METHOD_BAT0_CHRG_START,
+		.description	= "Primary battery charge threshold",
+	},
+	{
+		.name		= "bat0_charge_stop",
+		.method		= ACPI_IBM_METHOD_BAT0_CHRG_STOP,
+		.description	= "Primary battery charge stop threshold",
 	},
 	{ NULL, 0, NULL, 0 }
 };
@@ -436,6 +451,73 @@ acpi_ibm_mic_led_set(struct acpi_ibm_softc *sc, int arg)
 		return (status);
 	}
 
+	return (0);
+}
+
+/*
+ * Evaluate an object with one integer parameter that returns one integer.
+ * If result is NULL, the return value is discarded.
+ */
+static ACPI_STATUS
+acpi_EvalIntToInt(ACPI_HANDLE handle, char *path, UINT32 param, UINT32 *result)
+{
+	ACPI_STATUS status;
+	ACPI_OBJECT_LIST params;
+	ACPI_OBJECT pbuf[1];
+	ACPI_BUFFER results;
+	ACPI_OBJECT rbuf[1];
+
+	params.Count = 1;
+	params.Pointer = pbuf;
+	pbuf[0].Type = ACPI_TYPE_INTEGER;
+	pbuf[0].Integer.Value = param;
+
+	if (result != NULL) {
+		results.Length = sizeof(rbuf);
+		results.Pointer = rbuf;
+		status = AcpiEvaluateObject(handle, path, &params, &results);
+		if (ACPI_SUCCESS(status)) {
+			if (rbuf[0].Type == ACPI_TYPE_INTEGER)
+				*result = rbuf[0].Integer.Value;
+			else
+				status = AE_TYPE;
+		}
+	} else {
+		status = AcpiEvaluateObject(handle, path, &params, NULL);
+	}
+	return (status);
+}
+
+/*
+ * Get battery charge start (BCTG) and stop (BCSG) thresholds.
+ */
+static int
+acpi_ibm_bat_get(ACPI_HANDLE handle, char *path, int bat)
+{
+	int val;
+	if (ACPI_FAILURE(acpi_EvalIntToInt(handle, path, bat & 0x3, &val)))
+		return -2; /* failed to eval object */
+	if (val & (1 << 31))
+		return -3; /* got error flag */
+	if (!(val & (1 << 8)))
+		return -4; /* not supported */
+	return val & 0xff;
+}
+
+/*
+ * Set battery charge start (BCCS) and stop (BCSS) thresholds.
+ */
+static int
+acpi_ibm_bat_set(ACPI_HANDLE handle, char *path, int bat, int arg)
+{
+	ACPI_STATUS status;
+	int val;
+	if (arg < 0 || arg > 99)
+		return (EINVAL);
+	status = acpi_EvalIntToInt(handle, path,
+	    (bat & 0x3) << 8 | (arg & 0xff), &val);
+	if (ACPI_FAILURE(status) || val & 0x8000)
+		return (-1);
 	return (0);
 }
 
@@ -856,6 +938,12 @@ acpi_ibm_sysctl_get(struct acpi_ibm_softc *sc, int method)
 	case ACPI_IBM_METHOD_PRIVACYGUARD:
 		val = acpi_ibm_privacyguard_get(sc);
 		break;
+	case ACPI_IBM_METHOD_BAT0_CHRG_START:
+		return acpi_ibm_bat_get(sc->handle, "BCTG", IBM_BAT_PRIMARY);
+
+	case ACPI_IBM_METHOD_BAT0_CHRG_STOP:
+		return acpi_ibm_bat_get(sc->handle, "BCSG", IBM_BAT_PRIMARY);
+
 	}
 
 	return (val);
@@ -949,6 +1037,14 @@ acpi_ibm_sysctl_set(struct acpi_ibm_softc *sc, int method, int arg)
 				(arg == 1) ? (val_ec | IBM_EC_MASK_FANSTATUS) : (val_ec & (~IBM_EC_MASK_FANSTATUS)), 1);
 		}
 		break;
+
+	case ACPI_IBM_METHOD_BAT0_CHRG_START:
+		return acpi_ibm_bat_set(sc->handle, "BCCS", IBM_BAT_PRIMARY,
+		    arg);
+
+	case ACPI_IBM_METHOD_BAT0_CHRG_STOP:
+		return acpi_ibm_bat_set(sc->handle, "BCSS", IBM_BAT_PRIMARY,
+		    arg);
 	}
 
 	return (0);
@@ -1056,6 +1152,13 @@ acpi_ibm_sysctl_init(struct acpi_ibm_softc *sc, int method)
 
 	case ACPI_IBM_METHOD_PRIVACYGUARD:
 		return (acpi_ibm_privacyguard_get(sc) != -1);
+	case ACPI_IBM_METHOD_BAT0_CHRG_START:
+		if (acpi_ibm_bat_get(sc->handle, "BCTG", IBM_BAT_PRIMARY) >= 0)
+			return (TRUE);
+
+	case ACPI_IBM_METHOD_BAT0_CHRG_STOP:
+		if (acpi_ibm_bat_get(sc->handle, "BCSG", IBM_BAT_PRIMARY) >= 0)
+			return (TRUE);
 	}
 	return (FALSE);
 }
