@@ -345,6 +345,28 @@ Built-in battery
 .It
 UltraBay battery
 .El
+.It Va dev.acpi_ibm.0.bat0_charge_start
+Primary battery charge below which charging starts.
+.Pp
+.Bl -tag -width indent-two -compact
+.It Li 0
+Use battery firmware's default setting
+.It Li 1-99
+Threshold in percent
+.It Li -4
+Not supported
+.El
+.It Va dev.acpi_ibm.0.bat0_charge_stop
+Primary battery charge above which charging stops.
+.Pp
+.Bl -tag -width indent-two -compact
+.It Li 0
+Use battery firmware's default setting
+.It Li 1-99
+Threshold in percent
+.It Li -4
+Not supported
+.El
 .It Va dev.acpi_ibm.0.handlerevents
 .Xr devd 8
 events handled by
