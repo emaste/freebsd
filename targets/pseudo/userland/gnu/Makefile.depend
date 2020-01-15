@@ -33,8 +33,4 @@ DIRDEPS = \
 	gnu/usr.bin/grep \
 	gnu/usr.bin/grep/doc \
 
-.if ${MK_GPL_DTC} != "no"
-DIRDEPS+= gnu/usr.bin/dtc
-.endif
-
 .include <dirdeps.mk>
