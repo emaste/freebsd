@@ -1,8 +1,6 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
- * Copyright (c) 1988, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2018 Instituto de Pesquisas Eldorado
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -12,14 +10,13 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * 3. Neither the name of the author nor the names of its contributors may
+ *    be used to endorse or promote products derived from this software
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -27,30 +24,38 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)strcpy.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-#include <string.h>
-
-#ifdef WEAK_STRCPY
-__weak_reference(__strcpy, strcpy);
+#ifndef FN_NAME
+#define FN_NAME		__bcopy_vsx
 #endif
 
-char *
-#ifdef WEAK_STRCPY
-__strcpy
-#else
-strcpy
-#endif
-(char * __restrict to, const char * __restrict from)
-{
-	char *save = to;
+/*
+ * r3: dst
+ * r4: src
+ * r5: block increment
+ * r6: blocks to copy
+ * r7/r8/r9/r10: 16-byte offsets to copy
+ */
 
-	for (; (*to = *from); ++from, ++to);
-	return(save);
-}
+#define FN_PHASE2 \
+	mtctr	%r6			;\
+	.align 5			;\
+.Lphase2_loop:				;\
+	lxvd2x  %vs6, %r7,  %r4		;\
+	lxvd2x  %vs7, %r8,  %r4		;\
+	lxvd2x  %vs8, %r9,  %r4		;\
+	lxvd2x  %vs9, %r10, %r4		;\
+	stxvd2x %vs6, %r7,  %r3		;\
+	stxvd2x %vs7, %r8,  %r3		;\
+	stxvd2x %vs8, %r9,  %r3		;\
+	stxvd2x %vs9, %r10, %r3		;\
+	/* phase 2 increment */		;\
+	add	%r4, %r4, %r5		;\
+	add	%r3, %r3, %r5		;\
+					 \
+	bdnz	.Lphase2_loop		;\
+
+#include "bcopy.S"
