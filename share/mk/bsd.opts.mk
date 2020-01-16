@@ -63,7 +63,6 @@ __DEFAULT_YES_OPTIONS = \
     NIS \
     NLS \
     OPENSSH \
-    PROFILE \
     RETPOLINE \
     SSP \
     TESTS \
@@ -76,6 +75,7 @@ __DEFAULT_NO_OPTIONS = \
     CTF \
     INIT_ALL_PATTERN \
     INSTALL_AS_USER \
+    PROFILE \
     STALE_STAGED
 
 __DEFAULT_DEPENDENT_OPTIONS = \
