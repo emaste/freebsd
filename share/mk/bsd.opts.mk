@@ -63,7 +63,6 @@ __DEFAULT_YES_OPTIONS = \
     NLS \
     OPENSSH \
     PIE \
-    PROFILE \
     RETPOLINE \
     SSP \
     SYMVER \
@@ -75,6 +74,7 @@ __DEFAULT_NO_OPTIONS = \
     CCACHE_BUILD \
     CTF \
     INSTALL_AS_USER \
+    PROFILE \
     STALE_STAGED
 
 __DEFAULT_DEPENDENT_OPTIONS = \
