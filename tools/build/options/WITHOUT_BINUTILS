@@ -5,4 +5,3 @@ and
 .Xr objdump 1
 as part
 of the normal system build.
-The resulting system cannot build programs from source.

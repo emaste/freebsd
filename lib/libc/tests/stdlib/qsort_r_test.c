@@ -1,14 +1,7 @@
 /*-
- * Copyright (c) 2016-2020 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (C) 2020 Edward Tomasz Napierala <trasz@FreeBSD.org>
+ * Copyright (C) 2004 Maxim Sobolev <sobomax@FreeBSD.org>
  * All rights reserved.
- *
- * Portions of this software were developed by SRI International and the
- * University of Cambridge Computer Laboratory under DARPA/AFRL contract
- * FA8750-10-C-0237 ("CTSRD"), as part of the DARPA CRASH research programme.
- *
- * Portions of this software were developed by the University of Cambridge
- * Computer Laboratory as part of the CTSRD Project, with support from the
- * UK Higher Education Innovation Fund (HEIF).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,54 +25,68 @@
  * SUCH DAMAGE.
  */
 
-#include <machine/asm.h>
+/*
+ * Test for qsort_r(3) routine.
+ */
 
+#include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-ENTRY(generic_bs_r_1)
-	add	a3, a1, a2
-	lbu	a0, 0(a3)
-	ret
-END(generic_bs_r_1)
+#include <stdio.h>
+#include <stdlib.h>
 
-ENTRY(generic_bs_r_2)
-	add	a3, a1, a2
-	lhu	a0, 0(a3)
-	ret
-END(generic_bs_r_2)
+#include "test-sort.h"
 
-ENTRY(generic_bs_r_4)
-	add	a3, a1, a2
-	lw	a0, 0(a3)
-	ret
-END(generic_bs_r_4)
+#define	THUNK 42
 
-ENTRY(generic_bs_r_8)
-	add	a3, a1, a2
-	ld	a0, 0(a3)
-	ret
-END(generic_bs_r_8)
+static int
+sorthelp_r(void *thunk, const void *a, const void *b)
+{
+	const int *oa, *ob;
 
-ENTRY(generic_bs_w_1)
-	add	a4, a1, a2
-	sb	a3, 0(a4)
-	ret
-END(generic_bs_w_1)
+	ATF_REQUIRE_EQ(*(int *)thunk, THUNK);
 
-ENTRY(generic_bs_w_2)
-	add	a4, a1, a2
-	sh	a3, 0(a4)
-	ret
-END(generic_bs_w_2)
+	oa = a;
+	ob = b;
+	/* Don't use "return *oa - *ob" since it's easy to cause overflow! */
+	if (*oa > *ob)
+		return (1);
+	if (*oa < *ob)
+		return (-1);
+	return (0);
+}
 
-ENTRY(generic_bs_w_4)
-	add	a4, a1, a2
-	sw	a3, 0(a4)
-	ret
-END(generic_bs_w_4)
+ATF_TC_WITHOUT_HEAD(qsort_r_test);
+ATF_TC_BODY(qsort_r_test, tc)
+{
+	int testvector[IVEC_LEN];
+	int sresvector[IVEC_LEN];
+	int i, j;
+	int thunk = THUNK;
 
-ENTRY(generic_bs_w_8)
-	add	a4, a1, a2
-	sd	a3, 0(a4)
-	ret
-END(generic_bs_w_8)
+	for (j = 2; j < IVEC_LEN; j++) {
+		/* Populate test vectors */
+		for (i = 0; i < j; i++)
+			testvector[i] = sresvector[i] = initvector[i];
+
+		/* Sort using qsort_r(3) */
+		qsort_r(testvector, j, sizeof(testvector[0]), &thunk,
+		    sorthelp_r);
+		/* Sort using reference slow sorting routine */
+		ssort(sresvector, j);
+
+		/* Compare results */
+		for (i = 0; i < j; i++)
+			ATF_CHECK_MSG(testvector[i] == sresvector[i],
+			    "item at index %d didn't match: %d != %d",
+			    i, testvector[i], sresvector[i]);
+	}
+}
+
+ATF_TP_ADD_TCS(tp)
+{
+
+	ATF_TP_ADD_TC(tp, qsort_r_test);
+
+	return (atf_no_error());
+}

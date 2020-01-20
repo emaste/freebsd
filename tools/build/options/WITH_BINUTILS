@@ -1,7 +1,7 @@
 .\" $FreeBSD$
-Set to build and install GNU
+Build and install GNU
 .Xr as 1
-and, on powerpc,
+on i386 and amd64,
+and
 .Xr ld.bfd 1
-as part
-of the normal system build.
+on powerpc as part of the normal system build.
