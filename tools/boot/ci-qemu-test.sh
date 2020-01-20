@@ -39,6 +39,9 @@ tempdir_setup()
 REPOS_DIR=[]
 repositories={local {url = file://$objdir/repo/\${ABI}/latest}}
 EOF
+	abi=$(pkg -o ABI_FILE=$objdir/amd64.amd64/bin/sh/sh config ABI)
+	echo ABI=$abi
+	ls $objdir/repo/$abi/
 	ASSUME_ALWAYS_YES=true INSTALL_AS_USER=true pkg \
 	    -o ABI_FILE=$objdir/amd64.amd64/bin/sh/sh \
 	    -C ${ROOTDIR}/pkg.conf -r ${ROOTDIR} install \
