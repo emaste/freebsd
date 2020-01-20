@@ -33,24 +33,15 @@ tempdir_setup()
 	done
 
 	# Install kernel, loader and minimal userland.
-
-	make -DNO_ROOT DESTDIR=${ROOTDIR} \
-	    MODULES_OVERRIDE= \
-	    WITHOUT_DEBUG_FILES=yes \
-	    WITHOUT_KERNEL_SYMBOLS=yes \
-	    installkernel
-	for dir in stand \
-	    lib/libc lib/libedit lib/ncurses \
-	    libexec/rtld-elf \
-	    bin/sh sbin/init sbin/shutdown sbin/sysctl; do
-		make -DNO_ROOT DESTDIR=${ROOTDIR} INSTALL="install -U" \
-		    WITHOUT_DEBUG_FILES= \
-		    WITHOUT_MAN= \
-		    WITHOUT_PROFILE= \
-		    WITHOUT_TESTS= \
-		    WITHOUT_TOOLCHAIN= \
-		    -C ${dir} install
-	done
+	cat<<EOF >${ROOTDIR}/pkg.conf
+REPOS_DIR=[]
+repositories={local {url = file://$(dirname $OBJTOP)/repo/\${ABI}/latest}}
+EOF
+	ASSUME_ALWAYS_YES=true INSTALL_AS_USER=true pkg \
+	    -o ABI_FILE=$OBJTOP/bin/sh/sh \
+	    -C ${ROOTDIR}/pkg.conf -r ${ROOTDIR} install \
+	    FreeBSD-kernel-generic FreeBSD-bootloader \
+	    FreeBSD-clibs FreeBSD-runtime
 
 	# Put loader in standard EFI location.
 	mv ${ROOTDIR}/boot/loader.efi ${ROOTDIR}/efi/boot/BOOTx64.EFI
@@ -80,6 +71,10 @@ EOF
 : ${SRCTOP:=$(make -V SRCTOP)}
 if [ -z "${SRCTOP}" ]; then
 	die "Cannot locate top of source tree"
+fi
+: ${OBJTOP:=$(make -V OBJTOP)}
+if [ -z "${OBJTOP}" ]; then
+	die "Cannot locate top of object tree"
 fi
 
 # Locate the uefi firmware file used by qemu.
