@@ -12,7 +12,7 @@ task:
   timeout_in: 90m
   install_script:
   - pkg install -fy pkg-devel
-  - pkg info pkg
+  - pkg info pkg-devel
   - pkg install -y qemu-devel uefi-edk2-qemu-x86_64
   script:
   - make -j$(sysctl -n hw.ncpu) WITHOUT_TOOLCHAIN=yes buildworld buildkernel
