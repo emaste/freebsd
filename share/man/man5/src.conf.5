@@ -180,9 +180,9 @@ flag set to indicate that the run-time loader should perform all relocation
 processing at process startup rather than on demand.
 .It Va WITHOUT_BINUTILS
 Do not build or install GNU
-.Xr as 1 ,
-.Xr ld.bfd 1 , and
-.Xr objdump 1
+.Xr as 1
+and
+.Xr ld.bfd 1
 as part
 of the normal system build.
 .Pp
@@ -191,8 +191,7 @@ arm64/aarch64, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITH_BINUTILS
 Build and install GNU
 .Xr as 1
-on i386 and amd64,
-.Xr objdump 1 ,
+on i386 and amd64
 and
 .Xr ld.bfd 1
 on powerpc as part of the normal system build.
@@ -200,7 +199,7 @@ on powerpc as part of the normal system build.
 This is a default setting on
 amd64/amd64, arm/armv6, arm/armv7, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf, powerpc/powerpc, powerpc/powerpc64 and sparc64/sparc64.
 .It Va WITHOUT_BINUTILS_BOOTSTRAP
-Do not build binutils (as, ld.bfd, and objdump)
+Do not build binutils (as and ld.bfd)
 as part of the bootstrap process.
 .Pp
 This is a default setting on
