@@ -11,6 +11,7 @@ env:
 task:
   timeout_in: 90m
   install_script:
+  - pkg install -y pkg-devel
   - pkg info pkg
   - pkg install -y qemu-devel uefi-edk2-qemu-x86_64
   script:
