@@ -36,6 +36,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 2020xxxx: rmt removed
+OLD_FILES+=usr/sbin/rmt
+OLD_FILES+=usr/share/man/man8/rmt.8.gz
 # 20200104: gcc libssp removed
 OLD_FILES+=usr/include/ssp/ssp.h
 OLD_FILES+=usr/include/ssp/stdio.h
