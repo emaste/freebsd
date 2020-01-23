@@ -68,7 +68,6 @@ SUBDIR=	adduser \
 	pwm \
 	quot \
 	rarpd \
-	rmt \
 	rpcbind \
 	rpc.lockd \
 	rpc.statd \
