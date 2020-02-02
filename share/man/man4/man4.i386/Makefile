@@ -2,7 +2,6 @@
 
 MAN=	apm.4 \
 	CPU_ELAN.4 \
-	ctau.4 \
 	glxiic.4 \
 	glxsb.4 \
 	longrun.4 \
