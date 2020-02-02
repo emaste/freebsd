@@ -373,7 +373,6 @@ SUBDIR=	\
 	${_vmd} \
 	${_vmm} \
 	${_vmware} \
-	${_vpo} \
 	vr \
 	vte \
 	${_wbwd} \
@@ -559,7 +558,6 @@ _hwpmc_mips74k=	hwpmc_mips74k
 	${MACHINE_CPUARCH} != "mips" && ${MACHINE_CPUARCH} != "powerpc" && \
 	${MACHINE_CPUARCH} != "riscv"
 _syscons=	syscons
-_vpo=		vpo
 .endif
 
 .if ${MACHINE_CPUARCH} != "mips"
@@ -729,7 +727,7 @@ _vmm=		vmm
 _3dfx=		3dfx
 _3dfx_linux=	3dfx_linux
 _apm=		apm
-.if ${MK_SOURCELESS_UCODE} != "no"
+.if ${MK_SOURCELESS_HOST} != "no"
 _ce=		ce
 .endif
 .if ${MK_SOURCELESS_UCODE} != "no"

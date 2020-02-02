@@ -39,6 +39,11 @@
 # 2020xxxx: rmt removed
 OLD_FILES+=usr/sbin/rmt
 OLD_FILES+=usr/share/man/man8/rmt.8.gz
+
+# 20200127: vpo removed
+OLD_FILES+=usr/share/man/man4/imm.4.gz
+OLD_FILES+=usr/share/man/man4/vpo.4.gz
+
 # 20200104: gcc libssp removed
 OLD_FILES+=usr/include/ssp/ssp.h
 OLD_FILES+=usr/include/ssp/stdio.h
