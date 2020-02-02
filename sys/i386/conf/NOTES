@@ -494,9 +494,6 @@ device		cpufreq
 
 # bxe:  Broadcom NetXtreme II (BCM5771X/BCM578XX) PCIe 10Gb Ethernet
 #       adapters.
-# ce:   Cronyx Tau-PCI/32 sync single/dual port G.703/E1 serial adaptor
-#       with 32 HDLC subchannels (requires sppp (default), or NETGRAPH if
-#       NETGRAPH_CRONYX is configured)
 # cp:   Cronyx Tau-PCI sync single/dual/four port
 #       V.35/RS-232/RS-530/RS-449/X.21/G.703/E1/E3/T3/STS-1
 #       serial adaptor (requires sppp (default), or NETGRAPH if
@@ -519,7 +516,6 @@ device		cpufreq
 # Order for ISA/EISA devices is important here
 
 device          bxe             # Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
-device		ce
 device		cp
 hint.cs.0.at="isa"
 hint.cs.0.port="0x300"
