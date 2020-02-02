@@ -83,7 +83,6 @@ SUBDIR=	\
 	${_ccp} \
 	cd9660 \
 	cd9660_iconv \
-	${_ce} \
 	${_cfi} \
 	${_chromebook_platform} \
 	${_ciss} \
@@ -744,9 +743,6 @@ _vmm=		vmm
 _3dfx=		3dfx
 _3dfx_linux=	3dfx_linux
 _apm=		apm
-.if ${MK_SOURCELESS_HOST} != "no"
-_ce=		ce
-.endif
 .if ${MK_SOURCELESS_UCODE} != "no"
 _cp=		cp
 .endif
