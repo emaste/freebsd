@@ -12,9 +12,8 @@ task:
   timeout_in: 90m
   install_script:
   - pkg install -y qemu-devel uefi-edk2-qemu-x86_64
+  - rm -f /usr/bin/as /usr/local/bin/as
   script:
-  - make -j$(sysctl -n hw.ncpu) WITHOUT_TOOLCHAIN=yes buildworld buildkernel
+  - make -j$(sysctl -n hw.ncpu) WITHOUT_TOOLCHAIN=yes TARGET=i386 buildworld buildkernel
   package_script:
-  - make WITHOUT_TOOLCHAIN=yes PKG_FORMAT=tar packages
-  test_script:
-  - sh tools/boot/ci-qemu-test.sh
+  - make WITHOUT_TOOLCHAIN=yes TARGET=i386 PKG_FORMAT=tar packages

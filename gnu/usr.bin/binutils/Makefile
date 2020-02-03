@@ -13,7 +13,7 @@ SUBDIR.${MK_BINUTILS}+=	objdump
 # GNU as is used on x86 only, for a few files that cannot be assembled by
 # Clang IAS. Other archs either use Clang IAS for every assembly file, or
 # use external toolchain.
-.if ${TARGET} == "amd64" || ${TARGET} == "i386"
+.if ${TARGET} == "amd64"
 SUBDIR.${MK_BINUTILS}+=	as
 .endif
 
