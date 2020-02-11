@@ -2889,19 +2889,12 @@ vget_finish(struct vnode *vp, int flags, enum vgetstate vs)
 {
 	int error, old;
 
-	VNASSERT((flags & LK_TYPE_MASK) != 0, vp,
-	    ("%s: invalid lock operation", __func__));
-
 	if ((flags & LK_INTERLOCK) != 0)
 		ASSERT_VI_LOCKED(vp, __func__);
 	else
 		ASSERT_VI_UNLOCKED(vp, __func__);
-	VNASSERT(vp->v_holdcnt > 0, vp, ("%s: vnode not held", __func__));
-	if (vs == VGET_USECOUNT) {
-		VNASSERT(vp->v_usecount > 0, vp,
-		    ("%s: vnode without usecount when VGET_USECOUNT was passed",
-		    __func__));
-	}
+	VNPASS(vp->v_holdcnt > 0, vp);
+	VNPASS(vs == VGET_HOLDCNT || vp->v_usecount > 0, vp);
 
 	error = vn_lock(vp, flags);
 	if (__predict_false(error != 0)) {
@@ -2914,9 +2907,8 @@ vget_finish(struct vnode *vp, int flags, enum vgetstate vs)
 		return (error);
 	}
 
-	if (vs == VGET_USECOUNT) {
+	if (vs == VGET_USECOUNT)
 		return (0);
-	}
 
 	if (__predict_false(vp->v_type == VCHR))
 		return (vget_finish_vchr(vp));
@@ -3178,6 +3170,7 @@ static void
 vputx(struct vnode *vp, enum vputx_op func)
 {
 	int error;
+	bool want_unlock;
 
 	KASSERT(vp != NULL, ("vputx: null vp"));
 	if (func == VPUTX_VUNREF)
@@ -3199,12 +3192,22 @@ vputx(struct vnode *vp, enum vputx_op func)
 	 * count which provides liveness of the vnode, in which case we
 	 * have to vdrop.
 	 */
-	if (!refcount_release(&vp->v_usecount)) {
-		if (func == VPUTX_VPUT)
-			VOP_UNLOCK(vp);
-		return;
+	if (__predict_false(vp->v_type == VCHR && func == VPUTX_VRELE)) {
+		if (refcount_release_if_not_last(&vp->v_usecount))
+			return;
+		VI_LOCK(vp);
+		if (!refcount_release(&vp->v_usecount)) {
+			VI_UNLOCK(vp);
+			return;
+		}
+	} else {
+		if (!refcount_release(&vp->v_usecount)) {
+			if (func == VPUTX_VPUT)
+				VOP_UNLOCK(vp);
+			return;
+		}
+		VI_LOCK(vp);
 	}
-	VI_LOCK(vp);
 	v_decr_devcount(vp);
 	/*
 	 * By the time we got here someone else might have transitioned
@@ -3229,13 +3232,31 @@ vputx(struct vnode *vp, enum vputx_op func)
 	 * as VI_DOINGINACT to avoid recursion.
 	 */
 	vp->v_iflag |= VI_OWEINACT;
+	want_unlock = false;
+	error = 0;
 	switch (func) {
 	case VPUTX_VRELE:
-		error = vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK);
-		VI_LOCK(vp);
+		switch (VOP_ISLOCKED(vp)) {
+		case LK_EXCLUSIVE:
+			break;
+		case LK_EXCLOTHER:
+		case 0:
+			want_unlock = true;
+			error = vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK);
+			VI_LOCK(vp);
+			break;
+		default:
+			/*
+			 * The lock has at least one sharer, but we have no way
+			 * to conclude whether this is us. Play it safe and
+			 * defer processing.
+			 */
+			error = EAGAIN;
+			break;
+		}
 		break;
 	case VPUTX_VPUT:
-		error = 0;
+		want_unlock = true;
 		if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
 			error = VOP_LOCK(vp, LK_UPGRADE | LK_INTERLOCK |
 			    LK_NOWAIT);
@@ -3243,7 +3264,6 @@ vputx(struct vnode *vp, enum vputx_op func)
 		}
 		break;
 	case VPUTX_VUNREF:
-		error = 0;
 		if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
 			error = VOP_LOCK(vp, LK_TRYUPGRADE | LK_INTERLOCK);
 			VI_LOCK(vp);
@@ -3252,7 +3272,7 @@ vputx(struct vnode *vp, enum vputx_op func)
 	}
 	if (error == 0) {
 		vinactive(vp);
-		if (func != VPUTX_VUNREF)
+		if (want_unlock)
 			VOP_UNLOCK(vp);
 		vdropl(vp);
 	} else {
@@ -6244,7 +6264,13 @@ mnt_vnode_next_lazy_relock(struct vnode *mvp, struct mount *mp,
 	TAILQ_REMOVE(&mp->mnt_lazyvnodelist, mvp, v_lazylist);
 	TAILQ_INSERT_BEFORE(vp, mvp, v_lazylist);
 
-	vholdnz(vp);
+	/*
+	 * Note we may be racing against vdrop which transitioned the hold
+	 * count to 0 and now waits for the ->mnt_listmtx lock. This is fine,
+	 * if we are the only user after we get the interlock we will just
+	 * vdrop.
+	 */
+	vhold(vp);
 	mtx_unlock(&mp->mnt_listmtx);
 	VI_LOCK(vp);
 	if (VN_IS_DOOMED(vp)) {
@@ -6253,8 +6279,7 @@ mnt_vnode_next_lazy_relock(struct vnode *mvp, struct mount *mp,
 	}
 	VNPASS(vp->v_mflag & VMP_LAZYLIST, vp);
 	/*
-	 * Since we had a period with no locks held we may be the last
-	 * remaining user, in which case there is nothing to do.
+	 * There is nothing to do if we are the last user.
 	 */
 	if (!refcount_release_if_not_last(&vp->v_holdcnt))
 		goto out_lost;
