@@ -432,11 +432,6 @@ An invalid value was passed in the
 .Fa prot
 argument.
 .It Bq Er EINVAL
-The
-.Fa prot
-argument contains permissions which are not a subset of the specified
-maximum permissions.
-.It Bq Er EINVAL
 An undefined option was set in the
 .Fa flags
 argument.
@@ -530,6 +525,11 @@ was specified and the
 argument was not available.
 .Dv MAP_ANON
 was specified and insufficient memory was available.
+.It Bq Er ENOTSUP
+The
+.Fa prot
+argument contains permissions which are not a subset of the specified
+maximum permissions.
 .El
 .Sh SEE ALSO
 .Xr madvise 2 ,
