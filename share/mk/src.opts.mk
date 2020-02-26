@@ -199,6 +199,7 @@ __DEFAULT_NO_OPTIONS = \
     GCC_BOOTSTRAP \
     GCOV \
     GDB \
+    GDB_LIBEXEC \
     GNU_DIFF \
     GNU_GREP \
     GNU_GREP_COMPAT \
@@ -273,9 +274,8 @@ __LLVM_TARGETS= \
 		mips \
 		powerpc \
 		riscv \
-		sparc \
 		x86
-__LLVM_TARGET_FILT=	C/(amd64|i386)/x86/:S/sparc64/sparc/:S/arm64/aarch64/:S/powerpc64/powerpc/
+__LLVM_TARGET_FILT=	C/(amd64|i386)/x86/:S/arm64/aarch64/:S/powerpc64/powerpc/
 .for __llt in ${__LLVM_TARGETS}
 # Default enable the given TARGET's LLVM_TARGET support
 .if ${__TT:${__LLVM_TARGET_FILT}} == ${__llt}
@@ -288,6 +288,8 @@ __DEFAULT_DEPENDENT_OPTIONS+=	LLVM_TARGET_ARM/LLVM_TARGET_AARCH64
 __DEFAULT_DEPENDENT_OPTIONS+=	LLVM_TARGET_${__llt:${__LLVM_TARGET_FILT}:tu}/LLVM_TARGET_ALL
 .endif
 .endfor
+# until we can unwind clang + sparc
+MK_LLVM_TARGET_SPARC:=no
 
 __DEFAULT_NO_OPTIONS+=LLVM_TARGET_BPF
 
@@ -312,13 +314,6 @@ __DEFAULT_YES_OPTIONS+=LLDB
 .else
 __DEFAULT_NO_OPTIONS+=LLDB
 .endif
-# GDB in base is generally less functional than GDB in ports.  Ports GDB
-# sparc64 kernel support has not been tested.
-.if ${__T} == "sparc64"
-__DEFAULT_NO_OPTIONS+=GDB_LIBEXEC
-.else
-__DEFAULT_YES_OPTIONS+=GDB_LIBEXEC
-.endif
 # LIB32 is supported on amd64, mips64, and powerpc64
 .if (${__T} == "amd64" || ${__T:Mmips64*} || ${__T} == "powerpc64")
 __DEFAULT_YES_OPTIONS+=LIB32
@@ -337,23 +332,23 @@ BROKEN_OPTIONS+=LIBSOFT
 # marked no longer broken with the switch to LLVM.
 BROKEN_OPTIONS+=GOOGLETEST SSP
 .endif
-# EFI doesn't exist on mips, powerpc, sparc or riscv.
-.if ${__T:Mmips*} || ${__T:Mpowerpc*} || ${__T:Msparc64} || ${__T:Mriscv*}
+# EFI doesn't exist on mips, powerpc, or riscv.
+.if ${__T:Mmips*} || ${__T:Mpowerpc*} || ${__T:Mriscv*}
 BROKEN_OPTIONS+=EFI
 .endif
-# OFW is only for powerpc and sparc64, exclude others
-.if ${__T:Mpowerpc*} == "" && ${__T:Msparc64} == ""
+# OFW is only for powerpc, exclude others
+.if ${__T:Mpowerpc*} == ""
 BROKEN_OPTIONS+=LOADER_OFW
 .endif
 # UBOOT is only for arm, mips and powerpc, exclude others
 .if ${__T:Marm*} == "" && ${__T:Mmips*} == "" && ${__T:Mpowerpc*} == ""
 BROKEN_OPTIONS+=LOADER_UBOOT
 .endif
-# GELI and Lua in loader currently cause boot failures on sparc64 and powerpc.
+# GELI and Lua in loader currently cause boot failures on powerpc.
 # Further debugging is required -- probably they are just broken on big
 # endian systems generically (they jump to null pointers or try to read
 # crazy high addresses, which is typical of endianness problems).
-.if ${__T} == "sparc64" || ${__T:Mpowerpc*}
+.if ${__T:Mpowerpc*}
 BROKEN_OPTIONS+=LOADER_GELI LOADER_LUA
 .endif
 
@@ -362,7 +357,7 @@ BROKEN_OPTIONS+=LOADER_GELI LOADER_LUA
 BROKEN_OPTIONS+=PROFILE
 .endif
 .if ${__T} != "aarch64" && ${__T} != "amd64" && ${__T} != "i386" && \
-    ${__T} != "powerpc64" && ${__T} != "sparc64"
+    ${__T} != "powerpc64"
 BROKEN_OPTIONS+=CXGBETOOL
 BROKEN_OPTIONS+=MLX5TOOL
 .endif
@@ -457,10 +452,6 @@ MK_BSDINSTALL:=	no
 
 .if ${MK_FILE} == "no"
 MK_SVNLITE:=	no
-.endif
-
-.if (${__TT} == "mips" || ${__TT} == "sparc64") && ${MK_GCC} == "no"
-MK_BINUTILS_BOOTSTRAP:=	no
 .endif
 
 .if ${MK_MAIL} == "no"
