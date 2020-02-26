@@ -107,6 +107,10 @@ SYSCTL_INT(_vm, OID_AUTO, mincore_mapped, CTLFLAG_RWTUN, &mincore_mapped, 0,
 static int imply_prot_max = 0;
 SYSCTL_INT(_vm, OID_AUTO, imply_prot_max, CTLFLAG_RWTUN, &imply_prot_max, 0,
     "Imply maximum page permissions in mmap() when none are specified");
+static int allow_wxorx = 1;
+SYSCTL_INT(_vm, OID_AUTO, allow_wxorx, CTLFLAG_RWTUN, &allow_wxorx, 0,
+    "Allow W^X mappings");
+
 
 #ifdef MAP_32BIT
 #define	MAP_32BIT_MAX_ADDR	((vm_offset_t)1 << 31)
@@ -225,6 +229,9 @@ kern_mmap_fpcheck(struct thread *td, uintptr_t addr0, size_t len, int prot,
 	max_prot = PROT_MAX_EXTRACT(prot);
 	prot = PROT_EXTRACT(prot);
 	if (max_prot != 0 && (max_prot & prot) != prot)
+		return (ENOTSUP);
+	if ((prot & (PROT_WRITE | PROT_EXEC)) == (PROT_WRITE | PROT_EXEC) &&
+	    allow_wxorx == 0)
 		return (ENOTSUP);
 
 	p = td->td_proc;
@@ -665,6 +672,9 @@ kern_mprotect(struct thread *td, uintptr_t addr0, size_t size, int prot)
 	if (addr + size < addr)
 		return (EINVAL);
 
+	if ((prot & (PROT_WRITE | PROT_EXEC)) == (PROT_WRITE | PROT_EXEC) &&
+	    allow_wxorx == 0)
+		return (ENOTSUP);
 	vm_error = KERN_SUCCESS;
 	if (max_prot != 0) {
 		if ((max_prot & prot) != prot)
