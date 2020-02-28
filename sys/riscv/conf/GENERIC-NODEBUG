@@ -1,6 +1,6 @@
 #
 # GENERIC-NODEBUG -- WITNESS and INVARIANTS free kernel configuration file
-#		     for FreeBSD/amd64
+#		     for FreeBSD/riscv
 #
 # This configuration file removes several debugging options, including
 # WITNESS and INVARIANTS checking, which are known to have significant
