@@ -2399,7 +2399,6 @@ dev/mmc/mmcbr_if.m		standard
 dev/mmc/mmcbus_if.m		standard
 dev/mmc/mmcsd.c			optional mmcsd !mmccam
 dev/mmcnull/mmcnull.c		optional mmcnull
-dev/mn/if_mn.c			optional mn pci
 dev/mpr/mpr.c			optional mpr
 dev/mpr/mpr_config.c		optional mpr
 # XXX Work around clang warning, until maintainer approves fix.
