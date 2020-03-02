@@ -1394,6 +1394,7 @@ mn_attach (device_t self)
 	default:
 		printf(" Rev 0x%x\n", sc->f54r->vstr);
 	}
+	gone_in_dev(dev, 13, "sync serial (T1/E1) drivers");
 
 	if (ng_make_node_common(&mntypestruct, &sc->node) != 0) {
 		printf("ng_make_node_common failed\n");
