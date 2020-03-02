@@ -2161,11 +2161,13 @@ OLD_FILES+=usr/share/man/man8/unstr.8.gz
 .endif
 
 .if ${MK_LLVM_COV} == no && !defined(WITH_PORT_BASE_GCC)
-.if ${MK_LLVM_COV} == no
 OLD_FILES+=usr/bin/gcov
+OLD_FILES+=usr/share/man/man1/gcov.1.gz
+.endif
+
+.if ${MK_LLVM_COV} == no
 OLD_FILES+=usr/bin/llvm-cov
 OLD_FILES+=usr/bin/llvm-profdata
-OLD_FILES+=usr/share/man/man1/gcov.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-cov.1.gz
 .endif
 
