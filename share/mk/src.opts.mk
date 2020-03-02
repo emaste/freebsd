@@ -126,6 +126,8 @@ __DEFAULT_YES_OPTIONS = \
     LIBPTHREAD \
     LIBTHR \
     LLD \
+    LLD_BOOTSTRAP \
+    LLD_IS_LD \
     LLVM_COV \
     LLVM_TARGET_ALL \
     LOADER_GELI \
@@ -306,7 +308,6 @@ __DEFAULT_NO_OPTIONS+=BINUTILS_BOOTSTRAP
 .if ${__T:Mriscv*} != ""
 BROKEN_OPTIONS+=OFED
 .endif
-__DEFAULT_YES_OPTIONS+=LLD_BOOTSTRAP LLD_IS_LD
 .if ${__T} == "aarch64" || ${__T} == "amd64" || ${__T} == "i386"
 __DEFAULT_YES_OPTIONS+=LLDB
 .else
