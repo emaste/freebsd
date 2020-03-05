@@ -912,6 +912,49 @@ _libelf_cvt_GNUHASH64_tof(unsigned char *dst, size_t dsz, unsigned char *src,
 	return (1);
 }
 
+static void
+_libelf_swap_words(unsigned char *dst, const unsigned char *src,
+    size_t len)
+{
+	uint32_t val;
+
+	for (; len >= 4; len -= 4) {
+		READ_WORD(src, val);
+		SWAP_WORD(val);
+		WRITE_WORD(dst, val);
+	}
+	if (len > 0) {
+		/* XXX just copy the remainder */
+		memcpy(dst, src, len);
+	}
+}
+
+static void
+_libelf_swap_note_desc(const char *name, uint32_t type, unsigned char *dst,
+    const unsigned char *src, uint32_t descsz)
+{
+
+	if (strcmp(name, "FreeBSD") == 0) {
+		switch (type) {
+		case NT_FREEBSD_ABI_TAG:
+		case NT_FREEBSD_NOINIT_TAG:
+		case NT_FREEBSD_ARCH_TAG:
+		case NT_FREEBSD_FEATURE_CTL:
+			_libelf_swap_words(dst, src, descsz);
+			break;
+		default:
+			/*
+			 * Unknown FreeBSD note type.
+			 * XXX copy untranslated.
+			 */
+			(void) memcpy(dst, src, descsz);
+		}
+	} else {
+		/* Unknown note name. XXX copy untranslated. */
+		(void) memcpy(dst, src, descsz);
+	}
+}
+
 /*
  * Elf_Note structures comprise a fixed size header followed by variable
  * length strings.  The fixed size header needs to be byte swapped, but
@@ -926,6 +969,7 @@ _libelf_cvt_NOTE_tom(unsigned char *dst, size_t dsz, unsigned char *src,
 {
 	uint32_t namesz, descsz, type;
 	Elf_Note *en;
+	const char *name;
 	size_t sz, hdrsz;
 
 	if (dsz < count)	/* Destination buffer is too small. */
@@ -970,10 +1014,17 @@ _libelf_cvt_NOTE_tom(unsigned char *dst, size_t dsz, unsigned char *src,
 		if (count < sz || dsz < sz)	/* Buffers are too small. */
 			return (0);
 
-		(void) memcpy(dst, src, sz);
+		/* Copy note name. */
+		memcpy(dst, src, namesz);
+		name = src;
+		src += namesz;
+		dst += namesz;
 
-		src += sz;
-		dst += sz;
+		/* Translate note desc. */
+		_libelf_swap_note_desc(name, type, dst, src, descsz);
+
+		src += descsz;
+		dst += descsz;
 
 		count -= sz;
 		dsz -= sz;
@@ -986,8 +1037,9 @@ static int
 _libelf_cvt_NOTE_tof(unsigned char *dst, size_t dsz, unsigned char *src,
     size_t count, int byteswap)
 {
-	uint32_t namesz, descsz, type;
+	uint32_t namesz, descsz, type, val;
 	Elf_Note *en;
+	const char *name;
 	size_t sz;
 
 	if (dsz < count)
@@ -999,24 +1051,24 @@ _libelf_cvt_NOTE_tof(unsigned char *dst, size_t dsz, unsigned char *src,
 	}
 
 	while (count > sizeof(Elf_Note)) {
-
 		en = (Elf_Note *) (uintptr_t) src;
 		namesz = en->n_namesz;
 		descsz = en->n_descsz;
 		type = en->n_type;
 
-		sz = namesz;
-		ROUNDUP2(sz, 4U);
-		sz += descsz;
-		ROUNDUP2(sz, 4U);
+		val = namesz;
+		SWAP_WORD(val);
+		WRITE_WORD(dst, val);
+		val = descsz;
+		SWAP_WORD(val);
+		WRITE_WORD(dst, val);
+		val = type;
+		SWAP_WORD(val);
+		WRITE_WORD(dst, val);
 
-		SWAP_WORD(namesz);
-		SWAP_WORD(descsz);
-		SWAP_WORD(type);
-
-		WRITE_WORD(dst, namesz);
-		WRITE_WORD(dst, descsz);
-		WRITE_WORD(dst, type);
+		ROUNDUP2(namesz, 4U);
+		ROUNDUP2(descsz, 4U);
+		sz = namesz + descsz;
 
 		src += sizeof(Elf_Note);
 		count -= sizeof(Elf_Note);
@@ -1024,10 +1076,17 @@ _libelf_cvt_NOTE_tof(unsigned char *dst, size_t dsz, unsigned char *src,
 		if (count < sz)
 			return (0);
 
-		(void) memcpy(dst, src, sz);
+		/* Copy note name. */
+		(void) memcpy(dst, src, namesz);
+		name = src;
+		src += namesz;
+		dst += namesz;
 
-		src += sz;
-		dst += sz;
+		/* Translate note desc. */
+		_libelf_swap_note_desc(name, type, dst, src, descsz);
+
+		src += descsz;
+		dst += descsz;
 		count -= sz;
 	}
 
