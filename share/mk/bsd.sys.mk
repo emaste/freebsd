@@ -12,8 +12,8 @@
 
 .include <bsd.compiler.mk>
 
-# the default is gnu99 for now
-CSTD?=		gnu99
+# the default is gnu for now11
+CSTD?=		gnu11
 
 .if ${CSTD} == "c89" || ${CSTD} == "c90"
 CFLAGS+=	-std=iso9899:1990
