@@ -3590,10 +3590,12 @@ buffered_write(fp, uio, active_cred, flags, td)
 	int flags;
 	struct thread *td;
 {
+	struct pwd *pwd;
 	struct vnode *devvp, *vp;
 	struct inode *ip;
 	struct buf *bp;
 	struct fs *fs;
+	struct ufsmount *ump;
 	struct filedesc *fdp;
 	int error;
 	daddr_t lbn;
@@ -3609,7 +3611,8 @@ buffered_write(fp, uio, active_cred, flags, td)
 		return (EINVAL);
 	fdp = td->td_proc->p_fd;
 	FILEDESC_SLOCK(fdp);
-	vp = fdp->fd_pwd->pwd_cdir;
+	pwd = FILEDESC_LOCKED_LOAD_PWD(fdp);
+	vp = pwd->pwd_cdir;
 	vref(vp);
 	FILEDESC_SUNLOCK(fdp);
 	vn_lock(vp, LK_SHARED | LK_RETRY);
@@ -3622,10 +3625,12 @@ buffered_write(fp, uio, active_cred, flags, td)
 		return (EINVAL);
 	}
 	ip = VTOI(vp);
-	if (ITODEVVP(ip) != devvp) {
+	ump = ip->i_ump;
+	if (ump->um_odevvp != devvp) {
 		vput(vp);
 		return (EINVAL);
 	}
+	devvp = ump->um_devvp;
 	fs = ITOFS(ip);
 	vput(vp);
 	foffset_lock_uio(fp, uio, flags);
