@@ -1296,6 +1296,35 @@ fields are padded to ensure 4-byte alignemnt.
 and
 .Sy descsz
 specify the unpadded length.
+.Pp
+.Fx defines the following ELF note types
+(with corresponding interpretation of desc):
+.Pp
+.Dv NT_FREEBSD_ABI_TAG
+(OS ABI version)
+Value: 1
+32-bit integer containing expected ABI version (i.e., 
+.Dv __FreeBSD_version )
+.Pp
+.Dv NT_FREEBSD_NOINIT_TAG
+Value: 2
+Indicates that crt does not call init.
+desc is ignored.
+.Pp
+.Dv NT_FREEBSD_ARCH_TAG
+Value: 3
+.Pp
+.Dv NT_FREEBSD_FEATURE_CTL
+(Mitigation / feature enable bits)
+Value: 4
+Contains a bitmask of features to enable:
+.Bl -column -offset indent "Name" "Bit" "Description"
+.It Sy Name                         Ta Sy Value Ta Sy Description
+.It NT_FREEBSD_FCTL_ASLR_DISABLE    Ta 0x01     Ta Disable ASLR
+.It NT_FREEBSD_FCTL_PROTMAX_DISABLE Ta 0x02     Ta Disable implicit PROT_MAX
+.It NT_FREEBSD_FCTL_STKGAP_DISABLE  Ta 0x04     Ta Disable stack gap
+.It NT_FREEBSD_FCTL_WXNEEDED        Ta 0x08     Ta Binary makes W+X mappings
+.El
 .Sh SEE ALSO
 .Xr as 1 ,
 .Xr gdb 1 ,
