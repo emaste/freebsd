@@ -28,7 +28,8 @@ tempdir_setup()
 	# Create minimal directory structure and populate it.
 	# Caller must cd ${SRCTOP} before calling this function.
 
-	for dir in dev bin efi/boot etc lib libexec sbin usr/lib usr/libexec; do
+	for dir in dev bin boot/lua efi/boot etc lib libexec \
+	    sbin usr/lib usr/libexec; do
 		mkdir -p ${ROOTDIR}/${dir}
 	done
 
