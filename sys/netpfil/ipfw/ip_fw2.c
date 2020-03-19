@@ -329,10 +329,10 @@ ipopts_match(struct ip *ip, ipfw_insn *cmd)
 }
 
 static int
-tcpopts_match(struct tcphdr *tcp, ipfw_insn *cmd)
+tcpopts_parse(struct tcphdr *tcp, uint16_t *mss)
 {
-	int optlen, bits = 0;
 	u_char *cp = (u_char *)(tcp + 1);
+	int optlen, bits = 0;
 	int x = (tcp->th_off << 2) - sizeof(struct tcphdr);
 
 	for (; x > 0; x -= optlen, cp += optlen) {
@@ -348,12 +348,15 @@ tcpopts_match(struct tcphdr *tcp, ipfw_insn *cmd)
 		}
 
 		switch (opt) {
-
 		default:
 			break;
 
 		case TCPOPT_MAXSEG:
+			if (optlen != TCPOLEN_MAXSEG)
+				break;
 			bits |= IP_FW_TCPOPT_MSS;
+			if (mss != NULL)
+				*mss = be16dec(cp + 2);
 			break;
 
 		case TCPOPT_WINDOW:
@@ -368,10 +371,16 @@ tcpopts_match(struct tcphdr *tcp, ipfw_insn *cmd)
 		case TCPOPT_TIMESTAMP:
 			bits |= IP_FW_TCPOPT_TS;
 			break;
-
 		}
 	}
-	return (flags_match(cmd, bits));
+	return (bits);
+}
+
+static int
+tcpopts_match(struct tcphdr *tcp, ipfw_insn *cmd)
+{
+
+	return (flags_match(cmd, tcpopts_parse(tcp, NULL)));
 }
 
 static int
