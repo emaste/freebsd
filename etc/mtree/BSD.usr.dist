@@ -317,6 +317,8 @@
                     ..
                 ..
             ..
+            kyua
+            ..
             libusb20
             ..
             libvgl
@@ -452,6 +454,12 @@
                 ..
                 trusted tags=package=runtime
                 ..
+            ..
+        ..
+        kyua
+            misc
+            ..
+            store
             ..
         ..
         locale
