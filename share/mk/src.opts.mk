@@ -294,7 +294,7 @@ __DEFAULT_NO_OPTIONS+=LLVM_TARGET_BPF
 .if ${__T} == "aarch64" || ${__T:Mriscv*} != ""
 BROKEN_OPTIONS+=BINUTILS BINUTILS_BOOTSTRAP GDB
 .endif
-.if ${__T} == "amd64" || ${__T} == "i386" || ${__T:Mpowerpc*}
+.if ${__T} == "amd64" || ${__T} == "i386"
 __DEFAULT_YES_OPTIONS+=BINUTILS_BOOTSTRAP
 .else
 __DEFAULT_NO_OPTIONS+=BINUTILS_BOOTSTRAP
