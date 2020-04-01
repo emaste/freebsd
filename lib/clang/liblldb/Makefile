@@ -679,4 +679,13 @@ CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 
 INTERNALLIB=
 
+# Swig has a number of dependencies we do not want to include in the FreeBSD
+# base system, so we have a rule here to generate LLDBWrapLua.cpp after llvm
+# is updated in the base system.  Requires the swig30 package.
+.PHONY:	generate-swig
+generate-swig:
+	swig3.0 -I${LLDB_SRCS}/include \
+	    -c++ -features autodoc -lua -w503 \
+	    -o ${.CURDIR}/LLDBWrapLua.cpp ${LLDB_SRCS}/bindings/lua.swig
+
 .include <bsd.lib.mk>
