@@ -464,9 +464,9 @@ SRCS+=		Plugins/Process/gdb-remote/GDBRemoteRegisterContext.cpp
 SRCS+=		Plugins/Process/gdb-remote/ProcessGDBRemote.cpp
 SRCS+=		Plugins/Process/gdb-remote/ProcessGDBRemoteLog.cpp
 SRCS+=		Plugins/Process/gdb-remote/ThreadGDBRemote.cpp
-SRCS+=		Plugins/ScriptInterpreter/None/ScriptInterpreterNone.cpp
 SRCS+=		Plugins/ScriptInterpreter/Lua/Lua.cpp
 SRCS+=		Plugins/ScriptInterpreter/Lua/ScriptInterpreterLua.cpp
+SRCS+=		Plugins/ScriptInterpreter/None/ScriptInterpreterNone.cpp
 SRCS+=		Plugins/SymbolFile/Breakpad/SymbolFileBreakpad.cpp
 SRCS+=		Plugins/SymbolFile/DWARF/AppleDWARFIndex.cpp
 SRCS+=		Plugins/SymbolFile/DWARF/DebugNamesDWARFIndex.cpp
@@ -684,11 +684,15 @@ CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 
 INTERNALLIB=
 
-# Swig has a number of dependencies we do not want to include in the FreeBSD
-# base system, so we have a rule here to generate LLDBWrapLua.cpp after llvm
-# is updated in the base system.  Requires the swig30 package.
-.PHONY:	generate-swig
-generate-swig:
+# Building lldb's bindings requires swig, but we do not want to include it in
+# the FreeBSD base system (as a build tool) because it has non-trivial
+# dependencies.  As a workaround we commit the generated file.  Requires the
+# swig30 package.
+#
+# After importing an updated llvm/lldb into FreeBSD run `make run-swig` in
+# this directory to generate generate LLDBWrapLua.cpp, and commit the result.
+.PHONY:	run-swig
+run-swig:
 	swig3.0 -I${LLDB_SRCS}/include \
 	    -c++ -features autodoc -lua -w503 \
 	    -o ${.CURDIR}/LLDBWrapLua.cpp ${LLDB_SRCS}/bindings/lua.swig
