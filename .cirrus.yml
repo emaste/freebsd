@@ -11,7 +11,7 @@ env:
 task:
   timeout_in: 120m
   install_script:
-  - pkg bootstrap -f
+  - ASSUME_ALWAYS_YES=yes pkg bootstrap -f
   - pkg install -y qemu-devel uefi-edk2-qemu-x86_64
   script:
   - make -j$(sysctl -n hw.ncpu) WITHOUT_TOOLCHAIN=yes buildworld buildkernel
