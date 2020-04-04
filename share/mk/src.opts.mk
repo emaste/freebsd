@@ -68,6 +68,7 @@ __DEFAULT_YES_OPTIONS = \
     BOOTPARAMD \
     BOOTPD \
     BSD_CPIO \
+    BSD_GREP \
     BSDINSTALL \
     BSNMP \
     BZIP2 \
@@ -107,7 +108,6 @@ __DEFAULT_YES_OPTIONS = \
     GDB \
     GH_BC \
     GNU_DIFF \
-    GNU_GREP \
     GOOGLETEST \
     GPIO \
     HAST \
@@ -201,11 +201,11 @@ __DEFAULT_YES_OPTIONS = \
 __DEFAULT_NO_OPTIONS = \
     BEARSSL \
     BHYVE_SNAPSHOT \
-    BSD_GREP \
     CLANG_EXTRAS \
     CLANG_FORMAT \
     DTRACE_TESTS \
     EXPERIMENTAL \
+    GNU_GREP \
     GNU_GREP_COMPAT \
     HESIOD \
     LIBSOFT \
