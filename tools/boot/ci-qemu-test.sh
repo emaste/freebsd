@@ -94,9 +94,8 @@ trap tempdir_cleanup EXIT SIGINT SIGHUP SIGTERM SIGQUIT
 # And, boot in QEMU.
 : ${BOOTLOG:=${TMPDIR:-/tmp}/ci-qemu-test-boot.log}
 timeout 300 \
-    qemu-system-x86_64 -m 256M -nodefaults \
+    qemu-system-x86_64 -m 512M \
    	-drive if=pflash,format=raw,readonly,file=${OVMF} \
-        -serial stdio -vga none -nographic -monitor none \
         -snapshot -hda fat:${ROOTDIR} 2>&1 | tee ${BOOTLOG}
 
 # Check whether we succesfully booted...
