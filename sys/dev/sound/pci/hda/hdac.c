@@ -204,7 +204,7 @@ static const struct {
  * Function prototypes
  ****************************************************************************/
 static void	hdac_intr_handler(void *);
-static int	hdac_reset(struct hdac_softc *, int);
+static int	hdac_reset(struct hdac_softc *, bool);
 static int	hdac_get_capabilities(struct hdac_softc *);
 static void	hdac_dma_cb(void *, bus_dma_segment_t *, int, int);
 static int	hdac_dma_alloc(struct hdac_softc *,
@@ -367,12 +367,12 @@ hdac_poll_callback(void *arg)
 }
 
 /****************************************************************************
- * int hdac_reset(hdac_softc *, int)
+ * int hdac_reset(hdac_softc *, bool)
  *
  * Reset the hdac to a quiescent and known state.
  ****************************************************************************/
 static int
-hdac_reset(struct hdac_softc *sc, int wakeup)
+hdac_reset(struct hdac_softc *sc, bool wakeup)
 {
 	uint32_t gctl;
 	int count, i;
@@ -1289,7 +1289,7 @@ hdac_attach(device_t dev)
 	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Reset controller...\n");
 	);
-	hdac_reset(sc, 1);
+	hdac_reset(sc, true);
 
 	/* Initialize the CORB and RIRB */
 	hdac_corb_init(sc);
@@ -1576,7 +1576,7 @@ hdac_suspend(device_t dev)
 		device_printf(dev, "Reset controller...\n");
 	);
 	callout_stop(&sc->poll_callout);
-	hdac_reset(sc, 0);
+	hdac_reset(sc, false);
 	hdac_unlock(sc);
 	callout_drain(&sc->poll_callout);
 	taskqueue_drain(taskqueue_thread, &sc->unsolq_task);
@@ -1606,7 +1606,7 @@ hdac_resume(device_t dev)
 	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Reset controller...\n");
 	);
-	hdac_reset(sc, 1);
+	hdac_reset(sc, true);
 
 	/* Initialize the CORB and RIRB */
 	hdac_corb_init(sc);
@@ -1662,7 +1662,7 @@ hdac_detach(device_t dev)
 	free(devlist, M_TEMP);
 
 	hdac_lock(sc);
-	hdac_reset(sc, 0);
+	hdac_reset(sc, false);
 	hdac_unlock(sc);
 	taskqueue_drain(taskqueue_thread, &sc->unsolq_task);
 	hdac_irq_free(sc);
