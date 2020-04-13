@@ -3944,9 +3944,6 @@ kgssapi/gssd_prot.c		optional kgssapi
 kgssapi/krb5/krb5_mech.c	optional kgssapi
 kgssapi/krb5/kcrypto.c		optional kgssapi
 kgssapi/krb5/kcrypto_aes.c	optional kgssapi
-kgssapi/krb5/kcrypto_arcfour.c	optional kgssapi
-kgssapi/krb5/kcrypto_des.c	optional kgssapi
-kgssapi/krb5/kcrypto_des3.c	optional kgssapi
 kgssapi/kgss_if.m		optional kgssapi
 kgssapi/gsstest.c		optional kgssapi_debug
 # These files in libkern/ are those needed by all architectures.  Some
@@ -4093,6 +4090,11 @@ net/raw_cb.c			standard
 net/raw_usrreq.c		standard
 net/route.c			standard
 net/route_temporal.c		standard
+net/route/nhop.c		standard
+net/route/nhop_ctl.c		standard
+net/route/nhop_utils.c		standard
+net/route/route_ctl.c		standard
+net/route/route_helpers.c	standard
 net/rss_config.c		optional inet rss | inet6 rss
 net/rtsock.c			standard
 net/slcompress.c		optional netgraph_vjc | sppp | \
