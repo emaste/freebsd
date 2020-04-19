@@ -412,8 +412,11 @@ hdac_poll_callback(void *arg)
 {
 	struct hdac_softc *sc = arg;
 
+	// XXX check that callback is cancelled in detach
+#if 0
 	if (sc == NULL)
 		return;
+#endif
 
 	hdac_lock(sc);
 	if (sc->polling == 0) {
