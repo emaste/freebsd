@@ -441,15 +441,18 @@ rtalloc_ign_fib(struct route *ro, u_long ignore, u_int fibnum)
 {
 	struct rtentry *rt;
 
-	if ((rt = ro->ro_rt) != NULL) {
-		if (rt->rt_ifp != NULL && rt->rt_flags & RTF_UP)
+	if (ro->ro_nh != NULL) {
+		if (NH_IS_VALID(ro->ro_nh))
 			return;
-		RTFREE(rt);
-		ro->ro_rt = NULL;
+		NH_FREE(ro->ro_nh);
+		ro->ro_nh = NULL;
 	}
-	ro->ro_rt = rtalloc1_fib(&ro->ro_dst, 1, ignore, fibnum);
-	if (ro->ro_rt)
-		RT_UNLOCK(ro->ro_rt);
+	rt = rtalloc1_fib(&ro->ro_dst, 1, ignore, fibnum);
+	if (rt != NULL) {
+		ro->ro_nh = rt->rt_nhop;
+		nhop_ref_object(rt->rt_nhop);
+		RT_UNLOCK(rt);
+	}
 }
 
 /*
@@ -827,6 +830,7 @@ rt_exportinfo(struct rtentry *rt, struct rt_addrinfo *info, int flags)
 {
 	struct rt_metrics *rmx;
 	struct sockaddr *src, *dst;
+	struct nhop_object *nh;
 	int sa_len;
 
 	if (flags & NHR_COPY) {
@@ -858,7 +862,7 @@ rt_exportinfo(struct rtentry *rt, struct rt_addrinfo *info, int flags)
 		}
 
 		/* Copy gateway is set && dst is non-zero */
-		src = rt->rt_gateway;
+		src = &rt->rt_nhop->gw_sa;
 		dst = info->rti_info[RTAX_GATEWAY];
 		if ((rt->rt_flags & RTF_GATEWAY) && src != NULL && dst != NULL){
 			if (src->sa_len > dst->sa_len)
@@ -874,20 +878,21 @@ rt_exportinfo(struct rtentry *rt, struct rt_addrinfo *info, int flags)
 			info->rti_addrs |= RTA_NETMASK;
 		}
 		if (rt->rt_flags & RTF_GATEWAY) {
-			info->rti_info[RTAX_GATEWAY] = rt->rt_gateway;
+			info->rti_info[RTAX_GATEWAY] = &rt->rt_nhop->gw_sa;
 			info->rti_addrs |= RTA_GATEWAY;
 		}
 	}
 
+	nh = rt->rt_nhop;
 	rmx = info->rti_rmx;
 	if (rmx != NULL) {
 		info->rti_mflags |= RTV_MTU;
-		rmx->rmx_mtu = rt->rt_mtu;
+		rmx->rmx_mtu = nh->nh_mtu;
 	}
 
-	info->rti_flags = rt->rt_flags;
-	info->rti_ifp = rt->rt_ifp;
-	info->rti_ifa = rt->rt_ifa;
+	info->rti_flags = rt->rt_flags | nhop_get_rtflags(nh);
+	info->rti_ifp = nh->nh_ifp;
+	info->rti_ifa = nh->nh_ifa;
 	if (flags & NHR_REF) {
 		if_ref(info->rti_ifp);
 		ifa_ref(info->rti_ifa);
@@ -1021,7 +1026,7 @@ rt_checkdelroute(struct radix_node *rn, void *arg)
 
 	info->rti_info[RTAX_DST] = rt_key(rt);
 	info->rti_info[RTAX_NETMASK] = rt_mask(rt);
-	info->rti_info[RTAX_GATEWAY] = rt->rt_gateway;
+	info->rti_info[RTAX_GATEWAY] = &rt->rt_nhop->gw_sa;
 
 	rt = rt_unlinkrte(di->rnh, info, &error);
 	if (rt == NULL) {
@@ -1216,7 +1221,7 @@ rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info, int *perror)
 		 * Ease the caller work by filling in remaining info
 		 * from that particular entry.
 		 */
-		info->rti_info[RTAX_GATEWAY] = rt->rt_gateway;
+		info->rti_info[RTAX_GATEWAY] = &rt->rt_nhop->gw_sa;
 	}
 
 	/*
@@ -1471,7 +1476,7 @@ rt_print(char *buf, int buflen, struct rtentry *rt)
 
 	if (rt->rt_flags & RTF_GATEWAY) {
 		buf[i++] = '>';
-		i += p_sockaddr(buf + i, buflen - i, rt->rt_gateway);
+		i += p_sockaddr(buf + i, buflen - i, &rt->rt_nhop->gw_sa);
 	}
 
 	return (i);
@@ -1528,8 +1533,8 @@ rt_mpath_unlink(struct rib_head *rnh, struct rt_addrinfo *info,
 			 * one route in the chain.  
 			 */
 			if (gw &&
-			    (rt->rt_gateway->sa_len != gw->sa_len ||
-				memcmp(rt->rt_gateway, gw, gw->sa_len))) {
+			    (rt->rt_nhop->gw_sa.sa_len != gw->sa_len ||
+				memcmp(&rt->rt_nhop->gw_sa, gw, gw->sa_len))) {
 				*perror = ESRCH;
 				return (NULL);
 			}
@@ -2078,7 +2083,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 	char tempbuf[_SOCKADDR_TMPSIZE];
 	int didwork = 0;
 	int a_failure = 0;
-	struct sockaddr_dl *sdl = NULL;
+	struct sockaddr_dl_short *sdl = NULL;
 	struct rib_head *rnh;
 
 	if (flags & RTF_HOST) {
@@ -2130,10 +2135,10 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			dst = (struct sockaddr *)tempbuf;
 		}
 	} else if (cmd == RTM_ADD) {
-		sdl = (struct sockaddr_dl *)tempbuf;
-		bzero(sdl, sizeof(struct sockaddr_dl));
+		sdl = (struct sockaddr_dl_short *)tempbuf;
+		bzero(sdl, sizeof(struct sockaddr_dl_short));
 		sdl->sdl_family = AF_LINK;
-		sdl->sdl_len = sizeof(struct sockaddr_dl);
+		sdl->sdl_len = sizeof(struct sockaddr_dl_short);
 		sdl->sdl_type = ifa->ifa_ifp->if_type;
 		sdl->sdl_index = ifa->ifa_ifp->if_index;
         }
@@ -2165,8 +2170,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 					rt = RNTORT(rn);
 					/*
 					 * for interface route the
-					 * rt->rt_gateway is sockaddr_intf
-					 * for cloning ARP entries, so
+					 * rt->rt_gateway is sockaddr_dl, so
 					 * rt_mpath_matchgate must use the
 					 * interface address
 					 */

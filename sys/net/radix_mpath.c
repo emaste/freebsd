@@ -55,7 +55,10 @@ __FBSDID("$FreeBSD$");
 #include <net/radix_mpath.h>
 #include <sys/rmlock.h>
 #include <net/route.h>
+#include <net/route/nhop.h>
+#include <net/route/shared.h>
 #include <net/route_var.h>
+#include <net/route/nhop.h>
 #include <net/if.h>
 #include <net/if_var.h>
 
@@ -110,22 +113,24 @@ struct rtentry *
 rt_mpath_matchgate(struct rtentry *rt, struct sockaddr *gate)
 {
 	struct radix_node *rn;
+	struct nhop_object *nh;
 
-	if (!gate || !rt->rt_gateway)
-		return NULL;
+	if (gate == NULL)
+		return (NULL);
 
 	/* beyond here, we use rn as the master copy */
 	rn = (struct radix_node *)rt;
 	do {
 		rt = (struct rtentry *)rn;
+		nh = rt->rt_nhop;
 		/*
-		 * we are removing an address alias that has 
+		 * we are removing an address alias that has
 		 * the same prefix as another address
 		 * we need to compare the interface address because
-		 * rt_gateway is a special sockadd_dl structure
+		 * gateway is a special sockaddr_dl structure
 		 */
-		if (rt->rt_gateway->sa_family == AF_LINK) {
-			if (!memcmp(rt->rt_ifa->ifa_addr, gate, gate->sa_len))
+		if (nh->gw_sa.sa_family == AF_LINK) {
+			if (!memcmp(nh->nh_ifa->ifa_addr, gate, gate->sa_len))
 				break;
 		}
 
@@ -134,8 +139,8 @@ rt_mpath_matchgate(struct rtentry *rt, struct sockaddr *gate)
 		 * 1) Routes with 'real' IPv4/IPv6 gateway
 		 * 2) Loopback host routes (another AF_LINK/sockadd_dl check)
 		 * */
-		if (rt->rt_gateway->sa_len == gate->sa_len &&
-		    !memcmp(rt->rt_gateway, gate, gate->sa_len))
+		if (nh->gw_sa.sa_len == gate->sa_len &&
+		    !memcmp(&nh->gw_sa, gate, gate->sa_len))
 			break;
 	} while ((rn = rn_mpath_next(rn)) != NULL);
 
@@ -254,42 +259,41 @@ rt_mpath_select(struct rtentry *rte, uint32_t hash)
 void
 rtalloc_mpath_fib(struct route *ro, uint32_t hash, u_int fibnum)
 {
-	struct rtentry *rt;
+	struct rtentry *rt, *rt_tmp;
 
 	/*
 	 * XXX we don't attempt to lookup cached route again; what should
 	 * be done for sendto(3) case?
 	 */
-	if (ro->ro_rt && ro->ro_rt->rt_ifp && (ro->ro_rt->rt_flags & RTF_UP)
-	    && RT_LINK_IS_UP(ro->ro_rt->rt_ifp))
+	if (ro->ro_nh && RT_LINK_IS_UP(ro->ro_nh->nh_ifp))
 		return;				 
-	ro->ro_rt = rtalloc1_fib(&ro->ro_dst, 1, 0, fibnum);
+	ro->ro_nh = NULL;
+	rt_tmp = rtalloc1_fib(&ro->ro_dst, 1, 0, fibnum);
 
 	/* if the route does not exist or it is not multipath, don't care */
-	if (ro->ro_rt == NULL)
+	if (rt_tmp == NULL)
 		return;
-	if (rn_mpath_next((struct radix_node *)ro->ro_rt) == NULL) {
-		RT_UNLOCK(ro->ro_rt);
+	if (rn_mpath_next((struct radix_node *)rt_tmp) == NULL) {
+		ro->ro_nh = rt_tmp->rt_nhop;
+		nhop_ref_object(ro->ro_nh);
+		RT_UNLOCK(rt_tmp);
 		return;
 	}
 
-	rt = rt_mpath_selectrte(ro->ro_rt, hash);
+	rt = rt_mpath_selectrte(rt_tmp, hash);
 	/* XXX try filling rt_gwroute and avoid unreachable gw  */
 
 	/* gw selection has failed - there must be only zero weight routes */
 	if (!rt) {
-		RT_UNLOCK(ro->ro_rt);
-		ro->ro_rt = NULL;
+		RT_UNLOCK(rt_tmp);
 		return;
 	}
-	if (ro->ro_rt != rt) {
-		RTFREE_LOCKED(ro->ro_rt);
-		ro->ro_rt = rt;
-		RT_LOCK(ro->ro_rt);
-		RT_ADDREF(ro->ro_rt);
-
-	} 
-	RT_UNLOCK(ro->ro_rt);
+	if (rt_tmp != rt) {
+		RTFREE_LOCKED(rt_tmp);
+		ro->ro_nh = rt->rt_nhop;
+		nhop_ref_object(ro->ro_nh);
+	} else
+		RT_UNLOCK(rt_tmp);
 }
 
 void
