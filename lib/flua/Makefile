@@ -1,3 +1,4 @@
+SUBDIR=		lcurses
 SUBDIR+=	libhash
 SUBDIR+=	libjail
 
