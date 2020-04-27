@@ -1,5 +1,6 @@
 .include <src.lua.mk>
 
+SUBDIR+=	lcurses
 SUBDIR+=	libfreebsd
 SUBDIR+=	libhash
 SUBDIR+=	libjail
