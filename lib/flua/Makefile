@@ -1,4 +1,5 @@
 
-SUBDIR=	libjail
+SUBDIR=		lcurses
+SUBDIR+=	libjail
 
 .include <bsd.subdir.mk>
