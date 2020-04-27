@@ -1,6 +1,7 @@
 .include <src.lua.mk>
 
 PACKAGE=	flua
+FLUA_MODULES+=	lcurses
 
 # New flua modules should be added here rather than to SUBDIR so that we can do
 # the right thing for both bootstrap flua and target flua.  The former does not
