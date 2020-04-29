@@ -61,7 +61,7 @@
 #include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/route.h>
-#include <net/route_var.h>
+#include <net/route/route_var.h>
 #include <net/route/nhop.h>
 #include <net/route/shared.h>
 #include <net/vnet.h>
@@ -431,28 +431,6 @@ sys_setfib(struct thread *td, struct setfib_args *uap)
 		return EINVAL;
 	td->td_proc->p_fibnum = uap->fibnum;
 	return (0);
-}
-
-/*
- * Packet routing routines.
- */
-void
-rtalloc_ign_fib(struct route *ro, u_long ignore, u_int fibnum)
-{
-	struct rtentry *rt;
-
-	if (ro->ro_nh != NULL) {
-		if (NH_IS_VALID(ro->ro_nh))
-			return;
-		NH_FREE(ro->ro_nh);
-		ro->ro_nh = NULL;
-	}
-	rt = rtalloc1_fib(&ro->ro_dst, 1, ignore, fibnum);
-	if (rt != NULL) {
-		ro->ro_nh = rt->rt_nhop;
-		nhop_ref_object(rt->rt_nhop);
-		RT_UNLOCK(rt);
-	}
 }
 
 /*
@@ -1261,7 +1239,7 @@ rt_notifydelete(struct rtentry *rt, struct rt_addrinfo *info)
 	 */
 	ifa = rt->rt_ifa;
 	if (ifa != NULL && ifa->ifa_rtrequest != NULL)
-		ifa->ifa_rtrequest(RTM_DELETE, rt, info);
+		ifa->ifa_rtrequest(RTM_DELETE, rt, rt->rt_nhop, info);
 
 	/*
 	 * One more rtentry floating around that is not
@@ -1783,7 +1761,7 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	 * allow it to do that as well.
 	 */
 	if (ifa->ifa_rtrequest)
-		ifa->ifa_rtrequest(RTM_ADD, rt, info);
+		ifa->ifa_rtrequest(RTM_ADD, rt, rt->rt_nhop, info);
 
 	/*
 	 * actually return a resultant rtentry and
@@ -1908,7 +1886,8 @@ change_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	if (info->rti_ifa != NULL && info->rti_ifa != rt->rt_ifa &&
 	    rt->rt_ifa != NULL) {
 		if (rt->rt_ifa->ifa_rtrequest != NULL)
-			rt->rt_ifa->ifa_rtrequest(RTM_DELETE, rt, info);
+			rt->rt_ifa->ifa_rtrequest(RTM_DELETE, rt, rt->rt_nhop,
+			info);
 		ifa_free(rt->rt_ifa);
 		rt->rt_ifa = NULL;
 	}
@@ -1932,7 +1911,7 @@ change_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	rt->rt_flags |= info->rti_flags & RTF_FMASK;
 
 	if (rt->rt_ifa && rt->rt_ifa->ifa_rtrequest != NULL)
-	       rt->rt_ifa->ifa_rtrequest(RTM_ADD, rt, info);
+	       rt->rt_ifa->ifa_rtrequest(RTM_ADD, rt, nh, info);
 
 	/* Alter route MTU if necessary */
 	if (rt->rt_ifp != NULL) {

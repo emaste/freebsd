@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/route.h>
-#include <net/route_var.h>
+#include <net/route/route_var.h>
 #include <net/route/nhop.h>
 #include <net/route/shared.h>
 #include <net/vnet.h>
@@ -255,16 +255,5 @@ in_ifadown(struct ifaddr *ifa, int delete)
 
 	rt_foreach_fib_walk_del(AF_INET, in_ifadownkill, &arg);
 	ifa->ifa_flags &= ~IFA_ROUTE;		/* XXXlocking? */
-}
-
-/*
- * inet versions of rt functions. These have fib extensions and
- * for now will just reference the _fib variants.
- * eventually this order will be reversed,
- */
-void
-in_rtalloc_ign(struct route *ro, u_long ignflags, u_int fibnum)
-{
-	rtalloc_ign_fib(ro, ignflags, fibnum);
 }
 

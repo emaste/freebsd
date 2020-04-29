@@ -1557,8 +1557,10 @@ sosend_generic(struct socket *so, struct sockaddr *addr, struct uio *uio,
 #endif
 	if (uio != NULL)
 		resid = uio->uio_resid;
-	else
+	else if ((top->m_flags & M_PKTHDR) != 0)
 		resid = top->m_pkthdr.len;
+	else
+		resid = m_length(top, NULL);
 	/*
 	 * In theory resid should be unsigned.  However, space must be
 	 * signed, as it might be less than 0 if we over-committed, and we
@@ -2372,11 +2374,33 @@ soreceive_stream(struct socket *so, struct sockaddr **psa, struct uio *uio,
 
 	sb = &so->so_rcv;
 
+#ifdef KERN_TLS
+	/*
+	 * KTLS store TLS records as records with a control message to
+	 * describe the framing.
+	 *
+	 * We check once here before acquiring locks to optimize the
+	 * common case.
+	 */
+	if (sb->sb_tls_info != NULL)
+		return (soreceive_generic(so, psa, uio, mp0, controlp,
+		    flagsp));
+#endif
+
 	/* Prevent other readers from entering the socket. */
 	error = sblock(sb, SBLOCKWAIT(flags));
 	if (error)
 		return (error);
 	SOCKBUF_LOCK(sb);
+
+#ifdef KERN_TLS
+	if (sb->sb_tls_info != NULL) {
+		SOCKBUF_UNLOCK(sb);
+		sbunlock(sb);
+		return (soreceive_generic(so, psa, uio, mp0, controlp,
+		    flagsp));
+	}
+#endif
 
 	/* Easy one, no space to copyout anything. */
 	if (uio->uio_resid == 0) {
