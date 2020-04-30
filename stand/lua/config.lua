@@ -61,6 +61,17 @@ local QVALREPL = QVALEXPR:gsub('%%', '%%%%')
 local WORDEXPR = "([%w]+)"
 local WORDREPL = WORDEXPR:gsub('%%', '%%%%')
 
+-- Entries that should never make it into the environment; each one should have
+-- a documented reason for its existence, and these should all be implementation
+-- details of the config module.
+local loader_env_restricted_table = {
+	-- loader_conf_files should be considered write-only, and consumers
+	-- should not rely on any particular value; it's a loader implementation
+	-- detail.  Moreover, it's not a particularly useful variable to have in
+	-- the kenv.  Save the overhead, let it get fetched other ways.
+	loader_conf_files = true,
+}
+
 local function restoreEnv()
 	-- Examine changed environment variables
 	for k, v in pairs(env_changed) do
@@ -88,13 +99,30 @@ local function restoreEnv()
 	env_restore = {}
 end
 
+-- XXX This getEnv/setEnv should likely be exported at some point.  We can save
+-- the call back into loader.getenv for any variable that's been set or
+-- overridden by any loader.conf using this implementation with little overhead
+-- since we're already tracking the values.
+local function getEnv(key)
+	if loader_env_restricted_table[key] ~= nil or
+	    env_changed[key] ~= nil then
+		return env_changed[key]
+	end
+
+	return loader.getenv(key)
+end
+
 local function setEnv(key, value)
+	env_changed[key] = value
+
+	if loader_env_restricted_table[key] ~= nil then
+		return 0
+	end
+
 	-- Track the original value for this if we haven't already
 	if env_restore[key] == nil then
 		env_restore[key] = {value = loader.getenv(key)}
 	end
-
-	env_changed[key] = value
 
 	return loader.setenv(key, value)
 end
@@ -460,36 +488,36 @@ function config.parse(text)
 	return status
 end
 
-function config.readConfFiles(files, loaded_files)
-	if files ~= nil then
-		-- The caller may not have passed in loader_conf_files; we could
-		-- have instead gotten some other string of files.  We don't
-		-- want to trigger any redundant re-read/loads based on this.
-		local prefiles = loader.getenv("loader_conf_files")
-		for name in files:gmatch("([%w%p]+)%s*") do
-			if loaded_files[name] ~= nil then
-				goto continue
-			end
+function config.readConf(file, loaded_files)
+	if loaded_files == nil then
+		loaded_files = {}
+	end
 
-			print("Loading " .. name)
-			-- These may or may not exist, and that's ok. Do a
-			-- silent parse so that we complain on parse errors but
-			-- not for them simply not existing.
-			if not config.processFile(name, true) then
-				print(MSG_FAILPARSECFG:format(name))
-			end
+	if loaded_files[file] ~= nil then
+		return
+	end
 
-			loaded_files[name] = true
-			local newfiles = loader.getenv("loader_conf_files")
-			if prefiles ~= newfiles then
-				-- Recurse; process the new files immediately.
-				-- If we come back and it turns out we've
-				-- already loaded the rest of what was in the
-				-- original loader_conf_files, no big deal.
-				config.readConfFiles(newfiles, loaded_files)
-				prefiles = newfiles
-			end
-			::continue::
+	print("Loading " .. file)
+
+	-- The final value of loader_conf_files is not important, so just
+	-- clobber it here.  We'll later check if it's no longer nil and process
+	-- the new value for files to read.
+	setEnv("loader_conf_files", nil)
+
+	-- These may or may not exist, and that's ok. Do a
+	-- silent parse so that we complain on parse errors but
+	-- not for them simply not existing.
+	if not config.processFile(file, true) then
+		print(MSG_FAILPARSECFG:format(file))
+	end
+
+	loaded_files[file] = true
+
+	-- Going to process "loader_conf_files" extra-files
+	local loader_conf_files = getEnv("loader_conf_files")
+	if loader_conf_files ~= nil then
+		for name in loader_conf_files:gmatch("[%w%p]+") do
+			config.readConf(name, loaded_files)
 		end
 	end
 end
@@ -602,12 +630,7 @@ function config.load(file, reloading)
 		file = "/boot/defaults/loader.conf"
 	end
 
-	if not config.processFile(file) then
-		print(MSG_FAILPARSECFG:format(file))
-	end
-
-	local loaded_files = {file = true}
-	config.readConfFiles(loader.getenv("loader_conf_files"), loaded_files)
+	config.readConf(file)
 
 	checkNextboot()
 

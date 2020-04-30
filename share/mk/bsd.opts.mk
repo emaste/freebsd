@@ -65,7 +65,6 @@ __DEFAULT_YES_OPTIONS = \
     PIE \
     RETPOLINE \
     SSP \
-    SYMVER \
     TESTS \
     TOOLCHAIN \
     WARNS
