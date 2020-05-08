@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
  * the nfs op functions. They do things like create the rpc header and
  * copy data between mbuf chains and uio lists.
  */
-#ifndef APPLEKEXT
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
@@ -192,7 +191,6 @@ struct nfsv4_opflag nfsv4_opflag[NFSV42_NOPS] = {
 	{ 0, 1, 0, 0, LK_SHARED, 1, 1 },		/* Listxattrs */
 	{ 0, 1, 1, 1, LK_EXCLUSIVE, 1, 1 },		/* Removexattr */
 };
-#endif	/* !APPLEKEXT */
 
 static int ncl_mbuf_mhlen = MHLEN;
 static int nfsrv_usercnt = 0;
@@ -1004,53 +1002,6 @@ nfsaddr2_match(NFSSOCKADDR_T nam1, NFSSOCKADDR_T nam2)
 #endif
 	}
 	return (0);
-}
-
-
-/*
- * Trim the stuff already dissected off the mbuf list.
- */
-APPLESTATIC void
-newnfs_trimleading(nd)
-	struct nfsrv_descript *nd;
-{
-	struct mbuf *m, *n;
-	int offs;
-
-	/*
-	 * First, free up leading mbufs.
-	 */
-	if (nd->nd_mrep != nd->nd_md) {
-		m = nd->nd_mrep;
-		while (m->m_next != nd->nd_md) {
-			if (m->m_next == NULL)
-				panic("nfsm trim leading");
-			m = m->m_next;
-		}
-		m->m_next = NULL;
-		m_freem(nd->nd_mrep);
-	}
-	m = nd->nd_md;
-
-	/*
-	 * Now, adjust this mbuf, based on nd_dpos.
-	 */
-	offs = nd->nd_dpos - mtod(m, caddr_t);
-	if (offs == m->m_len) {
-		n = m;
-		m = m->m_next;
-		if (m == NULL)
-			panic("nfsm trim leading2");
-		n->m_next = NULL;
-		m_freem(n);
-	} else if (offs > 0) {
-		m->m_len -= offs;
-		m->m_data += offs;
-	} else if (offs < 0)
-		panic("nfsm trimleading offs");
-	nd->nd_mrep = m;
-	nd->nd_md = m;
-	nd->nd_dpos = mtod(m, caddr_t);
 }
 
 /*
