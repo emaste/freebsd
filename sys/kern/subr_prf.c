@@ -776,8 +776,8 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 			goto reswitch;
 		case 'n':
 			/*
-			 * We do not support %n in kernel, but must consume
-			 * the argument.
+			 * We do not support %n in kernel, but consume the
+			 * argument.
 			 */
 			if (jflag)
 				(void)va_arg(ap, intmax_t *);
