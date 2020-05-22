@@ -161,13 +161,13 @@ SYSCTL_NODE(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO, aslr,
     "");
 #define	ASLR_NODE_OID	__CONCAT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), _aslr)
 
-static int __elfN(aslr_enabled) = 0;
+static int __elfN(aslr_enabled) = 1;
 SYSCTL_INT(ASLR_NODE_OID, OID_AUTO, enable, CTLFLAG_RWTUN,
     &__elfN(aslr_enabled), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE))
     ": enable address map randomization");
 
-static int __elfN(pie_aslr_enabled) = 0;
+static int __elfN(pie_aslr_enabled) = 1;
 SYSCTL_INT(ASLR_NODE_OID, OID_AUTO, pie_enable, CTLFLAG_RWTUN,
     &__elfN(pie_aslr_enabled), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE))
