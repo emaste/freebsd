@@ -1,6 +1,8 @@
 /*-
- * Copyright (c) 2014 Andrew Turner
- * All rights reserved.
+ * Copyright (c) 2020 The FreeBSD Foundation
+ *
+ * This software was developed by Emmanuel Vadot under sponsorship
+ * from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -14,7 +16,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -22,38 +24,59 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef _LINUX_REFCOUNT_H
+#define _LINUX_REFCOUNT_H
 
-#include <sys/param.h>
-#include <sys/systm.h>
+#include <linux/atomic.h>
 
-int
-copystr(const void * __restrict kfaddr, void * __restrict kdaddr, size_t len,
-    size_t * __restrict lencopied)
+struct refcount_linux {
+	atomic_t value;
+};
+typedef struct refcount_linux refcount_t;
+
+static inline void
+refcount_set(refcount_t *ref, unsigned int i)
 {
-	const char *src;
-	size_t pos;
-	char *dst;
-	int error;
-
-	error = ENAMETOOLONG;
-	src = kfaddr;
-	dst = kdaddr;
-	for (pos = 0; pos < len; pos++) {
-		dst[pos] = src[pos];
-		if (src[pos] == '\0') {
-			/* Increment pos to hold the number of bytes copied */
-			pos++;
-			error = 0;
-			break;
-		}
-	}
-
-	if (lencopied != NULL)
-		*lencopied = pos;
-
-	return (error);
+	atomic_set(&ref->value, i);
 }
+
+static inline void
+refcount_inc(refcount_t *ref)
+{
+	atomic_inc(&ref->value);
+}
+
+static inline bool
+refcount_inc_not_zero(refcount_t *ref)
+{
+	return (atomic_inc_not_zero(&ref->value));
+}
+
+static inline void
+refcount_dec(refcount_t *ref)
+{
+	atomic_dec(&ref->value);
+}
+
+static inline unsigned int
+refcount_read(refcount_t *ref)
+{
+	return atomic_read(&ref->value);
+}
+
+static inline bool
+refcount_dec_and_lock_irqsave(refcount_t *ref, spinlock_t *lock,
+    unsigned long *flags)
+{
+	if (atomic_dec_and_test(&ref->value) == true) {
+		spin_lock_irqsave(lock, flags);
+		return (true);
+	}
+	return (false);
+}
+
+#endif /* __LINUX_REFCOUNT_H__ */

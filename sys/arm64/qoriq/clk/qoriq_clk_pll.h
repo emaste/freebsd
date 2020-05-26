@@ -1,6 +1,8 @@
 /*-
- * Copyright (c) 2014 Andrew Turner
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2020 Alstom Group.
+ * Copyright (c) 2020 Semihalf.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,39 +25,29 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
+ *
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef	_QORIQ_CLK_PLL_H_
+#define	_QORIQ_CLK_PLL_H_
 
-#include <sys/param.h>
-#include <sys/systm.h>
+#include <dev/extres/clk/clk.h>
 
-int
-(copystr)(const void * __restrict kfaddr, void * __restrict kdaddr, size_t len,
-    size_t * __restrict lencopied)
-{
-	const char *src;
-	size_t pos;
-	char *dst;
-	int error;
+#define	QORIQ_CLK_PLL_HAS_KILL_BIT	0x01
 
-	error = ENAMETOOLONG;
-	src = kfaddr;
-	dst = kdaddr;
-	for (pos = 0; pos < len; pos++) {
-		dst[pos] = src[pos];
-		if (src[pos] == '\0') {
-			/* Increment pos to hold the number of bytes copied */
-			pos++;
-			error = 0;
-			break;
-		}
-	}
+struct qoriq_clk_pll_def {
+	struct clknode_init_def	clkdef;
 
-	if (lencopied != NULL)
-		*lencopied = pos;
+	bus_addr_t		offset;
+	uint32_t		mask;
+	uint8_t			shift;
+	const uint8_t		*dividers;
+	uint8_t			flags;
+};
 
-	return (error);
-}
+int qoriq_clk_pll_register(struct clkdom *clkdom,
+    const struct qoriq_clk_pll_def *clkdef);
+
+#endif	/* _QORIQ_CLK_PLL_H_ */
 
