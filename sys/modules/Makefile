@@ -91,7 +91,6 @@ SUBDIR=	\
 	${_cloudabi64} \
 	${_cmx} \
 	${_coretemp} \
-	${_cp} \
 	${_cpsw} \
 	${_cpuctl} \
 	${_cpufreq} \
@@ -734,9 +733,6 @@ _vmm=		vmm
 _3dfx=		3dfx
 _3dfx_linux=	3dfx_linux
 _apm=		apm
-.if ${MK_SOURCELESS_UCODE} != "no"
-_cp=		cp
-.endif
 _glxiic=	glxiic
 _glxsb=		glxsb
 _pcfclock=	pcfclock
