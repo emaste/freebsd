@@ -293,12 +293,6 @@ __DEFAULT_NO_OPTIONS+=LLVM_TARGET_BPF
 .if ${__T} == "aarch64" || ${__T:Mriscv*} != ""
 BROKEN_OPTIONS+=BINUTILS BINUTILS_BOOTSTRAP GDB
 .endif
-# BINUTILS_BOOTSTRAP is needed on amd64 only, for skein_block_asm.s
-.if ${__T} == "amd64"
-__DEFAULT_YES_OPTIONS+=BINUTILS_BOOTSTRAP
-.else
-__DEFAULT_NO_OPTIONS+=BINUTILS_BOOTSTRAP
-.endif
 .if ${__T:Mriscv*} != ""
 BROKEN_OPTIONS+=OFED
 .endif
