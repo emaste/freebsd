@@ -3,7 +3,7 @@
 .include <src.opts.mk>
 
 
-.if ${MK_GDB} != "no" || ${MK_BINUTILS} != "no"
+.if ${MK_GDB} != "no"
 SUBDIR+=	binutils
 .endif
 
