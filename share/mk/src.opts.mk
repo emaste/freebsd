@@ -196,8 +196,6 @@ __DEFAULT_YES_OPTIONS = \
 __DEFAULT_NO_OPTIONS = \
     BEARSSL \
     BHYVE_SNAPSHOT \
-    BINUTILS \
-    BINUTILS_BOOTSTRAP \
     CLANG_EXTRAS \
     CLEAN \
     DTRACE_TESTS \
@@ -289,9 +287,9 @@ __DEFAULT_NO_OPTIONS+=LLVM_TARGET_BPF
 
 .include <bsd.compiler.mk>
 
-# In-tree binutils/gcc are older versions without modern architecture support.
+# In-tree gdb is an older versions without modern architecture support.
 .if ${__T} == "aarch64" || ${__T:Mriscv*} != ""
-BROKEN_OPTIONS+=BINUTILS BINUTILS_BOOTSTRAP GDB
+BROKEN_OPTIONS+=GDB
 .endif
 .if ${__T:Mriscv*} != ""
 BROKEN_OPTIONS+=OFED
@@ -470,14 +468,12 @@ MK_ZONEINFO_LEAPSECONDS_SUPPORT:= no
 .endif
 
 .if ${MK_CROSS_COMPILER} == "no"
-MK_BINUTILS_BOOTSTRAP:= no
 MK_CLANG_BOOTSTRAP:= no
 MK_ELFTOOLCHAIN_BOOTSTRAP:= no
 MK_LLD_BOOTSTRAP:= no
 .endif
 
 .if ${MK_TOOLCHAIN} == "no"
-MK_BINUTILS:=	no
 MK_CLANG:=	no
 MK_GDB:=	no
 MK_INCLUDES:=	no
