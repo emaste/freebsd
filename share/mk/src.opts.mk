@@ -104,7 +104,6 @@ __DEFAULT_YES_OPTIONS = \
     FREEBSD_UPDATE \
     FTP \
     GAMES \
-    GDB \
     GNU_DIFF \
     GNU_GREP \
     GOOGLETEST \
@@ -286,10 +285,6 @@ __DEFAULT_NO_OPTIONS+=LLVM_TARGET_BPF
 
 .include <bsd.compiler.mk>
 
-# In-tree gdb is an older versions without modern architecture support.
-.if ${__T} == "aarch64" || ${__T:Mriscv*} != ""
-BROKEN_OPTIONS+=GDB
-.endif
 .if ${__T:Mriscv*} != ""
 BROKEN_OPTIONS+=OFED
 .endif
@@ -474,7 +469,6 @@ MK_LLD_BOOTSTRAP:= no
 
 .if ${MK_TOOLCHAIN} == "no"
 MK_CLANG:=	no
-MK_GDB:=	no
 MK_INCLUDES:=	no
 MK_LLD:=	no
 MK_LLDB:=	no

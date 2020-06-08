@@ -2072,10 +2072,6 @@ OLD_FILES+=usr/bin/llvm-profdata
 OLD_FILES+=usr/share/man/man1/llvm-cov.1.gz
 .endif
 
-.if ${MK_GDB} == no
-OLD_FILES+=usr/libexec/kgdb
-.endif
-
 .if ${MK_GOOGLETEST} == no
 OLD_FILES+=usr/include/gmock/gmock-actions.h
 OLD_FILES+=usr/include/gmock/gmock-cardinalities.h

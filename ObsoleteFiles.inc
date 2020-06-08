@@ -36,6 +36,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 202006xx: do not build kgdb either
+OLD_FILES+=usr/libexec/kgdb
+
 # 202006xx: do not build gdb (kgdb only)
 OLD_FILES+=usr/libexec/gdb
 
