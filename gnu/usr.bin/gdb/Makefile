@@ -2,6 +2,6 @@
 
 .include <src.opts.mk>
 
-SUBDIR=	libgdb gdb kgdb
+SUBDIR=	libgdb kgdb
 
 .include <bsd.subdir.mk>

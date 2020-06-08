@@ -2073,7 +2073,6 @@ OLD_FILES+=usr/share/man/man1/llvm-cov.1.gz
 .endif
 
 .if ${MK_GDB} == no
-OLD_FILES+=usr/libexec/gdb
 OLD_FILES+=usr/libexec/kgdb
 .endif
 

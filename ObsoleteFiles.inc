@@ -36,6 +36,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 202006xx: do not build gdb (kgdb only)
+OLD_FILES+=usr/libexec/gdb
+
 # 20200606: retire binutils build infrastructure
 .if !defined(WITH_PORT_BASE_BINUTILS)
 OLD_FILES+=usr/bin/as
