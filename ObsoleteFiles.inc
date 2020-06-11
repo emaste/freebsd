@@ -36,9 +36,15 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 2020xxxx:
+# 20200606: retire binutils build infrastructure
 .if !defined(WITH_PORT_BASE_BINUTILS)
 OLD_FILES+=usr/bin/as
+OLD_FILES+=usr/bin/ld.bfd
+OLD_FILES+=usr/share/man/man1/as.1.gz
+OLD_FILES+=usr/share/man/man7/as.7.gz
+OLD_FILES+=usr/share/man/man7/ld.7.gz
+OLD_FILES+=usr/share/man/man7/ldint.7.gz
+OLD_FILES+=usr/share/man/man7/binutils.7.gz
 .endif
 OLD_FILES+=usr/libdata/ldscripts/armelf_fbsd.x
 OLD_FILES+=usr/libdata/ldscripts/armelf_fbsd.xbn
@@ -235,14 +241,6 @@ OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xsc
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xsw
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xu
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xw
-.if !defined(WITH_PORT_BASE_BINUTILS)
-OLD_FILES+=usr/share/man/man1/as.1.gz
-OLD_FILES+=usr/share/man/man7/as.7.gz
-OLD_FILES+=usr/share/man/man7/ld.7.gz
-OLD_FILES+=usr/share/man/man7/ldint.7.gz
-OLD_FILES+=usr/share/man/man7/binutils.7.gz
-OLD_FILES+=usr/bin/ld.bfd
-.endif
 
 # 20200601: OpenSSL 32-bit compat engines moved to /usr/lib32/engines
 OLD_LIBS+=usr/lib32/capi.so
@@ -2782,9 +2780,6 @@ OLD_LIBS+=usr/lib32/libnuron.so
 OLD_LIBS+=usr/lib32/libsureware.so
 OLD_LIBS+=usr/lib32/libubsec.so
 OLD_LIBS+=usr/lib32/libssl.so.8
-# 201809xx: libevent renamed libevent1
-OLD_FILES+=usr/include/private/event/event.h
-OLD_DIRS+=usr/include/private/event
 # 20180824: libbe(3) SHLIBDIR fixed to reflect correct location
 OLD_LIBS+=usr/lib/libbe.so.1
 # 20180819: Remove deprecated arc4random(3) stir/addrandom interfaces

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2018 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2018-2020 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This software was developed by BAE Systems, the University of Cambridge
@@ -41,10 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <arm64/coresight/coresight.h>
-#include <arm64/coresight/coresight-funnel.h>
-
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
+#include <arm64/coresight/coresight_funnel.h>
 
 #include "coresight_if.h"
 
@@ -57,16 +54,6 @@ __FBSDID("$FreeBSD$");
 #define	dprintf(fmt, ...)
 #endif
 
-static struct ofw_compat_data compat_data[] = {
-	{ "arm,coresight-funnel",		1 },
-	{ NULL,					0 }
-};
-
-struct funnel_softc {
-	struct resource			*res;
-	struct coresight_platform_data	*pdata;
-};
-
 static struct resource_spec funnel_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ -1, 0 }
@@ -78,10 +65,11 @@ funnel_init(device_t dev)
 	struct funnel_softc *sc;
 
 	sc = device_get_softc(dev);
+	if (sc->hwtype == HWTYPE_STATIC_FUNNEL)
+		return (0);
 
 	/* Unlock Coresight */
 	bus_write_4(sc->res, CORESIGHT_LAR, CORESIGHT_UNLOCK);
-
 	dprintf("Device ID: %x\n", bus_read_4(sc->res, FUNNEL_DEVICEID));
 
 	return (0);
@@ -95,6 +83,8 @@ funnel_enable(device_t dev, struct endpoint *endp,
 	uint32_t reg;
 
 	sc = device_get_softc(dev);
+	if (sc->hwtype == HWTYPE_STATIC_FUNNEL)
+		return (0);
 
 	reg = bus_read_4(sc->res, FUNNEL_FUNCTL);
 	reg &= ~(FUNCTL_HOLDTIME_MASK);
@@ -113,25 +103,12 @@ funnel_disable(device_t dev, struct endpoint *endp,
 	uint32_t reg;
 
 	sc = device_get_softc(dev);
+	if (sc->hwtype == HWTYPE_STATIC_FUNNEL)
+		return;
 
 	reg = bus_read_4(sc->res, FUNNEL_FUNCTL);
 	reg &= ~(1 << endp->reg);
 	bus_write_4(sc->res, FUNNEL_FUNCTL, reg);
-}
-
-static int
-funnel_probe(device_t dev)
-{
-
-	if (!ofw_bus_status_okay(dev))
-		return (ENXIO);
-
-	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
-		return (ENXIO);
-
-	device_set_desc(dev, "Coresight Funnel");
-
-	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -141,8 +118,8 @@ funnel_attach(device_t dev)
 	struct funnel_softc *sc;
 
 	sc = device_get_softc(dev);
-
-	if (bus_alloc_resources(dev, funnel_spec, &sc->res) != 0) {
+	if (sc->hwtype == HWTYPE_FUNNEL &&
+	    bus_alloc_resources(dev, funnel_spec, &sc->res) != 0) {
 		device_printf(dev, "cannot allocate resources for device\n");
 		return (ENXIO);
 	}
@@ -158,7 +135,6 @@ funnel_attach(device_t dev)
 
 static device_method_t funnel_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		funnel_probe),
 	DEVMETHOD(device_attach,	funnel_attach),
 
 	/* Coresight interface */
@@ -168,13 +144,5 @@ static device_method_t funnel_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t funnel_driver = {
-	"funnel",
-	funnel_methods,
-	sizeof(struct funnel_softc),
-};
-
-static devclass_t funnel_devclass;
-
-DRIVER_MODULE(funnel, simplebus, funnel_driver, funnel_devclass, 0, 0);
-MODULE_VERSION(funnel, 1);
+DEFINE_CLASS_0(funnel, funnel_driver, funnel_methods,
+    sizeof(struct funnel_softc));
