@@ -1,17 +1,17 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-1-Clause
  *
- * Copyright (c) 2007-2008 Sam Leffler, Errno Consulting
- * All rights reserved.
+ * Copyright 2012 Konstantin Belousov <kib@FreeBSD.org>
+ * Copyright (c) 2018 The FreeBSD Foundation
+ *
+ * Parts of this software was developed by Konstantin Belousov
+ * <kib@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -23,29 +23,21 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
-#ifndef _NET80211_IEEE80211_STA_H_
-#define _NET80211_IEEE80211_STA_H_
 
-/*
- * Station-mode implementation definitions.
- */
-void	ieee80211_sta_attach(struct ieee80211com *);
-void	ieee80211_sta_detach(struct ieee80211com *);
-void	ieee80211_sta_vattach(struct ieee80211vap *);
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
-/*
- * Used by the adhoc/mesh/tdma paths.
- */
-extern	int ieee80211_parse_wmeparams(struct ieee80211vap *vap, uint8_t *frm,
-	    const struct ieee80211_frame *wh, uint8_t *qosinfo);
+#include <sys/elf_common.h>
 
-/*
- * Used in the hostap path.
- */
-extern	int ieee80211_parse_wmeie(uint8_t *frm,
-	    const struct ieee80211_frame *wh, struct ieee80211_node *ni);
+#include "notes.h"
 
-#endif /* !_NET80211_IEEE80211_STA_H_ */
+	.section .note.tag,"a",%note
+	.p2align	2
+	.4byte		2f-1f
+	.4byte		4f-3f
+	.4byte		NT_FREEBSD_NOINIT_TAG
+1:	.asciz		NOTE_FREEBSD_VENDOR
+2:	.p2align	2
+3:	.4byte		0
+4:
