@@ -2115,8 +2115,8 @@ ${_bt}-lib/libdwarf: ${_bt_m4_depend}
 # 13.0-CURRENT cycle, thus needs to be built on -older releases and stable
 # branches.
 .if ${BOOTSTRAPPING} < 1300059
-${_bt}-libexec/flua: ${_bt}-lib/liblua
-_flua= lib/liblua libexec/flua
+${_bt}-libexec/flua: ${_bt}-lib/liblua ${_bt}-lib/libucl
+_flua= lib/liblua lib/libucl libexec/flua
 .endif
 
 # r245440 mtree -N support added
@@ -2777,7 +2777,7 @@ _lib_casper=	lib/libcasper
 
 lib/libpjdlog__L: lib/libutil__L
 lib/libcasper__L: lib/libnv__L
-lib/liblzma__L: lib/libthr__L
+lib/liblzma__L: lib/libmd__L lib/libthr__L
 lib/libzstd__L: lib/libthr__L
 
 _generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib}
