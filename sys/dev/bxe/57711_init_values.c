@@ -26,6 +26,7 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/* clang-format off */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
