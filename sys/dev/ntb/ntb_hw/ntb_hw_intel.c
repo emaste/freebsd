@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
+#include <dev/iommu/iommu.h>
 
 #include "ntb_hw_intel.h"
 #include "../ntb.h"
@@ -811,7 +812,7 @@ intel_ntb_map_pci_bars(struct ntb_softc *ntb)
 		device_printf(ntb->device, "Unable to create BAR0 map\n");
 		return (ENOMEM);
 	}
-	if (bus_dma_dmar_load_ident(ntb->bar0_dma_tag, ntb->bar0_dma_map,
+	if (bus_dma_iommu_load_ident(ntb->bar0_dma_tag, ntb->bar0_dma_map,
 	    bar->pbase, bar->size, 0)) {
 		device_printf(ntb->device, "Unable to load BAR0 map\n");
 		return (ENOMEM);

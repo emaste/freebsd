@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
+#include <dev/iommu/iommu.h>
 
 #include "../ntb.h"
 
@@ -343,7 +344,7 @@ ntb_plx_attach(device_t dev)
 	 * The device occupies whole bus.  In translated TLP slot field
 	 * keeps LUT index (original bus/slot), function is passed through.
 	 */
-	bus_dma_dmar_set_buswide(dev);
+	bus_dma_iommu_set_buswide(dev);
 
 	/* Identify chip port we are connected to. */
 	val = bus_read_4(sc->conf_res, 0x360);
