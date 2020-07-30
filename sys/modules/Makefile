@@ -749,7 +749,7 @@ _pst=		pst
 _sbni=		sbni
 .endif
 
-.if ${MACHINE_CPUARCH} == "arm"
+.if ${MACHINE_ARCH} == "armv7"
 _cfi=		cfi
 _cpsw=		cpsw
 .endif
