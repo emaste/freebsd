@@ -1,8 +1,8 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
+ * Copyright (c) 2020 The FreeBSD Foundation
  *
- * Copyright (c) 1992, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * This software was developed by Emmanuel Vadot under sponsorship
+ * from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -12,14 +12,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -28,22 +25,40 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)random.c	8.1 (Berkeley) 6/10/93
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef __LINUX_WAITBIT_H__
+#define	__LINUX_WAITBIT_H__
 
-#include <sys/types.h>
-#include <sys/libkern.h>
-#include <sys/prng.h>
-#include <sys/systm.h>
+#include <linux/wait.h>
+#include <linux/bitops.h>
 
-/*
- * Pseudo-random number generator.  The result is uniform in [0, 2^31 - 1].
- */
-u_long
-random(void)
+extern wait_queue_head_t linux_bit_waitq;
+extern wait_queue_head_t linux_var_waitq;
+
+#define	wait_var_event_killable(var, cond) \
+	wait_event_killable(linux_var_waitq, cond)
+
+static inline void
+clear_and_wake_up_bit(int bit, void *word)
 {
-	return (prng32());
+	clear_bit_unlock(bit, word);
+	wake_up_bit(word, bit);
 }
+
+static inline wait_queue_head_t *
+bit_waitqueue(void *word, int bit)
+{
+
+	return (&linux_bit_waitq);
+}
+
+static inline void
+wake_up_var(void *var)
+{
+
+	wake_up(&linux_var_waitq);
+}
+
+#endif	/* __LINUX_WAITBIT_H__ */
