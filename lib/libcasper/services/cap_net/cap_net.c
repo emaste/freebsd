@@ -25,6 +25,9 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/cnv.h>
 #include <sys/dnv.h>
 #include <sys/nv.h>
@@ -44,8 +47,17 @@
 #include "cap_net.h"
 
 #define	CAPNET_MASK	(CAPNET_ADDR2NAME | CAPNET_NAME2ADDR	\
-    CAPNET_OBSOLETE_ADDR2NAME | CAPNET_OBSOLETE_NAME2ADDR | CAPNET_CONNECT | \
-    CAPNET_BIND | CAPNET_CONNECTDNS)
+    CAPNET_DEPRECATED_ADDR2NAME | CAPNET_DEPRECATED_NAME2ADDR | \
+    CAPNET_CONNECT | CAPNET_BIND | CAPNET_CONNECTDNS)
+
+/*
+ * Defines for the names of the limits.
+ * XXX: we should convert all string constats to this to avoid typos.
+ */
+#define	LIMIT_NV_BIND			"bind"
+#define	LIMIT_NV_CONNECT		"connect"
+#define	LIMIT_NV_ADDR2NAME		"addr2name"
+#define	LIMIT_NV_NAME2ADDR		"name2addr"
 
 struct cap_net_limit {
 	cap_channel_t	*cnl_chan;
@@ -164,7 +176,7 @@ cap_bind(cap_channel_t *chan, int s, const struct sockaddr *addr,
     socklen_t addrlen)
 {
 
-	return (request_cb(chan, "bind", s, addr, addrlen));
+	return (request_cb(chan, LIMIT_NV_BIND, s, addr, addrlen));
 }
 
 int
@@ -172,7 +184,7 @@ cap_connect(cap_channel_t *chan, int s, const struct sockaddr *name,
     socklen_t namelen)
 {
 
-	return (request_cb(chan, "connect", s, name, namelen));
+	return (request_cb(chan, LIMIT_NV_CONNECT, s, name, namelen));
 }
 
 
@@ -315,10 +327,10 @@ cap_getaddrinfo(cap_channel_t *chan, const char *hostname, const char *servname,
 		nvlai = nvlist_get_nvlist(nvl, nvlname);
 		curai = addrinfo_unpack(nvlai);
 		if (curai == NULL)
-			break;
+			return (EAI_MEMORY);
 		if (prevai != NULL)
 			prevai->ai_next = curai;
-		else if (firstai == NULL)
+		else
 			firstai = curai;
 		prevai = curai;
 	}
@@ -401,10 +413,10 @@ cap_net_limit(cap_net_limit_t *limit)
 	lnvl = nvlist_create(0);
 	nvlist_add_number(lnvl, "mode", limit->cnl_mode);
 
-	pack_limit(lnvl, "addr2name", limit->cnl_addr2name);
-	pack_limit(lnvl, "name2addr", limit->cnl_name2addr);
-	pack_limit(lnvl, "connect", limit->cnl_connect);
-	pack_limit(lnvl, "bind", limit->cnl_bind);
+	pack_limit(lnvl, LIMIT_NV_ADDR2NAME, limit->cnl_addr2name);
+	pack_limit(lnvl, LIMIT_NV_NAME2ADDR, limit->cnl_name2addr);
+	pack_limit(lnvl, LIMIT_NV_CONNECT, limit->cnl_connect);
+	pack_limit(lnvl, LIMIT_NV_BIND, limit->cnl_bind);
 
 	chan = limit->cnl_chan;
 	free(limit);
@@ -532,7 +544,7 @@ cap_net_limit_bind(cap_net_limit_t *limit, const struct sockaddr *sa,
 static nvlist_t *capdnscache;
 
 static void
-net_add_sockaddr_to_cache(struct sockaddr *sa, socklen_t salen, bool obsolete)
+net_add_sockaddr_to_cache(struct sockaddr *sa, socklen_t salen, bool deprecated)
 {
 	void *cookie;
 
@@ -555,7 +567,7 @@ net_add_sockaddr_to_cache(struct sockaddr *sa, socklen_t salen, bool obsolete)
 		}
 	}
 
-	nvlist_add_binary(capdnscache, obsolete ? "o" : "", sa, salen);
+	nvlist_add_binary(capdnscache, deprecated ? "d" : "", sa, salen);
 }
 
 static void
@@ -642,11 +654,11 @@ net_allowed_bsaddr_impl(const nvlist_t *salimits, const void *saddr,
 		}
 
 		/*
-		 * In case of obsolete version (gethostbyname) we have to ignore
-		 * port, because there is no such info in the hostent.
+		 * In case of deprecated version (gethostbyname) we have to
+		 * ignore port, because there is no such info in the hostent.
 		 * Suporting only AF_INET and AF_INET6.
 		 */
-		if (strcmp(cnvlist_name(cookie), "o") != 0 ||
+		if (strcmp(cnvlist_name(cookie), "d") != 0 ||
 		    (saddrsize != sizeof(struct sockaddr_in) &&
 		    saddrsize != sizeof(struct sockaddr_in6))) {
 			continue;
@@ -779,11 +791,11 @@ net_gethostbyname(const nvlist_t *limits, const nvlist_t *nvlin,
 	const char *name;
 	bool dnscache;
 
-	if (!net_allowed_mode(limits, CAPNET_OBSOLETE_NAME2ADDR))
+	if (!net_allowed_mode(limits, CAPNET_DEPRECATED_NAME2ADDR))
 		return (ENOTCAPABLE);
 
 	dnscache = net_allowed_mode(limits, CAPNET_CONNECTDNS);
-	funclimit = dnvlist_get_nvlist(limits, "name2addr", NULL);
+	funclimit = dnvlist_get_nvlist(limits, LIMIT_NV_NAME2ADDR, NULL);
 
 	family = (int)nvlist_get_number(nvlin, "family");
 	if (!net_allowed_family(funclimit, family))
@@ -810,10 +822,10 @@ net_gethostbyaddr(const nvlist_t *limits, const nvlist_t *nvlin,
 	int family;
 	const nvlist_t *funclimit;
 
-	if (!net_allowed_mode(limits, CAPNET_OBSOLETE_ADDR2NAME))
+	if (!net_allowed_mode(limits, CAPNET_DEPRECATED_ADDR2NAME))
 		return (ENOTCAPABLE);
 
-	funclimit = dnvlist_get_nvlist(limits, "addr2name", NULL);
+	funclimit = dnvlist_get_nvlist(limits, LIMIT_NV_ADDR2NAME, NULL);
 
 	family = (int)nvlist_get_number(nvlin, "family");
 	if (!net_allowed_family(funclimit, family))
@@ -843,7 +855,7 @@ net_getnameinfo(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 
 	if (!net_allowed_mode(limits, CAPNET_ADDR2NAME))
 		return (ENOTCAPABLE);
-	funclimit = dnvlist_get_nvlist(limits, "addr2name", NULL);
+	funclimit = dnvlist_get_nvlist(limits, LIMIT_NV_ADDR2NAME, NULL);
 
 	error = 0;
 	host = serv = NULL;
@@ -942,7 +954,7 @@ net_getaddrinfo(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 	if (!net_allowed_mode(limits, CAPNET_NAME2ADDR))
 		return (ENOTCAPABLE);
 	dnscache = net_allowed_mode(limits, CAPNET_CONNECTDNS);
-	funclimit = dnvlist_get_nvlist(limits, "name2addr", NULL);
+	funclimit = dnvlist_get_nvlist(limits, LIMIT_NV_NAME2ADDR, NULL);
 
 	hostname = dnvlist_get_string(nvlin, "hostname", NULL);
 	servname = dnvlist_get_string(nvlin, "servname", NULL);
@@ -1002,14 +1014,14 @@ net_bind(const nvlist_t *limits, nvlist_t *nvlin, nvlist_t *nvlout)
 
 	if (!net_allowed_mode(limits, CAPNET_BIND))
 		return (ENOTCAPABLE);
-	funclimit = dnvlist_get_nvlist(limits, "bind", NULL);
+	funclimit = dnvlist_get_nvlist(limits, LIMIT_NV_BIND, NULL);
 
 	saddr = nvlist_get_binary(nvlin, "saddr", &len);
 
 	if (!net_allowed_bsaddr(funclimit, saddr, len))
 		return (ENOTCAPABLE);
 
-	socket = dup(nvlist_get_descriptor(nvlin, "s"));
+	socket = nvlist_take_descriptor(nvlin, "s");
 	if (bind(socket, saddr, len) < 0) {
 		serrno = errno;
 		close(socket);
@@ -1036,7 +1048,7 @@ net_connect(const nvlist_t *limits, nvlist_t *nvlin, nvlist_t *nvlout)
 	if (!conn && !conndns)
 		return (ENOTCAPABLE);
 
-	funclimit = dnvlist_get_nvlist(limits, "connect", NULL);
+	funclimit = dnvlist_get_nvlist(limits, LIMIT_NV_CONNECT, NULL);
 
 	saddr = nvlist_get_binary(nvlin, "saddr", &len);
 	if (conn && !net_allowed_bsaddr(funclimit, saddr, len)) {
@@ -1098,8 +1110,10 @@ verify_bind_newlimts(const nvlist_t *oldlimits,
 	const nvlist_t *oldfunclimits;
 
 	oldfunclimits = NULL;
-	if (oldlimits != NULL)
-		oldfunclimits = dnvlist_get_nvlist(oldlimits, "bind", NULL);
+	if (oldlimits != NULL) {
+		oldfunclimits = dnvlist_get_nvlist(oldlimits, LIMIT_NV_BIND,
+		    NULL);
+	}
 
 	return (verify_only_sa_newlimts(oldfunclimits, newfunclimit));
 }
@@ -1112,8 +1126,10 @@ verify_connect_newlimits(const nvlist_t *oldlimits,
 	const nvlist_t *oldfunclimits;
 
 	oldfunclimits = NULL;
-	if (oldlimits != NULL)
-		oldfunclimits = dnvlist_get_nvlist(oldlimits, "connect", NULL);
+	if (oldlimits != NULL) {
+		oldfunclimits = dnvlist_get_nvlist(oldlimits, LIMIT_NV_CONNECT,
+		    NULL);
+	}
 
 	return (verify_only_sa_newlimts(oldfunclimits, newfunclimit));
 }
@@ -1127,8 +1143,8 @@ verify_addr2name_newlimits(const nvlist_t *oldlimits,
 
 	oldfunclimits = NULL;
 	if (oldlimits != NULL) {
-		oldfunclimits = dnvlist_get_nvlist(oldlimits, "addr2name",
-		    NULL);
+		oldfunclimits = dnvlist_get_nvlist(oldlimits,
+		    LIMIT_NV_ADDR2NAME, NULL);
 	}
 
 	cookie = NULL;
@@ -1185,8 +1201,8 @@ verify_name2addr_newlimits(const nvlist_t *oldlimits,
 
 	oldfunclimits = NULL;
 	if (oldlimits != NULL) {
-		oldfunclimits = dnvlist_get_nvlist(oldlimits, "addr2name",
-		    NULL);
+		oldfunclimits = dnvlist_get_nvlist(oldlimits,
+		    LIMIT_NV_ADDR2NAME, NULL);
 	}
 
 	cookie = NULL;
@@ -1242,12 +1258,12 @@ net_limit(const nvlist_t *oldlimits, const nvlist_t *newlimits)
 	 * Modes:
 	 *	ADDR2NAME:
 	 *		getnameinfo
-	 *	OBSOLETE_ADDR2NAME:
+	 *	DEPRECATED_ADDR2NAME:
 	 *		gethostbyaddr
 	 *
 	 *	NAME2ADDR:
 	 *		getaddrinfo
-	 *	OBSOLETE_NAME2ADDR:
+	 *	DEPRECATED_NAME2ADDR:
 	 *		gethostbyname
 	 *
 	 * Limit scheme:
@@ -1295,25 +1311,25 @@ net_limit(const nvlist_t *oldlimits, const nvlist_t *newlimits)
 			return (NO_RECOVERY);
 		}
 
-		if (strcmp(name, "bind") == 0) {
+		if (strcmp(name, LIMIT_NV_BIND) == 0) {
 			hasbind = true;
 			if (!verify_bind_newlimts(oldlimits,
 			    cnvlist_get_nvlist(cookie))) {
 				return (ENOTCAPABLE);
 			}
-		} else if (strcmp(name, "connect") == 0) {
+		} else if (strcmp(name, LIMIT_NV_CONNECT) == 0) {
 			hasconnect = true;
 			if (!verify_connect_newlimits(oldlimits,
 			    cnvlist_get_nvlist(cookie))) {
 				return (ENOTCAPABLE);
 			}
-		} else if (strcmp(name, "addr2name") == 0) {
+		} else if (strcmp(name, LIMIT_NV_ADDR2NAME) == 0) {
 			hasaddr2name = true;
 			if (!verify_addr2name_newlimits(oldlimits,
 			    cnvlist_get_nvlist(cookie))) {
 				return (ENOTCAPABLE);
 			}
-		} else if (strcmp(name, "name2addr") == 0) {
+		} else if (strcmp(name, LIMIT_NV_NAME2ADDR) == 0) {
 			hasname2addr = true;
 			if (!verify_name2addr_newlimits(oldlimits,
 			    cnvlist_get_nvlist(cookie))) {
@@ -1323,9 +1339,8 @@ net_limit(const nvlist_t *oldlimits, const nvlist_t *newlimits)
 	}
 
 	/* Mode is required. */
-	if (!hasmode) {
+	if (!hasmode)
 		return (ENOTCAPABLE);
-	}
 
 	/*
 	 * If the new limit doesn't mention mode or family we have to
@@ -1333,21 +1348,16 @@ net_limit(const nvlist_t *oldlimits, const nvlist_t *newlimits)
 	 * family in the limit means that all modes or families are
 	 * allowed.
 	 */
-	if (oldlimits == NULL) {
+	if (oldlimits == NULL)
 		return (0);
-	}
-	if (!hasconnect && nvlist_exists(oldlimits, "bind")) {
+	if (!hasconnect && nvlist_exists(oldlimits, LIMIT_NV_BIND))
 		return (ENOTCAPABLE);
-	}
-	if (!hasconnect && nvlist_exists(oldlimits, "connect")) {
+	if (!hasconnect && nvlist_exists(oldlimits, LIMIT_NV_CONNECT))
 		return (ENOTCAPABLE);
-	}
-	if (!hasaddr2name && nvlist_exists(oldlimits, "addr2name")) {
+	if (!hasaddr2name && nvlist_exists(oldlimits, LIMIT_NV_ADDR2NAME))
 		return (ENOTCAPABLE);
-	}
-	if (!hasname2addr && nvlist_exists(oldlimits, "name2addr")) {
+	if (!hasname2addr && nvlist_exists(oldlimits, LIMIT_NV_NAME2ADDR))
 		return (ENOTCAPABLE);
-	}
 	return (0);
 }
 
@@ -1372,5 +1382,4 @@ net_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 	return (EINVAL);
 }
 
-CREATE_SERVICE("system.net", net_limit, net_command,
-    CASPER_SERVICE_FD | CASPER_SERVICE_STDIO); /* XXXosho: remove me. */
+CREATE_SERVICE("system.net", net_limit, net_command, 0);

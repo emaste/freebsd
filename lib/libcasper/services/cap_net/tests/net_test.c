@@ -1,6 +1,5 @@
 /*-
  * Copyright (c) 2020 Mariusz Zaborski <oshogbo@FreeBSD.org>
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -279,8 +278,8 @@ test_extend_mode(cap_channel_t *capnet, int current)
 	const int rights[] = {
 		CAPNET_ADDR2NAME,
 		CAPNET_NAME2ADDR,
-		CAPNET_OBSOLETE_ADDR2NAME,
-		CAPNET_OBSOLETE_NAME2ADDR,
+		CAPNET_DEPRECATED_ADDR2NAME,
+		CAPNET_DEPRECATED_NAME2ADDR,
 		CAPNET_CONNECT,
 		CAPNET_BIND,
 		CAPNET_CONNECTDNS
@@ -427,8 +426,8 @@ ATF_TC_BODY(capnet__limits_addr2name, tc)
 	cap_close(capnet);
 }
 
-ATF_TC_WITHOUT_HEAD(capnet__limits_obsolete_addr2name_mode);
-ATF_TC_BODY(capnet__limits_obsolete_addr2name_mode, tc)
+ATF_TC_WITHOUT_HEAD(capnet__limits_deprecated_addr2name_mode);
+ATF_TC_BODY(capnet__limits_deprecated_addr2name_mode, tc)
 {
 	cap_channel_t *capnet;
 	cap_net_limit_t *limit;
@@ -436,7 +435,7 @@ ATF_TC_BODY(capnet__limits_obsolete_addr2name_mode, tc)
 	capnet = create_network_service();
 
 	/* LIMIT */
-	limit = cap_net_limit_init(capnet, CAPNET_OBSOLETE_ADDR2NAME);
+	limit = cap_net_limit_init(capnet, CAPNET_DEPRECATED_ADDR2NAME);
 	ATF_REQUIRE(limit != NULL);
 	ATF_REQUIRE(cap_net_limit(limit) == 0);
 
@@ -456,8 +455,8 @@ ATF_TC_BODY(capnet__limits_obsolete_addr2name_mode, tc)
 	cap_close(capnet);
 }
 
-ATF_TC_WITHOUT_HEAD(capnet__limits_obsolete_addr2name_family);
-ATF_TC_BODY(capnet__limits_obsolete_addr2name_family, tc)
+ATF_TC_WITHOUT_HEAD(capnet__limits_deprecated_addr2name_family);
+ATF_TC_BODY(capnet__limits_deprecated_addr2name_family, tc)
 {
 	cap_channel_t *capnet;
 	cap_net_limit_t *limit;
@@ -466,7 +465,7 @@ ATF_TC_BODY(capnet__limits_obsolete_addr2name_family, tc)
 	capnet = create_network_service();
 
 	/* Limit to AF_INET6 and AF_INET. */
-	limit = cap_net_limit_init(capnet, CAPNET_OBSOLETE_ADDR2NAME);
+	limit = cap_net_limit_init(capnet, CAPNET_DEPRECATED_ADDR2NAME);
 	ATF_REQUIRE(limit != NULL);
 	cap_net_limit_addr2name_family(limit, family, nitems(family));
 	ATF_REQUIRE(cap_net_limit(limit) == 0);
@@ -477,7 +476,7 @@ ATF_TC_BODY(capnet__limits_obsolete_addr2name_family, tc)
 	    ENOTCAPABLE);
 
 	/* Limit to AF_INET6 and AF_INET. */
-	limit = cap_net_limit_init(capnet, CAPNET_OBSOLETE_ADDR2NAME);
+	limit = cap_net_limit_init(capnet, CAPNET_DEPRECATED_ADDR2NAME);
 	ATF_REQUIRE(limit != NULL);
 	cap_net_limit_addr2name_family(limit, &family[0], 1);
 	cap_net_limit_addr2name_family(limit, &family[1], 1);
@@ -489,7 +488,7 @@ ATF_TC_BODY(capnet__limits_obsolete_addr2name_family, tc)
 	    ENOTCAPABLE);
 
 	/* Limit to AF_INET6. */
-	limit = cap_net_limit_init(capnet, CAPNET_OBSOLETE_ADDR2NAME);
+	limit = cap_net_limit_init(capnet, CAPNET_DEPRECATED_ADDR2NAME);
 	ATF_REQUIRE(limit != NULL);
 	cap_net_limit_addr2name_family(limit, family, 1);
 	ATF_REQUIRE(cap_net_limit(limit) == 0);
@@ -501,14 +500,14 @@ ATF_TC_BODY(capnet__limits_obsolete_addr2name_family, tc)
 	    ENOTCAPABLE);
 
 	/* Unable to set empty limits. Empty limits means full access. */
-	limit = cap_net_limit_init(capnet, CAPNET_OBSOLETE_ADDR2NAME);
+	limit = cap_net_limit_init(capnet, CAPNET_DEPRECATED_ADDR2NAME);
 	ATF_REQUIRE(cap_net_limit(limit) != 0);
 
 	cap_close(capnet);
 }
 
-ATF_TC_WITHOUT_HEAD(capnet__limits_obsolete_addr2name);
-ATF_TC_BODY(capnet__limits_obsolete_addr2name, tc)
+ATF_TC_WITHOUT_HEAD(capnet__limits_deprecated_addr2name);
+ATF_TC_BODY(capnet__limits_deprecated_addr2name, tc)
 {
 	cap_channel_t *capnet;
 	cap_net_limit_t *limit;
@@ -524,7 +523,7 @@ ATF_TC_BODY(capnet__limits_obsolete_addr2name, tc)
 	inet_pton(AF_INET, TEST_IPV4, &ipaddrv4);
 	inet_pton(AF_INET6, TEST_IPV6, &ipaddrv6);
 
-	limit = cap_net_limit_init(capnet, CAPNET_OBSOLETE_ADDR2NAME);
+	limit = cap_net_limit_init(capnet, CAPNET_DEPRECATED_ADDR2NAME);
 	ATF_REQUIRE(limit != NULL);
 
 	cap_net_limit_addr2name(limit, (struct sockaddr *)&ipaddrv4,
@@ -539,7 +538,7 @@ ATF_TC_BODY(capnet__limits_obsolete_addr2name, tc)
 	    ENOTCAPABLE);
 
 	/* Limit to AF_INET. */
-	limit = cap_net_limit_init(capnet, CAPNET_OBSOLETE_ADDR2NAME);
+	limit = cap_net_limit_init(capnet, CAPNET_DEPRECATED_ADDR2NAME);
 	ATF_REQUIRE(limit != NULL);
 	cap_net_limit_addr2name(limit, (struct sockaddr *)&ipaddrv4,
 	    sizeof(ipaddrv4));
@@ -552,7 +551,7 @@ ATF_TC_BODY(capnet__limits_obsolete_addr2name, tc)
 	    ENOTCAPABLE);
 
 	/* Unable to set empty limits. Empty limits means full access. */
-	limit = cap_net_limit_init(capnet, CAPNET_OBSOLETE_ADDR2NAME);
+	limit = cap_net_limit_init(capnet, CAPNET_DEPRECATED_ADDR2NAME);
 	ATF_REQUIRE(cap_net_limit(limit) != 0);
 
 	cap_close(capnet);
@@ -776,8 +775,8 @@ ATF_TC_BODY(capnet__limits_name2addr_family, tc)
 	cap_close(capnet);
 }
 
-ATF_TC_WITHOUT_HEAD(capnet__limits_obsolete_name2addr_mode);
-ATF_TC_BODY(capnet__limits_obsolete_name2addr_mode, tc)
+ATF_TC_WITHOUT_HEAD(capnet__limits_deprecated_name2addr_mode);
+ATF_TC_BODY(capnet__limits_deprecated_name2addr_mode, tc)
 {
 	cap_channel_t *capnet;
 	cap_net_limit_t *limit;
@@ -785,7 +784,7 @@ ATF_TC_BODY(capnet__limits_obsolete_name2addr_mode, tc)
 	capnet = create_network_service();
 
 	/* LIMIT */
-	limit = cap_net_limit_init(capnet, CAPNET_OBSOLETE_NAME2ADDR);
+	limit = cap_net_limit_init(capnet, CAPNET_DEPRECATED_NAME2ADDR);
 	ATF_REQUIRE(limit != NULL);
 	ATF_REQUIRE(cap_net_limit(limit) == 0);
 
@@ -807,8 +806,8 @@ ATF_TC_BODY(capnet__limits_obsolete_name2addr_mode, tc)
 	cap_close(capnet);
 }
 
-ATF_TC_WITHOUT_HEAD(capnet__limits_obsolete_name2addr_hosts);
-ATF_TC_BODY(capnet__limits_obsolete_name2addr_hosts, tc)
+ATF_TC_WITHOUT_HEAD(capnet__limits_deprecated_name2addr_hosts);
+ATF_TC_BODY(capnet__limits_deprecated_name2addr_hosts, tc)
 {
 	cap_channel_t *capnet;
 	cap_net_limit_t *limit;
@@ -816,7 +815,7 @@ ATF_TC_BODY(capnet__limits_obsolete_name2addr_hosts, tc)
 	capnet = create_network_service();
 
 	/* Limit to TEST_DOMAIN_0 and localhost only. */
-	limit = cap_net_limit_init(capnet, CAPNET_OBSOLETE_NAME2ADDR);
+	limit = cap_net_limit_init(capnet, CAPNET_DEPRECATED_NAME2ADDR);
 	ATF_REQUIRE(limit != NULL);
 	cap_net_limit_name2addr(limit, TEST_DOMAIN_0, NULL);
 	cap_net_limit_name2addr(limit, "localhost", NULL);
@@ -828,7 +827,7 @@ ATF_TC_BODY(capnet__limits_obsolete_name2addr_hosts, tc)
 	    test_gethostbyname(capnet, AF_INET, TEST_DOMAIN_1) == ENOTCAPABLE);
 
 	/* Limit to TEST_DOMAIN_0 only. */
-	limit = cap_net_limit_init(capnet, CAPNET_OBSOLETE_NAME2ADDR);
+	limit = cap_net_limit_init(capnet, CAPNET_DEPRECATED_NAME2ADDR);
 	ATF_REQUIRE(limit != NULL);
 	cap_net_limit_name2addr(limit, TEST_DOMAIN_0, NULL);
 	ATF_REQUIRE(cap_net_limit(limit) == 0);
@@ -840,14 +839,14 @@ ATF_TC_BODY(capnet__limits_obsolete_name2addr_hosts, tc)
 	ATF_REQUIRE(test_gethostbyname(capnet, AF_INET, TEST_DOMAIN_0) == 0);
 
 	/* Unable to set empty limits. Empty limits means full access. */
-	limit = cap_net_limit_init(capnet, CAPNET_OBSOLETE_NAME2ADDR);
+	limit = cap_net_limit_init(capnet, CAPNET_DEPRECATED_NAME2ADDR);
 	ATF_REQUIRE(cap_net_limit(limit) != 0);
 
 	cap_close(capnet);
 }
 
-ATF_TC_WITHOUT_HEAD(capnet__limits_obsolete_name2addr_family);
-ATF_TC_BODY(capnet__limits_obsolete_name2addr_family, tc)
+ATF_TC_WITHOUT_HEAD(capnet__limits_deprecated_name2addr_family);
+ATF_TC_BODY(capnet__limits_deprecated_name2addr_family, tc)
 {
 	cap_channel_t *capnet;
 	cap_net_limit_t *limit;
@@ -856,7 +855,7 @@ ATF_TC_BODY(capnet__limits_obsolete_name2addr_family, tc)
 	capnet = create_network_service();
 
 	/* Limit to AF_INET and AF_INET6. */
-	limit = cap_net_limit_init(capnet, CAPNET_OBSOLETE_NAME2ADDR);
+	limit = cap_net_limit_init(capnet, CAPNET_DEPRECATED_NAME2ADDR);
 	ATF_REQUIRE(limit != NULL);
 	cap_net_limit_name2addr(limit, TEST_DOMAIN_0, NULL);
 	cap_net_limit_name2addr_family(limit, family, nitems(family));
@@ -868,7 +867,7 @@ ATF_TC_BODY(capnet__limits_obsolete_name2addr_family, tc)
 	    test_gethostbyname(capnet, PF_LINK, TEST_DOMAIN_0) == ENOTCAPABLE);
 
 	/* Limit to AF_INET and AF_INET6. */
-	limit = cap_net_limit_init(capnet, CAPNET_OBSOLETE_NAME2ADDR);
+	limit = cap_net_limit_init(capnet, CAPNET_DEPRECATED_NAME2ADDR);
 	ATF_REQUIRE(limit != NULL);
 	cap_net_limit_name2addr(limit, TEST_DOMAIN_0, NULL);
 	cap_net_limit_name2addr_family(limit, &family[0], 1);
@@ -881,7 +880,7 @@ ATF_TC_BODY(capnet__limits_obsolete_name2addr_family, tc)
 	    test_gethostbyname(capnet, PF_LINK, TEST_DOMAIN_0) == ENOTCAPABLE);
 
 	/* Limit to AF_INET6 only. */
-	limit = cap_net_limit_init(capnet, CAPNET_OBSOLETE_NAME2ADDR);
+	limit = cap_net_limit_init(capnet, CAPNET_DEPRECATED_NAME2ADDR);
 	ATF_REQUIRE(limit != NULL);
 	cap_net_limit_name2addr(limit, TEST_DOMAIN_0, NULL);
 	cap_net_limit_name2addr_family(limit, family, 1);
@@ -894,7 +893,7 @@ ATF_TC_BODY(capnet__limits_obsolete_name2addr_family, tc)
 	    test_gethostbyname(capnet, PF_LINK, TEST_DOMAIN_0) == ENOTCAPABLE);
 
 	/* Unable to set empty limits. Empty limits means full access. */
-	limit = cap_net_limit_init(capnet, CAPNET_OBSOLETE_NAME2ADDR);
+	limit = cap_net_limit_init(capnet, CAPNET_DEPRECATED_NAME2ADDR);
 	ATF_REQUIRE(cap_net_limit(limit) != 0);
 
 	cap_close(capnet);
@@ -1078,8 +1077,8 @@ ATF_TC_BODY(capnet__limits_connecttodns, tc)
 }
 
 
-ATF_TC_WITHOUT_HEAD(capnet__limits_obsolete_connecttodns);
-ATF_TC_BODY(capnet__limits_obsolete_connecttodns, tc)
+ATF_TC_WITHOUT_HEAD(capnet__limits_deprecated_connecttodns);
+ATF_TC_BODY(capnet__limits_deprecated_connecttodns, tc)
 {
 	cap_channel_t *capnet;
 	cap_net_limit_t *limit;
@@ -1092,7 +1091,7 @@ ATF_TC_BODY(capnet__limits_obsolete_connecttodns, tc)
 	capnet = create_network_service();
 
 	limit = cap_net_limit_init(capnet, CAPNET_CONNECTDNS |
-	    CAPNET_OBSOLETE_NAME2ADDR);
+	    CAPNET_DEPRECATED_NAME2ADDR);
 	ATF_REQUIRE(limit != NULL);
 	cap_net_limit_name2addr(limit, TEST_IPV4, NULL);
 	cap_net_limit_name2addr_family(limit, family, 1);
@@ -1134,9 +1133,9 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, capnet__limits_addr2name_family);
 	ATF_TP_ADD_TC(tp, capnet__limits_addr2name);
 
-	ATF_TP_ADD_TC(tp, capnet__limits_obsolete_addr2name_mode);
-	ATF_TP_ADD_TC(tp, capnet__limits_obsolete_addr2name_family);
-	ATF_TP_ADD_TC(tp, capnet__limits_obsolete_addr2name);
+	ATF_TP_ADD_TC(tp, capnet__limits_deprecated_addr2name_mode);
+	ATF_TP_ADD_TC(tp, capnet__limits_deprecated_addr2name_family);
+	ATF_TP_ADD_TC(tp, capnet__limits_deprecated_addr2name);
 
 	ATF_TP_ADD_TC(tp, capnet__limits_name2addr_mode);
 	ATF_TP_ADD_TC(tp, capnet__limits_name2addr_hosts);
@@ -1144,9 +1143,9 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, capnet__limits_name2addr_hosts_servnames_mix);
 	ATF_TP_ADD_TC(tp, capnet__limits_name2addr_family);
 
-	ATF_TP_ADD_TC(tp, capnet__limits_obsolete_name2addr_mode);
-	ATF_TP_ADD_TC(tp, capnet__limits_obsolete_name2addr_hosts);
-	ATF_TP_ADD_TC(tp, capnet__limits_obsolete_name2addr_family);
+	ATF_TP_ADD_TC(tp, capnet__limits_deprecated_name2addr_mode);
+	ATF_TP_ADD_TC(tp, capnet__limits_deprecated_name2addr_hosts);
+	ATF_TP_ADD_TC(tp, capnet__limits_deprecated_name2addr_family);
 
 	ATF_TP_ADD_TC(tp, capnet__limits_bind_mode);
 	ATF_TP_ADD_TC(tp, capnet__limits_bind);
@@ -1155,7 +1154,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, capnet__limits_connect);
 
 	ATF_TP_ADD_TC(tp, capnet__limits_connecttodns);
-	ATF_TP_ADD_TC(tp, capnet__limits_obsolete_connecttodns);
+	ATF_TP_ADD_TC(tp, capnet__limits_deprecated_connecttodns);
 
 	return (atf_no_error());
 }

@@ -244,6 +244,8 @@ struct xvnode {
 #define VHOLD_ALL_FLAGS (VHOLD_NO_SMR)
 
 #define	VIRF_DOOMED	0x0001	/* This vnode is being recycled */
+#define	VIRF_PGREAD	0x0002	/* Direct reads from the page cache are permitted,
+				   never cleared once set */
 
 #define	VI_TEXT_REF	0x0001	/* Text ref grabbed use ref */
 #define	VI_MOUNT	0x0002	/* Mount in progress */
@@ -680,7 +682,7 @@ void	vlazy(struct vnode *);
 void	vdrop(struct vnode *);
 void	vdropl(struct vnode *);
 int	vflush(struct mount *mp, int rootrefs, int flags, struct thread *td);
-int	vget(struct vnode *vp, int flags, struct thread *td);
+int	vget(struct vnode *vp, int flags);
 enum vgetstate	vget_prep_smr(struct vnode *vp);
 enum vgetstate	vget_prep(struct vnode *vp);
 int	vget_finish(struct vnode *vp, int flags, enum vgetstate vs);
@@ -965,7 +967,6 @@ do {									\
 void	vput(struct vnode *vp);
 void	vrele(struct vnode *vp);
 void	vref(struct vnode *vp);
-void	vrefl(struct vnode *vp);
 void	vrefact(struct vnode *vp);
 void 	v_addpollinfo(struct vnode *vp);
 static __inline int
@@ -974,6 +975,11 @@ vrefcnt(struct vnode *vp)
 
 	return (vp->v_usecount);
 }
+
+#define	vrefl(vp)	do {						\
+	ASSERT_VI_LOCKED(vp, __func__);					\
+	vref(vp);							\
+} while (0)
 
 int vnode_create_vobject(struct vnode *vp, off_t size, struct thread *td);
 void vnode_destroy_vobject(struct vnode *vp);

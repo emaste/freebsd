@@ -2427,11 +2427,11 @@ sys___getcwd(struct thread *td, struct __getcwd_args *uap)
 	if (buflen > MAXPATHLEN)
 		buflen = MAXPATHLEN;
 
-	buf = malloc(buflen, M_TEMP, M_WAITOK);
+	buf = uma_zalloc(namei_zone, M_WAITOK);
 	error = vn_getcwd(td, buf, &retbuf, &buflen);
 	if (error == 0)
 		error = copyout(retbuf, uap->buf, buflen);
-	free(buf, M_TEMP);
+	uma_zfree(namei_zone, buf);
 	return (error);
 }
 
@@ -2983,8 +2983,6 @@ DB_SHOW_COMMAND(vpath, db_show_vpath)
 
 #endif
 
-extern uma_zone_t namei_zone;
-
 static bool __read_frequently cache_fast_lookup = true;
 SYSCTL_BOOL(_vfs, OID_AUTO, cache_fast_lookup, CTLFLAG_RW,
     &cache_fast_lookup, 0, "");
@@ -3146,7 +3144,7 @@ cache_fpl_handled_impl(struct cache_fpl *fpl, int error, int line)
 
 #define CACHE_FPL_SUPPORTED_CN_FLAGS \
 	(LOCKLEAF | LOCKPARENT | WANTPARENT | NOCACHE | FOLLOW | LOCKSHARED | SAVENAME | \
-	 SAVESTART | WILLBEDIR | ISOPEN | NOMACCHECK | AUDITVNODE1 | AUDITVNODE2)
+	 SAVESTART | WILLBEDIR | ISOPEN | NOMACCHECK | AUDITVNODE1 | AUDITVNODE2 | NOCAPCHECK)
 
 #define CACHE_FPL_INTERNAL_CN_FLAGS \
 	(ISDOTDOT | MAKEENTRY | ISLASTCN)

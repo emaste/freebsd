@@ -2856,11 +2856,9 @@ vget_abort(struct vnode *vp, enum vgetstate vs)
 }
 
 int
-vget(struct vnode *vp, int flags, struct thread *td)
+vget(struct vnode *vp, int flags)
 {
 	enum vgetstate vs;
-
-	MPASS(td == curthread);
 
 	vs = vget_prep(vp);
 	return (vget_finish(vp, flags, vs));
@@ -2928,15 +2926,6 @@ vref(struct vnode *vp)
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
 	vs = vget_prep(vp);
 	vget_finish_ref(vp, vs);
-}
-
-void
-vrefl(struct vnode *vp)
-{
-
-	ASSERT_VI_LOCKED(vp, __func__);
-	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
-	vref(vp);
 }
 
 void
@@ -3970,7 +3959,9 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 	buf[1] = '\0';
 	if (vp->v_irflag & VIRF_DOOMED)
 		strlcat(buf, "|VIRF_DOOMED", sizeof(buf));
-	flags = vp->v_irflag & ~(VIRF_DOOMED);
+	if (vp->v_irflag & VIRF_PGREAD)
+		strlcat(buf, "|VIRF_PGREAD", sizeof(buf));
+	flags = vp->v_irflag & ~(VIRF_DOOMED | VIRF_PGREAD);
 	if (flags != 0) {
 		snprintf(buf2, sizeof(buf2), "|VIRF(0x%lx)", flags);
 		strlcat(buf, buf2, sizeof(buf));
@@ -4684,7 +4675,7 @@ vfs_periodic_msync_inactive(struct mount *mp, int flags)
 				VI_UNLOCK(vp);
 			continue;
 		}
-		if (vget(vp, lkflags, td) == 0) {
+		if (vget(vp, lkflags) == 0) {
 			obj = vp->v_object;
 			if (obj != NULL && (vp->v_vflag & VV_NOSYNC) == 0) {
 				VM_OBJECT_WLOCK(obj);

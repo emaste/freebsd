@@ -47,13 +47,14 @@ typedef struct cap_net_limit cap_net_limit_t;
 
 #define CAPNET_ADDR2NAME		(0x01)
 #define CAPNET_NAME2ADDR		(0x02)
-#define CAPNET_OBSOLETE_ADDR2NAME	(0x04)
-#define CAPNET_OBSOLETE_NAME2ADDR	(0x08)
+#define CAPNET_DEPRECATED_ADDR2NAME	(0x04)
+#define CAPNET_DEPRECATED_NAME2ADDR	(0x08)
 #define CAPNET_CONNECT			(0x10)
 #define CAPNET_BIND			(0x20)
 #define CAPNET_CONNECTDNS		(0x40)
 
 #ifdef WITH_CASPER
+/* Capability functions. */
 int cap_bind(cap_channel_t *chan, int s, const struct sockaddr *addr,
     socklen_t addrlen);
 int cap_connect(cap_channel_t *chan, int s, const struct sockaddr *name,
@@ -86,13 +87,14 @@ cap_net_limit_t *cap_net_limit_connect(cap_net_limit_t *limit,
 cap_net_limit_t *cap_net_limit_bind(cap_net_limit_t *limit,
     const struct sockaddr *sa, socklen_t salen);
 
-/* OBSOLETE FUNCTIONS */
+/* Deprecated functions. */
 struct hostent *cap_gethostbyname(cap_channel_t *chan, const char *name);
 struct hostent *cap_gethostbyname2(cap_channel_t *chan, const char *name,
     int af);
 struct hostent *cap_gethostbyaddr(cap_channel_t *chan, const void *addr,
     socklen_t len, int af);
 #else
+/* Capability functions. */
 #define cap_bind(chan, s, addr, addrlen)					\
 	bind(s, addr, addrlen)
 #define cap_connect(chan, s, name, namelen)					\
@@ -102,46 +104,59 @@ struct hostent *cap_gethostbyaddr(cap_channel_t *chan, const void *addr,
 #define	cap_getnameinfo(chan, sa, salen, host, hostlen, serv, servlen, flags)	\
 	getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 
-/* Limit functions */
+/* Limit functions. */
 #define cap_net_limit_init(chan, mode)	((cap_net_limit_t *)malloc(8))
 #define cap_net_free(limit)		free(limit)
 static inline int
-cap_net_limit(cap_net_limit_t *limit) {
+cap_net_limit(cap_net_limit_t *limit)
+{
 	free(limit);
 	return (0);
 }
 
 static inline cap_net_limit_t *
 cap_net_limit_addr2name_family(cap_net_limit_t *limit,
-    int *family __unused, size_t size __unused) {
-	return (limit);
-}
-static inline cap_net_limit_t *
-cap_net_limit_addr2name(cap_net_limit_t *limit,
-    const struct sockaddr *sa __unused, socklen_t salen __unused) {
-	return (limit);
-}
-static inline cap_net_limit_t *
-cap_net_limit_name2addr_family(cap_net_limit_t *limit,
-    int *family __unused, size_t size __unused) {
-	return (limit);
-}
-static inline cap_net_limit_t *
-cap_net_limit_name2addr(cap_net_limit_t *limit,
-    const char *name __unused, const char *serv __unused) {
-	return (limit);
-}
-static inline cap_net_limit_t *
-cap_net_limit_connect(cap_net_limit_t *limit,
-    const struct sockaddr *sa __unused, socklen_t salen __unused) {
-	return (limit);
-}
-static inline cap_net_limit_t *cap_net_limit_bind(cap_net_limit_t *limit,
-    const struct sockaddr *sa __unused, socklen_t salen __unused) {
+    int *family __unused, size_t size __unused)
+{
 	return (limit);
 }
 
-/* OBSOLETE FUNCTIONS */
+static inline cap_net_limit_t *
+cap_net_limit_addr2name(cap_net_limit_t *limit,
+    const struct sockaddr *sa __unused, socklen_t salen __unused)
+{
+	return (limit);
+}
+
+static inline cap_net_limit_t *
+cap_net_limit_name2addr_family(cap_net_limit_t *limit,
+    int *family __unused, size_t size __unused)
+{
+	return (limit);
+}
+
+static inline cap_net_limit_t *
+cap_net_limit_name2addr(cap_net_limit_t *limit,
+    const char *name __unused, const char *serv __unused)
+{
+	return (limit);
+}
+
+static inline cap_net_limit_t *
+cap_net_limit_connect(cap_net_limit_t *limit,
+    const struct sockaddr *sa __unused, socklen_t salen __unused)
+{
+	return (limit);
+}
+
+static inline cap_net_limit_t *
+cap_net_limit_bind(cap_net_limit_t *limit,
+    const struct sockaddr *sa __unused, socklen_t salen __unused)
+{
+	return (limit);
+}
+
+/* Deprecated functions. */
 #define	cap_gethostbyname(chan, name)		 gethostbyname(name)
 #define	cap_gethostbyname2(chan, name, type)	 gethostbyname2(name, type)
 #define	cap_gethostbyaddr(chan, addr, len, type) gethostbyaddr(addr, len, type)

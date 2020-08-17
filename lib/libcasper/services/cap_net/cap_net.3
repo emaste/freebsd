@@ -1,5 +1,4 @@
 .\" Copyright (c) 2020 Mariusz Zaborski <oshogbo@FreeBSD.org>
-.\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -24,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 4, 2020
+.Dd August 15, 2020
 .Dt CAP_NET 3
 .Os
 .Sh NAME
@@ -90,7 +89,7 @@ The functions
 .Fn cap_connect,
 .Fn cap_gethostbyname ,
 .Fn cap_gethostbyname2 ,
-.Fn cep_gethostbyaddr
+.Fn cap_gethostbyaddr
 and
 .Fn cap_getnameinfo
 are respectively equivalent to
@@ -107,8 +106,8 @@ service needs to be provided.
 .Sh LIMITS
 By default, the cap_net capability provides unrestricted access to the network
 namespace.
-Applications typically only require access to a small number of the network
-namespace;
+Applications typically only require access to a small portion of the network
+namespace:
 .Fn cap_net_limit
 interface can be used to restrict access to the network.
 .Fn cap_net_limit_init
@@ -121,11 +120,11 @@ Modes are encoded using the following flags:
 .Bd -literal -offset indent -compact
 CAPNET_ADDR2NAME		reverse DNS lookups are allowed with
 				cap_getnameinfo
-CAPNET_NAME2ADDR	        name resolution is allowed with
+CAPNET_NAME2ADDR		name resolution is allowed with
 				cap_getaddrinfo
-CAPNET_OBSOLETE_ADDR2NAME       reverse DNS lookups are allowed with
+CAPNET_DEPRECATED_ADDR2NAME	reverse DNS lookups are allowed with
 				cap_gethostbyaddr
-CAPNET_OBSOLETE_NAME2ADDR	name resolution is allowed with
+CAPNET_DEPRECATED_NAME2ADDR	name resolution is allowed with
 				cap_gethostbyname and cap_gethostbyname2
 CAPNET_BIND			bind syscall is allowed
 CAPNET_CONNECT			connect syscall is allowed
@@ -135,21 +134,21 @@ CAPNET_CONNECTDNS		connect syscall is allowed to the values
 .Ed
 .Pp
 .Fn cap_net_limit_addr2name_family
-limit the
+limits the
 .Fn cap_getnameinfo
 and
 .Fn cap_gethostbyaddr
 to do reverse DNS lookups to specific family (AF_INET, AF_INET6, etc.)
 .Pp
 .Fn cap_net_limit_addr2name
-limit the
+limits the
 .Fn cap_getnameinfo
 and
 .Fn cap_gethostbyaddr
-to do reversee DNS lookups only on those specific structures.
+to do reverse DNS lookups only on those specific structures.
 .Pp
 .Fn cap_net_limit_name2addr_family
-limit the
+limits the
 .Fn cap_getaddrinfo ,
 .Fn cap_gethostbyname
 and
@@ -165,12 +164,12 @@ and
 to a set of domains.
 .Pp
 .Fn cap_net_limit_bind
-limit
+limits
 .Fn cap_bind
 to bind only on those specific structures.
 .Pp
 .Fn cap_net_limit_connect
-limit
+limits
 .Fn cap_connect
 to connect only on those specific structures.
 If the CAPNET_CONNECTDNS is set the limits are extended to the values returned
@@ -204,13 +203,13 @@ will consume the limits.
 If the
 .Fn cap_net_limit
 was not called the rights may be freed using
-.Fn cap_net_free.
+.Fn cap_net_free .
 Multiple calls to
-.Fn cap_net_limit_addr2name_family,
-.Fn cap_net_limit_addr2name,
-.Fn cap_net_limit_name2addr_family,
-.Fn cap_net_limit_name2addr,
-.Fn cap_net_limit_connect,
+.Fn cap_net_limit_addr2name_family ,
+.Fn cap_net_limit_addr2name ,
+.Fn cap_net_limit_name2addr_family ,
+.Fn cap_net_limit_name2addr ,
+.Fn cap_net_limit_connect ,
 and
 .Fn cap_net_limit_bind
 is supported, each call is extending preview capabilities.
@@ -243,10 +242,10 @@ capnet = cap_service_open(capcas, "system.net");
 if (capnet == NULL)
 	err(1, "Unable to open system.net service");
 
-/* Close Casper capability, we don't need it anymore. */
+/* Close Casper capability. */
 cap_close(capcas);
 
-/* Limit system.net to reserve IPv4 addresses, to host example.com */
+/* Limit system.net to reserve IPv4 addresses, to host example.com . */
 limit = cap_net_limit_init(capnet, CAPNET_NAME2ADDR | CAPNET_CONNECTDNS);
 if (limit == NULL)
 	err(1, "Unable to create limits.");
