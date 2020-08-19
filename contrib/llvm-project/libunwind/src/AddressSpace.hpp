@@ -452,6 +452,7 @@ struct _LIBUNWIND_HIDDEN dl_iterate_cb_data {
     #error "_LIBUNWIND_SUPPORT_DWARF_UNWIND requires _LIBUNWIND_SUPPORT_DWARF_INDEX on this platform."
   #endif
 
+#define _LIBUNWIND_USE_FRAME_HEADER_CACHE // XXX see D26109
 #if defined(_LIBUNWIND_USE_FRAME_HEADER_CACHE)
 #include "FrameHeaderCache.hpp"
 
