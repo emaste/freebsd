@@ -191,7 +191,7 @@ reldoc:
 disc1: packagesystem
 # Install system
 	mkdir -p ${.TARGET}
-	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
+	cd ${WORLDDIR} && ${IMAKE} installworld installkernel distribution \
 	    DESTDIR=${.OBJDIR}/${.TARGET} MK_AT=no \
 	    MK_INSTALLLIB=no MK_LIB32=no MK_MAIL=no \
 	    MK_TOOLCHAIN=no MK_PROFILE=no \
@@ -220,7 +220,7 @@ disc1: packagesystem
 bootonly: packagesystem
 # Install system
 	mkdir -p ${.TARGET}
-	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
+	cd ${WORLDDIR} && ${IMAKE} installworld installkernel distribution \
 	    DESTDIR=${.OBJDIR}/${.TARGET} MK_AT=no \
 	    MK_GAMES=no \
 	    MK_INSTALLLIB=no MK_LIB32=no MK_MAIL=no \
@@ -247,7 +247,7 @@ bootonly: packagesystem
 dvd: packagesystem
 # Install system
 	mkdir -p ${.TARGET}
-	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
+	cd ${WORLDDIR} && ${IMAKE} installworld installkernel distribution \
 		DESTDIR=${.OBJDIR}/${.TARGET} MK_RESCUE=no MK_KERNEL_SYMBOLS=no \
 		MK_TESTS=no MK_DEBUG_FILES=no \
 		-DDB_FROM_SRC
