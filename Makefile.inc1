@@ -1794,8 +1794,8 @@ stagekernel: .PHONY
 	${_+_}${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} distributekernel
 
 PORTSDIR?=	/usr/ports
-WSTAGEDIR?=	${OBJTOP}/worldstage
-KSTAGEDIR?=	${OBJTOP}/kernelstage
+WSTAGEDIR?=	${OBJTOP}/stage
+KSTAGEDIR?=	${OBJTOP}/stage
 REPODIR?=	${OBJROOT}repo
 PKG_FORMAT?=	txz
 PKGSIGNKEY?=	# empty
@@ -1848,7 +1848,7 @@ create-packages-kernel:	_pkgbootstrap _repodir .PHONY
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} -f Makefile.inc1 \
 			DESTDIR=${KSTAGEDIR} \
-			PKG_VERSION=${PKG_VERSION} DISTDIR=kernel \
+			PKG_VERSION=${PKG_VERSION} DISTDIR= \
 			SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
 			create-kernel-packages
 
