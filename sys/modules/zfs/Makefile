@@ -47,7 +47,7 @@ CFLAGS+=	 -fprofile-arcs -ftest-coverage
 DEBUG_FLAGS=-g
 
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "powerpc" || \
-	${MACHINE_ARCH} == "arm"
+	${MACHINE_ARCH} == "powerpcspe" || ${MACHINE_ARCH} == "arm"
 CFLAGS+= -DBITS_PER_LONG=32
 .else
 CFLAGS+= -DBITS_PER_LONG=64
@@ -117,7 +117,7 @@ SRCS+=	acl_common.c \
 
 
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "powerpc" || \
-	${MACHINE_ARCH} == "arm"
+	${MACHINE_ARCH} == "powerpcspe" || ${MACHINE_ARCH} == "arm"
 SRCS+= spl_atomic.c
 .endif
 
@@ -338,7 +338,7 @@ CFLAGS.zil.c= -Wno-cast-qual
 CFLAGS.zio.c= -Wno-cast-qual
 CFLAGS.zrlock.c= -Wno-cast-qual
 CFLAGS.zfs_zstd.c= -Wno-cast-qual -Wno-pointer-arith
-CFLAGS.zstd.c= -fno-tree-vectorize
+CFLAGS.zstd.c= -U__BMI__ -fno-tree-vectorize
 .if ${MACHINE_CPUARCH} == "aarch64"
 CFLAGS.zstd.c+= -include ${SRCDIR}/zstd/include/aarch64_compat.h
 .endif
