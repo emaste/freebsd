@@ -20,7 +20,7 @@ die()
 tempdir_cleanup()
 {
 	trap - EXIT SIGINT SIGHUP SIGTERM SIGQUIT
-	rm -rf ${ROOTDIR}
+	echo rm -rf ${ROOTDIR}
 }
 
 tempdir_setup()
