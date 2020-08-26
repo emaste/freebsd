@@ -161,7 +161,7 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (!rflag && time(&tval) == -1)
+	if (!jflag && !rflag && time(&tval) == -1)
 		err(1, "time");
 
 	format = "%+";
