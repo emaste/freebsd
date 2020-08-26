@@ -155,7 +155,7 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (!rflag && clock_gettime(CLOCK_REALTIME, &ts) == -1)
+	if (!jflag && !rflag && clock_gettime(CLOCK_REALTIME, &ts) == -1)
 		err(1, "clock_gettime");
 
 	format = "%+";
