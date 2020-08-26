@@ -1,16 +1,20 @@
 # $FreeBSD$
 
+ZFSTOP=	${SRCTOP}/sys/contrib/openzfs
 
 # ZFS_COMMON_SRCS
-.PATH: ${SRCTOP}/sys/contrib/openzfs/module/zfs
-.PATH: ${SRCTOP}/sys/contrib/openzfs/module/zcommon
-.PATH: ${SRCTOP}/sys/contrib/openzfs/module/unicode
+.PATH: ${ZFSTOP}/module/zfs
+.PATH: ${ZFSTOP}/module/zcommon
+.PATH: ${ZFSTOP}/module/unicode
 # LUA_SRCS
-.PATH: ${SRCTOP}/sys/contrib/openzfs/module/lua
+.PATH: ${ZFSTOP}/module/lua
+# ZSTD_SRCS
+.PATH: ${ZFSTOP}/module/zstd
+.PATH: ${ZFSTOP}/module/zstd/lib
 
-.PATH: ${SRCTOP}/sys/contrib/openzfs/module/os/linux/zfs
+.PATH: ${ZFSTOP}/module/os/linux/zfs
 
-.PATH: ${SRCTOP}/sys/contrib/openzfs/lib/libzpool
+.PATH: ${ZFSTOP}/lib/libzpool
 
 .if exists(${SRCTOP}/sys/cddl/contrib/opensolaris/common/atomic/${MACHINE_ARCH}/opensolaris_atomic.S)
 .PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/common/atomic/${MACHINE_ARCH}
@@ -28,8 +32,6 @@ PICFLAG=	-fPIC
 
 LIB=		zpool
 
-
-
 USER_C = \
 	kernel.c \
 	taskq.c \
@@ -45,6 +47,7 @@ KERNEL_C = \
 	zfs_namecheck.c \
 	zfs_prop.c \
 	zfs_uio.c \
+	zfs_zstd.c \
 	zpool_prop.c \
 	zprop_common.c \
 	abd.c \
@@ -168,6 +171,7 @@ KERNEL_C = \
 	zio_inject.c \
 	zle.c \
 	zrlock.c \
+	zstd.c \
 	zthr.c
 
 ARCH_C =
@@ -218,19 +222,19 @@ UNICODE_C = u8_textprep.c uconv.c
 SRCS=		${USER_C} ${KERNEL_C} ${LUA_C} ${UNICODE_C} ${ARCH_C}
 
 WARNS?=		2
-CFLAGS+= -DIN_BASE
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd
-CFLAGS+= -I${SRCTOP}/sys
-CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/module/icp/include
-CFLAGS+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccompile.h
-CFLAGS+= -DHAVE_ISSETUGID
-CFLAGS+= -include ${SRCTOP}/sys/modules/zfs/zfs_config.h
-CFLAGS+= -I${SRCTOP}/sys/modules/zfs
-CFLAGS+= -DLIB_ZPOOL_BUILD -DZFS_DEBUG
-
+CFLAGS+= \
+	-DIN_BASE \
+	-I${ZFSTOP}/include \
+	-I${ZFSTOP}/lib/libspl/include \
+	-I${ZFSTOP}/lib/libspl/include/os/freebsd \
+	-I${SRCTOP}/sys \
+	-I${SRCTOP}/cddl/compat/opensolaris/include \
+	-I${ZFSTOP}/module/icp/include \
+	-include ${ZFSTOP}/include/os/freebsd/spl/sys/ccompile.h \
+	-DHAVE_ISSETUGID \
+	-include ${SRCTOP}/sys/modules/zfs/zfs_config.h \
+	-I${SRCTOP}/sys/modules/zfs \
+	-DLIB_ZPOOL_BUILD -DZFS_DEBUG \
 
 # XXX: pthread doesn't have mutex_owned() equivalent, so we need to look
 #      into libthr private structures. That's sooo evil, but it's only for
@@ -252,5 +256,8 @@ CSTD=	c99
 # it without debugging.
 
 CFLAGS+=	-g -DDEBUG=1
+
+CFLAGS.zfs_zstd.c=	-Wno-cast-qual -Wno-pointer-arith
+CFLAGS.zstd.c+=	-fno-tree-vectorize
 
 .include <bsd.lib.mk>
