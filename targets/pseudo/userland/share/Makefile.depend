@@ -22,8 +22,6 @@ DIRDEPS = \
 	share/examples/atf \
 	share/examples/ipfilter \
 	share/examples/pf \
-	share/examples/smbfs \
-	share/examples/smbfs/print \
 	share/i18n/csmapper \
 	share/i18n/csmapper/APPLE \
 	share/i18n/csmapper/AST \
