@@ -67,7 +67,6 @@ SUBDIR=	\
 	rip \
 	runtime \
 	smart \
-	smbutils \
 	syslogd \
 	tcpd \
 	toolchain \

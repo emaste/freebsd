@@ -295,8 +295,6 @@
         ..
         procfs
         ..
-        smbfs
-        ..
         udf
         ..
         unionfs
@@ -411,8 +409,6 @@
     netpfil
         pf              tags=package=pf-dev
         ..
-    ..
-    netsmb
     ..
     nfs
     ..
