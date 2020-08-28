@@ -209,7 +209,6 @@ aes-gcm-armv8_64.o				optional ossl		\
 	no-implicit-rule						\
 	clean		"aes-gcm-armv8_64.o"
 
-crypto/des/des_enc.c				optional netsmb
 crypto/openssl/ossl_aarch64.c			optional ossl
 crypto/openssl/ossl_aes_gcm.c			optional ossl
 crypto/openssl/aarch64/chacha-armv8.S		optional ossl		\
