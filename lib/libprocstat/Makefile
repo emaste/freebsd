@@ -10,7 +10,6 @@ SRCS=	cd9660.c	\
 	libprocstat.c	\
 	libprocstat_compat.c \
 	msdosfs.c	\
-	smbfs.c		\
 	udf.c
 
 VERSION_DEF=	${LIBCSRCDIR}/Versions.def
