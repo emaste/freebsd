@@ -354,10 +354,6 @@
                 srcs
                 ..
             ..
-            smbfs
-                print
-                ..
-            ..
             sound
             ..
             sunrpc
