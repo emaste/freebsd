@@ -152,7 +152,6 @@ CRUNCH_LIBS+= -lmt -lsbuf -lufs -lz
 .if ${MACHINE_CPUARCH} == "i386"
 CRUNCH_PROGS_sbin+= bsdlabel sconfig fdisk
 CRUNCH_ALIAS_bsdlabel= disklabel
-#CRUNCH_PROGS+= mount_smbfs
 #CRUNCH_LIBS+= -lsmb
 .endif
 
