@@ -43,7 +43,6 @@ SUBDIR=	adduser \
 	mfiutil \
 	mlxcontrol \
 	mountd \
-	mount_smbfs \
 	mpsutil \
 	mptutil \
 	mtest \
