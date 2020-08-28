@@ -30,7 +30,6 @@ COMM=	${SYS}/sys/vnode.h \
 	${SYS}/fs/nullfs/*.[ch] \
 	${SYS}/fs/procfs/*.[ch] \
 	${SYS}/fs/pseudofs/*.[ch] \
-	${SYS}/fs/smbfs/*.[ch] \
 	${SYS}/fs/tmpfs/*.[ch] \
 	${SYS}/fs/udf/*.[ch] \
 	${SYS}/fs/unionfs/*.[ch] \
@@ -79,7 +78,6 @@ COMMDIR2= ${SYS}/dev/alc \
 	${SYS}/fs/nullfs \
 	${SYS}/fs/procfs \
 	${SYS}/fs/pseudofs \
-	${SYS}/fs/smbfs \
 	${SYS}/fs/tmpfs \
 	${SYS}/fs/udf \
 	${SYS}/fs/unionfs \
