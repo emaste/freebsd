@@ -535,7 +535,6 @@ MAN=	aac.4 \
 	sk.4 \
 	${_smartpqi.4} \
 	smb.4 \
-	smbfs.4 \
 	smbios.4 \
 	smbus.4 \
 	smp.4 \

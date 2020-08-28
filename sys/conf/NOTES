@@ -700,12 +700,6 @@ options 	KERN_TLS		# TLS transmit and receive offload
 # Netlink kernel/user<>kernel/user messaging interface
 options 	NETLINK
 
-#
-# SMB/CIFS requester
-# NETSMB enables support for SMB protocol, it requires LIBMCHAIN and LIBICONV
-# options.
-options 	NETSMB			#SMB/CIFS requester
-
 # mchain library. It can be either loaded as KLD or compiled into kernel
 options 	LIBMCHAIN
 
@@ -1125,7 +1119,6 @@ options 	NULLFS			#NULL filesystem
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	PSEUDOFS_TRACE		#Debugging support for PSEUDOFS
-options 	SMBFS			#SMB/CIFS filesystem
 options 	TMPFS			#Efficient memory filesystem
 options 	UDF			#Universal Disk Format
 options 	UNIONFS			#Union filesystem
