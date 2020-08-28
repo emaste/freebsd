@@ -91,7 +91,6 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	librt \
 	librtld_db \
 	libsbuf \
-	libsmb \
 	libstdbuf \
 	libstdthreads \
 	libsysdecode \
@@ -138,7 +137,6 @@ SUBDIR_DEPEND_libpam= libcrypt libopie ${_libradius} librpcsvc libtacplus libuti
 SUBDIR_DEPEND_libpjdlog= libutil
 SUBDIR_DEPEND_libprocstat= libkvm libutil
 SUBDIR_DEPEND_libradius= libmd
-SUBDIR_DEPEND_libsmb= libkiconv
 SUBDIR_DEPEND_libtacplus= libmd
 SUBDIR_DEPEND_libulog= libmd
 SUBDIR_DEPEND_libunbound= ${_libldns}
