@@ -375,7 +375,6 @@ SUBDIR=	\
 	sis \
 	sk \
 	${_smartpqi} \
-	smbfs \
 	snp \
 	sound \
 	${_speaker} \
