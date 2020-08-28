@@ -43,7 +43,6 @@ MAN=	acct.5 \
 	mqueuefs.5 \
 	msdosfs.5 \
 	networks.5 \
-	nsmb.conf.5 \
 	nsswitch.conf.5 \
 	nullfs.5 \
 	os-release.5 \
@@ -63,7 +62,6 @@ MAN=	acct.5 \
 	resolver.5 \
 	services.5 \
 	shells.5 \
-	smbfs.5 \
 	src.conf.5 \
 	stab.5 \
 	style.Makefile.5 \

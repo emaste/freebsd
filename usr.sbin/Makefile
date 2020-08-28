@@ -43,7 +43,6 @@ SUBDIR=	adduser \
 	mixer \
 	mlxcontrol \
 	mountd \
-	mount_smbfs \
 	mpsutil \
 	mptutil \
 	mtest \
