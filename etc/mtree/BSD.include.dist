@@ -215,8 +215,6 @@
         ..
         procfs
         ..
-        smbfs
-        ..
         udf
         ..
         unionfs
@@ -337,8 +335,6 @@
     netpfil
         pf
         ..
-    ..
-    netsmb
     ..
     nfs
     ..
