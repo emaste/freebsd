@@ -391,8 +391,6 @@ copies:
 	fi
 .endfor
 
-SUBDIR+=	smbfs
-
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
