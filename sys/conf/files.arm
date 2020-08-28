@@ -83,7 +83,6 @@ cddl/dev/fbt/arm/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FB
 contrib/openzfs/module/icp/asm-arm/sha2/sha256-armv7.S	optional zfs compile-with "${ZFS_S}"
 contrib/openzfs/module/icp/asm-arm/sha2/sha512-armv7.S	optional zfs compile-with "${ZFS_S}"
 
-crypto/des/des_enc.c		optional	netsmb
 dev/cpufreq/cpufreq_dt.c	optional	cpufreq fdt
 dev/fb/fb.c			optional	sc
 dev/fdt/fdt_arm_platform.c	optional	platform fdt
