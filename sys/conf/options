@@ -318,9 +318,6 @@ UFS_GJOURNAL	opt_ufs.h
 # they won't make any difference yet).
 NFS_ROOT	opt_nfsroot.h
 
-# SMB/CIFS requester
-NETSMB		opt_netsmb.h
-
 # Enable debugnet(4) networking support.
 DEBUGNET 	opt_global.h
 # Enable netdump(4) client support.
