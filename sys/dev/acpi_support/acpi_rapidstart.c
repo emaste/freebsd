@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 static int sysctl_acpi_rapidstart_gen_handler(SYSCTL_HANDLER_ARGS);
 
-
 static struct acpi_rapidstart_name_list
 {
 	char *nodename;
@@ -141,4 +140,3 @@ static devclass_t acpi_rapidstart_devclass;
 DRIVER_MODULE(acpi_rapidstart, acpi, acpi_rapidstart_driver, acpi_rapidstart_devclass,
 	      0, 0);
 MODULE_DEPEND(acpi_rapidstart, acpi, 1, 1, 1);
-

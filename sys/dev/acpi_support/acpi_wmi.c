@@ -97,7 +97,6 @@ enum event_generation_state {
 	EVENT_GENERATION_OFF = 0
 };
 
-
 /*
  * Information about one entry in _WDG.
  * List of those is used to lookup information by GUID.
@@ -108,7 +107,6 @@ struct wmi_info {
 	ACPI_NOTIFY_HANDLER	event_handler;/* client provided event handler */
 	void			*event_handler_user_data; /* ev handler cookie  */
 };
-
 
 ACPI_SERIAL_DECL(acpi_wmi, "ACPI-WMI Mapping");
 
@@ -167,7 +165,6 @@ static struct cdevsw wmistat_cdevsw = {
 	.d_read = acpi_wmi_wmistat_read,
 	.d_name = "wmistat",
 };
-
 
 static device_method_t acpi_wmi_methods[] = {
 	/* Device interface */
@@ -353,7 +350,6 @@ acpi_wmi_detach(device_t dev)
 
 	return (ret);
 }
-
 
 /*
  * Check if the given GUID string (human readable format

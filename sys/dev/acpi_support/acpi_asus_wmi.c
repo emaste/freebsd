@@ -104,7 +104,6 @@ ACPI_MODULE_NAME("ASUS-WMI")
 #define ASUS_WMI_DSTS_BRIGHTNESS_MASK   0x000000FF
 #define ASUS_WMI_DSTS_MAX_BRIGTH_MASK   0x0000FF00
 
-
 struct acpi_asus_wmi_softc {
 	device_t	dev;
 	device_t	wmi_dev;

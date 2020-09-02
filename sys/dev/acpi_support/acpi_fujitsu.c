@@ -213,7 +213,6 @@ static struct {
 		.method		= METHOD_RBLL,
 		.description	= "Number of brightness level steps"
 	},
-
 	{ NULL, 0, NULL }
 };
 
@@ -316,7 +315,6 @@ acpi_fujitsu_notify_status_changed(void *arg)
 	acpi_fujitsu_update(sc);
 	ACPI_SERIAL_END(fujitsu);
 }
-
 
 static void
 acpi_fujitsu_notify_handler(ACPI_HANDLE h, uint32_t notify, void *context)
@@ -422,7 +420,6 @@ acpi_fujitsu_init(struct acpi_fujitsu_softc *sc)
 		    CTLFLAG_NEEDGIANT, sc, i, acpi_fujitsu_sysctl, "I",
 		    sysctl_table[i].description);
 	}
-
 
 	/* Set the hotkeys to their initial states */
 	if (!acpi_fujitsu_update(sc)) {

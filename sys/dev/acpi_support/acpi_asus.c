@@ -417,7 +417,6 @@ static struct acpi_asus_model acpi_asus_models[] = {
 		.disp_get	= "\\_SB.PCI0.P0P2.VGA.GETD",
 		.disp_set	= "SDSP"
 	},
-
 	{ .name = NULL }
 };
 
@@ -434,7 +433,6 @@ static struct acpi_asus_model acpi_samsung_models[] = {
 		.lcd_get	= "\\BKLT",
 		.lcd_set	= "\\_SB.PCI0.LPCB.EC0._Q0E"
 	},
-
 	{ .name = NULL }
 };
 
@@ -457,7 +455,6 @@ static struct acpi_asus_model acpi_eeepc_models[] = {
 		.wlan_set	= "\\_SB.ATKD.WLDS",
 		.n_func		= acpi_asus_eeepc_notify
 	},
-
 	{ .name = NULL }
 };
 
@@ -499,7 +496,6 @@ static struct {
 		.method		= ACPI_ASUS_METHOD_WLAN,
 		.description	= "wireless lan state",
 	},
-
 	{ .name = NULL }
 };
 
@@ -524,7 +520,6 @@ static device_method_t acpi_asus_methods[] = {
 	DEVMETHOD(device_probe,  acpi_asus_probe),
 	DEVMETHOD(device_attach, acpi_asus_attach),
 	DEVMETHOD(device_detach, acpi_asus_detach),
-
 	{ 0, 0 }
 };
 
@@ -617,7 +612,6 @@ acpi_asus_probe(device_t dev)
 	 */
 	for (model = acpi_asus_models; model->name != NULL; model++) {
 		if (strncmp(Obj->String.Pointer, model->name, 3) == 0) {
-
 good:
 			sbuf_printf(sb, "Asus %s Laptop Extras",
 			    Obj->String.Pointer);

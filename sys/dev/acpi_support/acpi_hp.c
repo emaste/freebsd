@@ -298,7 +298,6 @@ static struct {
 		.method		= ACPI_HP_METHOD_VERBOSE,
 		.description	= "Verbosity level",
 	},
-
 	{ NULL, 0, NULL, 0 }
 };
 
@@ -935,7 +934,6 @@ acpi_hp_get_string_from_object(ACPI_OBJECT* obj, char* dst, size_t size) {
 	return (dst);
 }
 
-
 /*
  * Read BIOS Setting block in instance "instance".
  * The block returned is ACPI_TYPE_PACKAGE which should contain the following
@@ -1073,8 +1071,6 @@ acpi_hp_get_cmi_block(device_t wmi_dev, const char* guid, UINT8 instance,
 	return (0);
 }
 
-
-
 /*
  * Convert given two digit hex string (hexin) to an UINT8 referenced
  * by byteout.
@@ -1108,7 +1104,6 @@ static __inline int acpi_hp_hex_to_int(const UINT8 *hexin, UINT8 *byteout)
 	return (0);
 }
 
-
 static void
 acpi_hp_hex_decode(char* buffer)
 {
@@ -1139,7 +1134,6 @@ acpi_hp_hex_decode(char* buffer)
 	}
 	buffer[(length+1)/3] = 0;
 }
-
 
 /*
  * open hpcmi device
