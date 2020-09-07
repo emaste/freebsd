@@ -110,33 +110,3 @@ if [ "${install_development}" == "yes" ]; then
 	pkg_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-*-dev-*' </dev/null | grep -vE "${mod}" | awk '{print $1}')
 	pkg_install "development"
 fi
-
-kernel_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-kernel-*' </dev/null | grep -vE "\-dbg" | awk '{print $1}')
-if [ ! -z "${kernel_list}" ]; then
-	dialogarg=""
-	on=""
-	nkernels=0
-	kernels=$(ls -d ${BSDINSTALL_CHROOT}/boot/kernel.* | awk -F. '{print $2}')
-	for kernel in ${kernels}; do
-		if [ -z "${on}" ]; then
-			dialogarg="${dialogarg} ${kernel} ${kernel} on"
-			on="on"
-		else
-			dialogarg="${dialogarg} ${kernel} ${kernel} off"
-		fi
-		nkernels=$((nkernels + 1))
-	done
-
-	if [ "${nkernels}" -gt 1 ]; then
-		exec 3>&1
-		KERN=$(dialog --backtitle "FreeBSD Installer" \
-			      --title "Kernel Selection" --nocancel \
-			      --radiolist "Choose kernel to enable:" \
-			      0 0 0 ${dialogarg} \
-			      2>&1 1>&3 )
-		exec 3>&-
-		kernel-select -k ${BSDINSTALL_CHROOT}/boot switch ${KERN}
-	else
-		kernel-select -k ${BSDINSTALL_CHROOT}/boot switch ${kernels}
-	fi
-fi
