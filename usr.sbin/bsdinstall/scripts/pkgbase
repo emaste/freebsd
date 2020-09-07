@@ -63,7 +63,7 @@ for feature in $FEATURES; do
 	fi
 done
 
-pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} update
+pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} update </dev/null
 
 pkg_install() {
 	n=0
@@ -71,27 +71,27 @@ pkg_install() {
 	for item in ${pkg_list}; do
 		percentage=$((100 * n/total))
 		dialog --backtitle "FreeBSD Installer" --title "Installing $1 packages" --mixedgauge "Installing ${item}"  0 0 $percentage
-		pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} install ${item} >/dev/null 2>&1
+		pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} install ${item} </dev/null >/dev/null 2>&1
 		n=$((n + 1))
 	done
 }
 
 if [ "${install_base}" == "yes" ]; then
-	pkg_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-*' | grep -vE "\-kernel|\-lib32|\-debug|\-development|\-profile" | awk '{print $1}')
+	pkg_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-*' </dev/null | grep -vE "\-kernel|\-lib32|\-debug|\-development|\-profile" | awk '{print $1}')
 	pkg_install "Base"
 fi
 
 if [ "${install_kernel}" == "yes" ]; then
 	if [ "${install_debug}" == "yes" ]; then
-		pkg_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-kernel-*' | awk '{print $1}')
+		pkg_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-kernel-*' </dev/null | awk '{print $1}')
 	else
-		pkg_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-kernel-*' | grep -vE "\-debug" | awk '{print $1}')
+		pkg_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-kernel-*' </dev/null | grep -vE "\-debug" | awk '{print $1}')
 		pkg_install "kernel"
 	fi
 fi
 
 if [ "${install_lib32}" == "yes" ]; then
-	pkg_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-*-lib32-*' | grep -vE "\-debug|\-development|\-profile" | awk '{print $1}')
+	pkg_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-*-lib32-*' </dev/null | grep -vE "\-debug|\-development|\-profile" | awk '{print $1}')
 	pkg_install "lib32"
 fi
 
@@ -101,7 +101,7 @@ if [ "${install_debug}" == "yes" ]; then
 	else
 		mod="\-lib32|\-development|\-profile"
 	fi
-	pkg_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-*-debug-*' | grep -vE "${mod}" | awk '{print $1}')
+	pkg_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-*-debug-*' </dev/null | grep -vE "${mod}" | awk '{print $1}')
 	pkg_install "debug"
 fi
 
@@ -111,7 +111,7 @@ if [ "${install_development}" == "yes" ]; then
 	else
 		mod="\-lib32|\-debug|\-profile"
 	fi
-	pkg_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-*-development-*' | grep -vE "${mod}" | awk '{print $1}')
+	pkg_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-*-development-*' </dev/null | grep -vE "${mod}" | awk '{print $1}')
 	pkg_install "development"
 fi
 
@@ -121,11 +121,11 @@ if [ "${install_profiles}" == "yes" ]; then
 	else
 		mod="\-lib32|\-development|\-debug"
 	fi
-	pkg_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-*-profile-*' | grep -vE "${mod}" | awk '{print $1}')
+	pkg_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-*-profile-*' </dev/null | grep -vE "${mod}" | awk '{print $1}')
 	pkg_install "profile"
 fi
 
-kernel_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-kernel-*' | grep -vE "\-debug" | awk '{print $1}')
+kernel_list=$(pkg -o ASSUME_ALWAYS_YES=yes -r ${BSDINSTALL_CHROOT} search -g 'FreeBSD-kernel-*' </dev/null | grep -vE "\-debug" | awk '{print $1}')
 if [ ! -z "${kernel_list}" ]; then
 	dialogarg=""
 	on=""
