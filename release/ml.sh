@@ -8,7 +8,7 @@ fi
 make_metalog()
 {
     cat $OBJTOP/stage/METALOG |\
-	egrep '/etc/s?pwd.db|/etc/passwd|package=(bootloader|bsdinstall|clibs|libarchive|libbsdxml|libopie|libucl|rc|runtime|utilities)|type=dir' |\
+	egrep '/etc/s?pwd.db|/etc/passwd|package=(bootloader|bsdinstall|clibs|libarchive|libbsdxml|libbz2|libopie|libucl|rc|runtime|utilities)|type=dir' |\
 	egrep -v 'tags=lib32|,dev|,dbg'
     cat $OBJTOP/stage/kernel.meta | egrep -v 'usr/lib/debug'
 #    mkdir -p $OBJTOP/stage/boot/kernel
