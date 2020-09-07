@@ -1,9 +1,20 @@
 #!/bin/sh
 
+die()
+{
+	echo "$*" 1>&2
+	exit 1
+}
+
+: ${SRCTOP:=$(make -V SRCTOP)}
+if [ -z "${SRCTOP}" ]; then
+	die "Cannot locate top of source tree"
+fi
 : ${OBJTOP:=$(make -V OBJTOP)}
 if [ -z "${OBJTOP}" ]; then
 	die "Cannot locate top of object tree"
 fi
+
 
 make_metalog()
 {
@@ -40,12 +51,6 @@ export PATH
 #        echo "won't overwrite ${2}"
 #        exit 1
 #fi
-
-die()
-{
-	echo "$*" 1>&2
-	exit 1
-}
 
 create_file()
 {
