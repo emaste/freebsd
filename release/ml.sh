@@ -98,16 +98,13 @@ create_file -c /usr/home/emaste/src/freebsd-git/head/release/rc.local \
     /etc/rc.local
 echo '/dev/ufs/FreeBSD_Install / ufs ro,noatime 1 1' | create_file /etc/fstab
 echo 'root_rw_mount="NO"' | create_file /etc/rc.conf.local
-create_file /pkg.conf <<EOF
-REPOS_DIR=[]
-repositories={local {url = file://$(dirname $OBJTOP)/repo/\${ABI}/latest}}
-EOF
+create_file -c $SRCTOP/release/FreeBSD-Base.conf /etc/pkg/FreeBSD-base.conf
 create_file /p.sh <<EOF
 #!/bin/sh
 
 ASSUME_ALWAYS_YES=true pkg \
     -o ABI_FILE=/bin/sh \
-    -C /pkg.conf -r /mnt install \
+    -r /mnt install \
     FreeBSD-kernel-generic FreeBSD-bootloader \
     FreeBSD-clibs FreeBSD-runtime
 EOF
