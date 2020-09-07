@@ -1,17 +1,21 @@
 #!/bin/sh
 
+: ${OBJTOP:=$(make -V OBJTOP)}
+if [ -z "${OBJTOP}" ]; then
+	die "Cannot locate top of object tree"
+fi
+
 make_metalog()
 {
-    cat /usr/obj/usr/home/emaste/src/freebsd-git/head/amd64.amd64/stage/METALOG |\
-	egrep '/etc/s?pwd.db|/etc/passwd|package=(bootloader|bsdinstall|clibs|libbsdxml|libopie|rc|runtime|utilities)|type=dir' |\
+    cat $OBJTOP/stage/METALOG |\
+	egrep '/etc/s?pwd.db|/etc/passwd|package=(bootloader|bsdinstall|clibs|libarchive|libbsdxml|libopie|rc|runtime|utilities)|type=dir' |\
 	egrep -v 'tags=lib32|,dev|,dbg'
-    cat /usr/obj/usr/home/emaste/src/freebsd-git/head/amd64.amd64/stage/kernel.meta |\
-	egrep -v 'usr/lib/debug'
-#    mkdir -p /usr/obj/usr/home/emaste/src/freebsd-git/head/amd64.amd64/stage/boot/kernel
-#    cp /usr/obj/usr/home/emaste/src/freebsd-git/head/amd64.amd64/stage/kernel/boot/kernel/* /usr/obj/usr/home/emaste/src/freebsd-git/head/amd64.amd64/worldstage/boot/kernel/
+    cat $OBJTOP/stage/kernel.meta | egrep -v 'usr/lib/debug'
+#    mkdir -p $OBJTOP/stage/boot/kernel
+#    cp $OBJTOP/stage/kernel/boot/kernel/* $OBJTOP/worldstage/boot/kernel/
 }
 
-make_metalog > /usr/obj/usr/home/emaste/src/freebsd-git/head/amd64.amd64/stage/bootonly.meta
+make_metalog > $OBJTOP/stage/bootonly.meta
 
 
 set -e
@@ -70,7 +74,7 @@ create_file()
 	fi
 	size=$(($(cat $contents | wc -c)))
 	pwd=$(pwd -P)
-	echo "./$file type=file uname=root gname=wheel mode=$mode size=$size contents=$contents" >> /usr/obj/usr/home/emaste/src/freebsd-git/head/amd64.amd64/stage/bootonly.meta
+	echo "./$file type=file uname=root gname=wheel mode=$mode size=$size contents=$contents" >> $OBJTOP/stage/bootonly.meta
 }
 
 #        ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
@@ -92,24 +96,21 @@ echo 'root_rw_mount="NO"' | create_file /etc/rc.conf.local
 
 
 # Add the repository
-: ${OBJTOP:=$(make -V OBJTOP)}
-if [ -z "${OBJTOP}" ]; then
-	die "Cannot locate top of object tree"
-fi
 ABI=FreeBSD:13:amd64
-(cd $OBJTOP && find repo/$ABI/latest) | while read f; do
-	create_file -c $OBJTOP/$f $f
+OBJTOP_NOARCH=$(dirname $OBJTOP)
+(cd $OBJTOP_NOARCH && find repo/$ABI/latest/ -type f) | while read f; do
+	create_file -c $OBJTOP_NOARCH/$f $f
 done
 
 #makefs -B little -o label=FreeBSD_Install -o version=2 ${2}.part ${1}
 
-cd /usr/obj/usr/home/emaste/src/freebsd-git/head/amd64.amd64/stage
+cd $OBJTOP/stage
 makefs -D -B little -o label=FreeBSD_Install -o version=2 ufs.img bootonly.meta
 
 #rm ${1}/etc/fstab
 #rm ${1}/etc/rc.conf.local
 
-DIR=/usr/obj/usr/home/emaste/src/freebsd-git/head/amd64.amd64/stage
+DIR=$OBJTOP/stage
 
 # Make an ESP in a file.
 espfilename=$(mktemp /tmp/efiboot.XXXXXX)
