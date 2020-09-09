@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 1995 Bruce D. Evans.
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2020 Brandon Bergren <bdragon@FreeBSD.org>
+ *
+ * This software was developed by Konstantin Belousov
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,9 +14,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -25,28 +26,43 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	from: FreeBSD: src/sys/i386/include/md_var.h,v 1.40 2001/07/12
- * $FreeBSD$
  */
 
-#ifndef	_MACHINE_MD_VAR_H_
-#define	_MACHINE_MD_VAR_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-extern long Maxmem;
-extern char sigcode[];
-extern int szsigcode;
-extern uint64_t *vm_page_dump;
-extern int vm_page_dump_size;
-extern u_long elf_hwcap;
-extern u_long elf_hwcap2;
+#include <sys/types.h>
+#include <sys/elf.h>
+#include <sys/time.h>
+#include <sys/vdso.h>
 
-struct dumperinfo;
+#include <machine/cpufunc.h>
+#include <machine/spr.h>
 
-extern int busdma_swi_pending;
-void busdma_swi(void);
-void dump_add_page(vm_paddr_t);
-void dump_drop_page(vm_paddr_t);
-int minidumpsys(struct dumperinfo *);
+#include <errno.h>
 
-#endif /* !_MACHINE_MD_VAR_H_ */
+#include "libc_private.h"
+
+#pragma weak __vdso_gettc
+int
+__vdso_gettc(const struct vdso_timehands *th, u_int *tc)
+{
+
+	if (__predict_false(th->th_algo != VDSO_TH_ALGO_PPC_TB))
+	    return (ENOSYS);
+	/*
+	 * While the timebase is a 64 bit quantity, we are only interested
+	 * in the lower 32 bits of it.
+	 */
+	*tc = mfspr(TBR_TBL);
+
+	return (0);
+}
+
+#pragma weak __vdso_gettimekeep
+int
+__vdso_gettimekeep(struct vdso_timekeep **tk)
+{
+
+	return (_elf_aux_info(AT_TIMEKEEP, tk, sizeof(*tk)));
+}

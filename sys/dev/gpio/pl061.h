@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 1995 Bruce D. Evans.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2020 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,9 +12,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -26,27 +25,35 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: FreeBSD: src/sys/i386/include/md_var.h,v 1.40 2001/07/12
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_MD_VAR_H_
-#define	_MACHINE_MD_VAR_H_
+#ifndef __DEV_PL061_H__
+#define	__DEV_PL061_H__
 
-extern long Maxmem;
-extern char sigcode[];
-extern int szsigcode;
-extern uint64_t *vm_page_dump;
-extern int vm_page_dump_size;
-extern u_long elf_hwcap;
-extern u_long elf_hwcap2;
+DECLARE_CLASS(pl061_driver);
 
-struct dumperinfo;
+#define PL061_NUM_GPIO		8
 
-extern int busdma_swi_pending;
-void busdma_swi(void);
-void dump_add_page(vm_paddr_t);
-void dump_drop_page(vm_paddr_t);
-int minidumpsys(struct dumperinfo *);
+struct pl061_pin_irqsrc {
+	struct intr_irqsrc	isrc;
+	uint32_t		irq;
+	uint32_t 		mode;
+};
 
-#endif /* !_MACHINE_MD_VAR_H_ */
+struct pl061_softc {
+	device_t		sc_dev;
+	device_t		sc_busdev;
+	struct mtx		sc_mtx;
+	struct resource		*sc_mem_res;
+	struct resource		*sc_irq_res;
+	void			*sc_irq_hdlr;
+	int			sc_mem_rid;
+	int			sc_irq_rid;
+	struct pl061_pin_irqsrc sc_isrcs[PL061_NUM_GPIO];
+};
+
+int pl061_attach(device_t);
+int pl061_detach(device_t);
+
+#endif /* __DEV_PL061_H__ */
