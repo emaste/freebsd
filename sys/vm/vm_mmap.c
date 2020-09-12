@@ -231,14 +231,14 @@ kern_mmap_req(struct thread *td, const struct mmap_req *mrp)
 	struct file *fp;
 	struct proc *p;
 	off_t pos;
-	vm_offset_t addr;
+	vm_offset_t addr, orig_addr;
 	vm_size_t len, pageoff, size;
 	vm_prot_t cap_maxprot;
 	int align, error, fd, flags, max_prot, prot;
 	cap_rights_t rights;
 	mmap_check_fp_fn check_fp_fn;
 
-	addr  = mrp->mr_hint;
+	orig_addr = addr = mrp->mr_hint;
 	len = mrp->mr_len;
 	prot = mrp->mr_prot;
 	flags = mrp->mr_flags;
@@ -436,6 +436,8 @@ kern_mmap_req(struct thread *td, const struct mmap_req *mrp)
 			if (error != 0)
 				goto done;
 		}
+		if (fp->f_ops == &shm_ops && shm_largepage(fp->f_data))
+			addr = orig_addr;
 		/* This relies on VM_PROT_* matching PROT_*. */
 		error = fo_mmap(fp, &vms->vm_map, &addr, size, prot,
 		    max_prot & cap_maxprot, flags, pos, td);
@@ -591,6 +593,7 @@ kern_munmap(struct thread *td, uintptr_t addr0, size_t size)
 	vm_offset_t addr, end;
 	vm_size_t pageoff;
 	vm_map_t map;
+	int rv;
 
 	if (size == 0)
 		return (EINVAL);
@@ -628,10 +631,10 @@ kern_munmap(struct thread *td, uintptr_t addr0, size_t size)
 		}
 	}
 #endif
-	vm_map_delete(map, addr, end);
+	rv = vm_map_delete(map, addr, end);
 
 #ifdef HWPMC_HOOKS
-	if (__predict_false(pmc_handled)) {
+	if (rv == KERN_SUCCESS && __predict_false(pmc_handled)) {
 		/* downgrade the lock to prevent a LOR with the pmc-sx lock */
 		vm_map_lock_downgrade(map);
 		if (pkm.pm_address != (uintptr_t) NULL)
@@ -641,8 +644,7 @@ kern_munmap(struct thread *td, uintptr_t addr0, size_t size)
 #endif
 		vm_map_unlock(map);
 
-	/* vm_map_delete returns nothing but KERN_SUCCESS anyway */
-	return (0);
+	return (vm_mmap_to_errno(rv));
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -1120,7 +1122,14 @@ kern_mlock(struct proc *proc, struct ucred *cred, uintptr_t addr0, size_t len)
 		PROC_UNLOCK(proc);
 	}
 #endif
-	return (error == KERN_SUCCESS ? 0 : ENOMEM);
+	switch (error) {
+	case KERN_SUCCESS:
+		return (0);
+	case KERN_INVALID_ARGUMENT:
+		return (EINVAL);
+	default:
+		return (ENOMEM);
+	}
 }
 
 #ifndef _SYS_SYSPROTO_H_
