@@ -1,3 +1,3 @@
 .\" $FreeBSD$
-Set to build nvme related tools and kernel modules.
+Build nvme related tools and kernel modules.
 
