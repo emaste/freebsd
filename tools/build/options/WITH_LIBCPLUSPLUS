@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to build libcxxrt and libc++.
+Build libcxxrt and libc++.
