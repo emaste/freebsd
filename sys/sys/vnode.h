@@ -392,6 +392,7 @@ MALLOC_DECLARE(M_VNODE);
 #endif
 
 extern u_int ncsizefactor;
+extern const u_int io_hold_cnt;
 
 /*
  * Convert between vnode types and inode formats (since POSIX.1
@@ -734,7 +735,8 @@ int	vn_rdwr_inchunks(enum uio_rw rw, struct vnode *vp, void *base,
 	    size_t len, off_t offset, enum uio_seg segflg, int ioflg,
 	    struct ucred *active_cred, struct ucred *file_cred, size_t *aresid,
 	    struct thread *td);
-int	vn_rlimit_fsize(const struct vnode *vn, const struct uio *uio,
+int	vn_read_from_obj(struct vnode *vp, struct uio *uio);
+int	vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio,
 	    struct thread *td);
 int	vn_start_write(struct vnode *vp, struct mount **mpp, int flags);
 int	vn_start_secondary_write(struct vnode *vp, struct mount **mpp,
@@ -850,6 +852,7 @@ void	vop_mknod_pre(void *a);
 void	vop_mknod_post(void *a, int rc);
 void	vop_open_post(void *a, int rc);
 void	vop_read_post(void *a, int rc);
+void	vop_read_pgcache_post(void *ap, int rc);
 void	vop_readdir_post(void *a, int rc);
 void	vop_reclaim_post(void *a, int rc);
 void	vop_remove_pre(void *a);
