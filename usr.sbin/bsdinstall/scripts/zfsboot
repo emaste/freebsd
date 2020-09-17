@@ -130,7 +130,7 @@ f_include $BSDCFG_SHARE/variable.subr
 #
 # Should we use geli(8) to encrypt the swap?
 #
-: ${ZFSBOOT_SWAP_ENCRYPTION=}
+: ${ZFSBOOT_SWAP_ENCRYPTION=1}
 
 #
 # Should we use gmirror(8) to mirror the swap?
