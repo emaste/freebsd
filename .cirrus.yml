@@ -21,4 +21,4 @@ task:
   package_script:
   - su user -c "make WITHOUT_TOOLCHAIN=yes PKG_FORMAT=tar packages"
   test_script:
-  - su user -c "sh tools/boot/ci-qemu-test.sh"
+  - sh tools/boot/ci-qemu-test.sh
