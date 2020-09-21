@@ -24,6 +24,7 @@ task:
   timeout_in: 120m
   install_script:
   - sh .cirrus-ci/pkg-install.sh qemu llvm13
+  - sh .cirrus-ci/pkg-install.sh git-lite
   setup_script:
   - uname -a
   - df -m
@@ -31,6 +32,9 @@ task:
   - pw useradd user
   - mkdir -p /usr/obj/$(pwd -P)
   - chown user:user /usr/obj/$(pwd -P)
+  submodules_script:
+  - git submodule init
+  - git submodule update
   script:
   - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=llvm13 WITHOUT_TOOLCHAIN=yes buildworld buildkernel"
   package_script:
