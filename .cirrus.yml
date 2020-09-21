@@ -26,3 +26,5 @@ task:
   - su user -c "make WITHOUT_TOOLCHAIN=yes PKG_FORMAT=tar packages"
   test_script:
   - sh tools/boot/ci-qemu-test.sh
+  installer_script:
+  - sh release/pkgbase-memstick.sh
