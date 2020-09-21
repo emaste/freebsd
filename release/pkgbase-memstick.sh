@@ -31,7 +31,7 @@ build_pkg
 trim_metalog()
 {
 	cat $OBJTOP/stage/METALOG |\
-	    egrep '/etc/s?pwd.db|/etc/passwd|package=(bootloader|bsdinstall|clibs|libarchive|libbsdxml|libbsm|libbz2|liblzma|libopie|libucl|rc|runtime|utilities)|type=dir' |\
+	    egrep '/etc/s?pwd.db|/etc/passwd|package=(bootloader|bsdinstall|clibs|libarchive|libbsdxml|libbsm|libbz2|liblzma|libopie|libucl|rc|runtime|utilities|wpa)|type=dir' |\
 	    egrep -v 'tags=lib32|,dev|,dbg' | egrep -v '/etc/pkg/FreeBSD.conf'
 	cat $OBJTOP/stage/kernel.meta | egrep -v 'usr/lib/debug'
 }
