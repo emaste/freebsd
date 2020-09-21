@@ -1,0 +1,3 @@
+[submodule "local/pkg"]
+	path = local/pkg
+	url = https://github.com/emaste/pkg
