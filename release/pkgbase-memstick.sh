@@ -20,17 +20,7 @@ fi
 # Really janky fetch / build pkg
 build_pkg()
 {
-	if [ ! -d $OBJTOP/pkg/.git ]; then
-		echo "Checking out pkg"
-		cd $OBJTOP
-		git clone -b installflags https://github.com/emaste/pkg/
-		cd pkg
-	else
-		cd $OBJTOP/pkg
-		git fetch origin
-		git reset --hard origin/installflags
-		patch -p1 < $SRCTOP/release/pkg.patch
-	fi
+	cd $OBJTOP/local/pkg
 	./configure
 	make -j $(sysctl -n hw.ncpu)
 	cd -
@@ -97,7 +87,7 @@ create_file -c $SRCTOP/release/FreeBSD-Base.conf /etc/pkg/FreeBSD-base.conf
 
 # Install pkg
 mkdir -p $OBJTOP/stage/usr/local/etc
-(cd $OBJTOP/pkg && make INSTALLFLAGS="-U -M $OBJTOP/stage/installer.meta -D $OBJTOP/stage" DESTDIR=$OBJTOP/stage -C src install)
+(cd $OBJTOP/local/pkg && make INSTALLFLAGS="-U -M $OBJTOP/stage/installer.meta -D $OBJTOP/stage" DESTDIR=$OBJTOP/stage -C src install)
 
 # Add the repository
 ABI=FreeBSD:13:amd64
