@@ -32,6 +32,7 @@ task:
   timeout_in: 120m
   install_script:
   - sh .cirrus-ci/pkg-install.sh qemu-nox11 ${TOOLCHAIN_PKG}
+  - sh .cirrus-ci/pkg-install.sh git-lite
   setup_script:
   - uname -a
   - df -m
@@ -39,6 +40,9 @@ task:
   - pw useradd user
   - mkdir -p /usr/obj/$(pwd -P)
   - chown user:user /usr/obj/$(pwd -P)
+  submodules_script:
+  - git submodule init
+  - git submodule update
   script:
   - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} WITHOUT_TOOLCHAIN=yes buildworld buildkernel"
   package_script:
