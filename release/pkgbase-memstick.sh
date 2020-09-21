@@ -20,6 +20,11 @@ fi
 # Really janky fetch / build pkg
 build_pkg()
 {
+	# Copy pkg to OBJDIR until out-of-tree builds are supported
+	# https://github.com/freebsd/pkg/issues/1888
+	mkdir -p $OBJTOP/local/
+	cp -pr $SRCTOP/local/pkg $OBJTOP/local/
+
 	cd $OBJTOP/local/pkg
 	./configure
 	make -j $(sysctl -n hw.ncpu)
