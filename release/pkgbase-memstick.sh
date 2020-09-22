@@ -24,6 +24,9 @@ build_pkg()
 	# https://github.com/freebsd/pkg/issues/1888
 	mkdir -p $OBJTOP/local/
 	cp -pr $SRCTOP/local/pkg $OBJTOP/local/
+	# build fails if .git exists but is not usable - see
+	# https://github.com/freebsd/pkg/issues/1889
+	rm -f $OBJTOP/local/pkg/.git
 
 	cd $OBJTOP/local/pkg
 	./configure
