@@ -204,6 +204,15 @@ static int lro_mbufs = 0;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, lro_mbufs, CTLFLAG_RDTUN, &lro_mbufs, 0,
     "Enable presorting of LRO frames");
 
+static counter_u64_t pullups;
+SYSCTL_COUNTER_U64(_hw_cxgbe, OID_AUTO, pullups, CTLFLAG_RD, &pullups,
+    "Number of mbuf pullups performed");
+
+static counter_u64_t defrags;
+SYSCTL_COUNTER_U64(_hw_cxgbe, OID_AUTO, defrags, CTLFLAG_RD, &defrags,
+    "Number of mbuf defrags performed");
+
+
 static int service_iq(struct sge_iq *, int);
 static int service_iq_fl(struct sge_iq *, int);
 static struct mbuf *get_fl_payload(struct adapter *, struct sge_fl *, uint32_t);
@@ -269,7 +278,7 @@ static void add_fl_to_sfl(struct adapter *, struct sge_fl *);
 static inline void get_pkt_gl(struct mbuf *, struct sglist *);
 static inline u_int txpkt_len16(u_int, const u_int);
 static inline u_int txpkt_vm_len16(u_int, const u_int);
-static inline void calculate_mbuf_len16(struct adapter *, struct mbuf *);
+static inline void calculate_mbuf_len16(struct mbuf *, bool);
 static inline u_int txpkts0_len16(u_int);
 static inline u_int txpkts1_len16(void);
 static u_int write_raw_wr(struct sge_txq *, void *, struct mbuf *, u_int);
@@ -535,8 +544,12 @@ t4_sge_modload(void)
 
 	extfree_refs = counter_u64_alloc(M_WAITOK);
 	extfree_rels = counter_u64_alloc(M_WAITOK);
+	pullups = counter_u64_alloc(M_WAITOK);
+	defrags = counter_u64_alloc(M_WAITOK);
 	counter_u64_zero(extfree_refs);
 	counter_u64_zero(extfree_rels);
+	counter_u64_zero(pullups);
+	counter_u64_zero(defrags);
 
 	t4_init_shared_cpl_handlers();
 	t4_register_cpl_handler(CPL_FW4_MSG, handle_fw_msg);
@@ -556,6 +569,8 @@ t4_sge_modunload(void)
 
 	counter_u64_free(extfree_refs);
 	counter_u64_free(extfree_rels);
+	counter_u64_free(pullups);
+	counter_u64_free(defrags);
 }
 
 uint64_t
@@ -2308,6 +2323,8 @@ set_mbuf_len16(struct mbuf *m, uint8_t len16)
 {
 
 	M_ASSERTPKTHDR(m);
+	if (!(mbuf_cflags(m) & MC_TLS))
+		MPASS(len16 > 0 && len16 <= SGE_MAX_WR_LEN / 16);
 	m->m_pkthdr.PH_loc.eight[0] = len16;
 }
 
@@ -2642,8 +2659,14 @@ count_mbuf_nsegs(struct mbuf *m, int skip, uint8_t *cflags)
  * The maximum number of segments that can fit in a WR.
  */
 static int
-max_nsegs_allowed(struct mbuf *m)
+max_nsegs_allowed(struct mbuf *m, bool vm_wr)
 {
+
+	if (vm_wr) {
+		if (needs_tso(m))
+			return (TX_SGL_SEGS_VM_TSO);
+		return (TX_SGL_SEGS_VM);
+	}
 
 	if (needs_tso(m)) {
 		if (needs_vxlan_tso(m))
@@ -2661,7 +2684,7 @@ max_nsegs_allowed(struct mbuf *m)
  * b) it may get defragged up if the gather list is too long for the hardware.
  */
 int
-parse_pkt(struct adapter *sc, struct mbuf **mp)
+parse_pkt(struct mbuf **mp, bool vm_wr)
 {
 	struct mbuf *m0 = *mp, *m;
 	int rc, nsegs, defragged = 0, offset;
@@ -2713,9 +2736,14 @@ restart:
 		return (0);
 	}
 #endif
-	if (nsegs > max_nsegs_allowed(m0)) {
-		if (defragged++ > 0 || (m = m_defrag(m0, M_NOWAIT)) == NULL) {
+	if (nsegs > max_nsegs_allowed(m0, vm_wr)) {
+		if (defragged++ > 0) {
 			rc = EFBIG;
+			goto fail;
+		}
+		counter_u64_add(defrags, 1);
+		if ((m = m_defrag(m0, M_NOWAIT)) == NULL) {
+			rc = ENOMEM;
 			goto fail;
 		}
 		*mp = m0 = m;	/* update caller's copy after defrag */
@@ -2724,6 +2752,7 @@ restart:
 
 	if (__predict_false(nsegs > 2 && m0->m_pkthdr.len <= MHLEN &&
 	    !(cflags & MC_NOMAP))) {
+		counter_u64_add(pullups, 1);
 		m0 = m_pullup(m0, m0->m_pkthdr.len);
 		if (m0 == NULL) {
 			/* Should have left well enough alone. */
@@ -2735,7 +2764,7 @@ restart:
 	}
 	set_mbuf_nsegs(m0, nsegs);
 	set_mbuf_cflags(m0, cflags);
-	calculate_mbuf_len16(sc, m0);
+	calculate_mbuf_len16(m0, vm_wr);
 
 #ifdef RATELIMIT
 	/*
@@ -3147,7 +3176,7 @@ eth_tx(struct mp_ring *r, u_int cidx, u_int pidx, bool *coalescing)
 
 		if (txp->npkt > 0 || remaining > 1 || txp->score > 3 ||
 		    atomic_load_int(&txq->eq.equiq) != 0) {
-			if (sc->flags & IS_VF)
+			if (vi->flags & TX_USES_VM_WR)
 				rc = add_to_txpkts_vf(sc, txq, m0, avail, &snd);
 			else
 				rc = add_to_txpkts_pf(sc, txq, m0, avail, &snd);
@@ -3163,14 +3192,14 @@ eth_tx(struct mp_ring *r, u_int cidx, u_int pidx, bool *coalescing)
 				if (txp->score++ >= 10)
 					txp->score = 10;
 				MPASS(avail >= tx_len16_to_desc(txp->len16));
-				if (sc->flags & IS_VF)
+				if (vi->flags & TX_USES_VM_WR)
 					n = write_txpkts_vm_wr(sc, txq);
 				else
 					n = write_txpkts_wr(sc, txq);
 			} else {
 				MPASS(avail >=
 				    tx_len16_to_desc(mbuf_len16(txp->mb[0])));
-				if (sc->flags & IS_VF)
+				if (vi->flags & TX_USES_VM_WR)
 					n = write_txpkt_vm_wr(sc, txq,
 					    txp->mb[0]);
 				else
@@ -3220,7 +3249,7 @@ eth_tx(struct mp_ring *r, u_int cidx, u_int pidx, bool *coalescing)
 #endif
 		} else {
 			ETHER_BPF_MTAP(ifp, m0);
-			if (sc->flags & IS_VF)
+			if (vi->flags & TX_USES_VM_WR)
 				n = write_txpkt_vm_wr(sc, txq, m0);
 			else
 				n = write_txpkt_wr(sc, txq, m0, avail);
@@ -3264,14 +3293,14 @@ send_txpkts:
 			ETHER_BPF_MTAP(ifp, txp->mb[i]);
 		if (txp->npkt > 1) {
 			MPASS(avail >= tx_len16_to_desc(txp->len16));
-			if (sc->flags & IS_VF)
+			if (vi->flags & TX_USES_VM_WR)
 				n = write_txpkts_vm_wr(sc, txq);
 			else
 				n = write_txpkts_wr(sc, txq);
 		} else {
 			MPASS(avail >=
 			    tx_len16_to_desc(mbuf_len16(txp->mb[0])));
-			if (sc->flags & IS_VF)
+			if (vi->flags & TX_USES_VM_WR)
 				n = write_txpkt_vm_wr(sc, txq, txp->mb[0]);
 			else
 				n = write_txpkt_wr(sc, txq, txp->mb[0], avail);
@@ -4410,7 +4439,7 @@ alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx,
 	TASK_INIT(&txq->tx_reclaim_task, 0, tx_reclaim, eq);
 	txq->ifp = vi->ifp;
 	txq->gl = sglist_alloc(TX_SGL_SEGS, M_WAITOK);
-	if (sc->flags & IS_VF)
+	if (vi->flags & TX_USES_VM_WR)
 		txq->cpl_ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT_XT) |
 		    V_TXPKT_INTF(pi->tx_chan));
 	else
@@ -4426,6 +4455,8 @@ alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx,
 	MPASS(nitems(txp->mb) >= sc->params.max_pkts_per_eth_tx_pkts_wr);
 	txq->txp.max_npkt = min(nitems(txp->mb),
 	    sc->params.max_pkts_per_eth_tx_pkts_wr);
+	if (vi->flags & TX_USES_VM_WR && !(sc->flags & IS_VF))
+		txq->txp.max_npkt--;
 
 	snprintf(name, sizeof(name), "%d", idx);
 	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, name,
@@ -4775,9 +4806,11 @@ get_pkt_gl(struct mbuf *m, struct sglist *gl)
 	KASSERT(gl->sg_nseg == mbuf_nsegs(m),
 	    ("%s: nsegs changed for mbuf %p from %d to %d", __func__, m,
 	    mbuf_nsegs(m), gl->sg_nseg));
-	KASSERT(gl->sg_nseg > 0 && gl->sg_nseg <= max_nsegs_allowed(m),
+#if 0	/* vm_wr not readily available here. */
+	KASSERT(gl->sg_nseg > 0 && gl->sg_nseg <= max_nsegs_allowed(m, vm_wr),
 	    ("%s: %d segments, should have been 1 <= nsegs <= %d", __func__,
-		gl->sg_nseg, max_nsegs_allowed(m)));
+		gl->sg_nseg, max_nsegs_allowed(m, vm_wr)));
+#endif
 }
 
 /*
@@ -4818,12 +4851,12 @@ txpkt_vm_len16(u_int nsegs, const u_int extra)
 }
 
 static inline void
-calculate_mbuf_len16(struct adapter *sc, struct mbuf *m)
+calculate_mbuf_len16(struct mbuf *m, bool vm_wr)
 {
 	const int lso = sizeof(struct cpl_tx_pkt_lso_core);
 	const int tnl_lso = sizeof(struct cpl_tx_tnl_lso);
 
-	if (sc->flags & IS_VF) {
+	if (vm_wr) {
 		if (needs_tso(m))
 			set_mbuf_len16(m, txpkt_vm_len16(mbuf_nsegs(m), lso));
 		else
@@ -5326,8 +5359,6 @@ add_to_txpkts_vf(struct adapter *sc, struct sge_txq *txq, struct mbuf *m,
     int avail, bool *send)
 {
 	struct txpkts *txp = &txq->txp;
-
-	MPASS(sc->flags & IS_VF);
 
 	/* Cannot have TSO and coalesce at the same time. */
 	if (cannot_use_txpkts(m)) {
