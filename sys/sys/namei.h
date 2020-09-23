@@ -133,7 +133,8 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 #define	BENEATH		0x0080	/* No escape from the start dir */
 #define	LOCKSHARED	0x0100	/* Shared lock leaf */
 #define	NOFOLLOW	0x0000	/* do not follow symbolic links (pseudo) */
-#define	MODMASK		0x01fc	/* mask of operational modifiers */
+#define	RBENEATH	0x100000000ULL /* No escape, even tmp, from start dir */
+#define	MODMASK		0xf000001fcULL	/* mask of operational modifiers */
 /*
  * Namei parameter descriptors.
  *
@@ -183,6 +184,7 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
  * Namei results flags
  */
 #define	NIRES_ABS	0x00000001 /* Path was absolute */
+#define	NIRES_STRICTREL	0x00000002 /* Restricted lookup result */
 
 /*
  * Flags in ni_lcf, valid for the duration of the namei call.
