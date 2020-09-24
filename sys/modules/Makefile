@@ -90,7 +90,6 @@ SUBDIR=	\
 	${_cloudabi32} \
 	${_cloudabi64} \
 	${_coretemp} \
-	${_cp} \
 	${_cpsw} \
 	${_cpuctl} \
 	${_cpufreq} \
@@ -767,9 +766,6 @@ _vmm=		vmm
 # XXX some of these can move now, but are untested on other architectures.
 _3dfx=		3dfx
 _3dfx_linux=	3dfx_linux
-.if ${MK_SOURCELESS_HOST} != "no"
-_cp=		cp
-.endif
 _glxiic=	glxiic
 _glxsb=		glxsb
 _pcfclock=	pcfclock
