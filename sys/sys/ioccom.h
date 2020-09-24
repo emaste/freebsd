@@ -54,8 +54,8 @@
 #define	IOCPARM_MAX	(1 << IOCPARM_SHIFT) /* max size of ioctl */
 
 #define	IOC_VOID	0x20000000UL	/* no parameters */
-#define	IOC_OUT		0x40000000UL	/* copy out parameters */
-#define	IOC_IN		0x80000000UL	/* copy in parameters */
+#define	IOC_OUT		0x40000000UL	/* copy out parameters (to userland) */
+#define	IOC_IN		0x80000000UL	/* copy in parameters (from userland) */
 #define	IOC_INOUT	(IOC_IN|IOC_OUT)/* copy parameters in and out */
 #define	IOC_DIRMASK	(IOC_VOID|IOC_OUT|IOC_IN)/* mask for IN/OUT/VOID */
 
