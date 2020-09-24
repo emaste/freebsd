@@ -48,8 +48,8 @@
 
 #define	IOCPARM_MAX	(1 << IOCPARM_SHIFT) /* max size of ioctl */
 #define	IOC_VOID	0x20000000	/* no parameters */
-#define	IOC_OUT		0x40000000	/* copy out parameters */
-#define	IOC_IN		0x80000000	/* copy in parameters */
+#define	IOC_OUT		0x40000000	/* copy out parameters (to userland) */
+#define	IOC_IN		0x80000000	/* copy in parameters (to kernel) */
 #define	IOC_INOUT	(IOC_IN|IOC_OUT)
 #define	IOC_DIRMASK	(IOC_VOID|IOC_OUT|IOC_IN)
 
