@@ -1243,6 +1243,17 @@ initarm(struct arm_boot_params *abp)
 	debugf(" lastaddr1: 0x%08x\n", lastaddr);
 	arm_print_kenv();
 
+	root = OF_finddevice("/");
+	if (OF_getprop(root, "freebsd,dts-version", dts_version, sizeof(dts_version)) > 0) {
+		if (strcmp(LINUX_DTS_VERSION, dts_version) != 0)
+			printf("WARNING: DTB version is %s while kernel expect %s, "
+			    "please update to DTB in the ESP\n",
+			    dts_version,
+			    LINUX_DTS_VERSION);
+	} else {
+		printf("WARNING: Cannot find freebsd,dts-version property, "
+		    "cannot check DTB compliance\n");
+	}
 	env = kern_getenv("kernelname");
 	if (env != NULL)
 		strlcpy(kernelname, env, sizeof(kernelname));
