@@ -103,6 +103,7 @@ __DEFAULT_YES_OPTIONS = \
     FTP \
     GAMES \
     GOOGLETEST \
+    GOT \
     GPIO \
     HAST \
     HTML \
