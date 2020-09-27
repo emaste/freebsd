@@ -5393,7 +5393,6 @@ sctp_flush_reassm_for_str_seq(struct sctp_tcb *stcb,
     struct sctp_queued_to_read *control, int ordered, uint32_t cumtsn)
 {
 	struct sctp_tmit_chunk *chk, *nchk;
-	int cnt_removed = 0;
 
 	/*
 	 * For now large messages held on the stream reasm that are complete
@@ -5403,17 +5402,18 @@ sctp_flush_reassm_for_str_seq(struct sctp_tcb *stcb,
 	 * it can be delivered... But for now we just dump everything on the
 	 * queue.
 	 */
-	if (!asoc->idata_supported && !ordered && SCTP_TSN_GT(control->fsn_included, cumtsn)) {
+	if (!asoc->idata_supported && !ordered &&
+	    control->first_frag_seen &&
+	    SCTP_TSN_GT(control->fsn_included, cumtsn)) {
 		return;
 	}
 	TAILQ_FOREACH_SAFE(chk, &control->reasm, sctp_next, nchk) {
 		/* Purge hanging chunks */
-		if (!asoc->idata_supported && (ordered == 0)) {
+		if (!asoc->idata_supported && !ordered) {
 			if (SCTP_TSN_GT(chk->rec.data.tsn, cumtsn)) {
 				break;
 			}
 		}
-		cnt_removed++;
 		TAILQ_REMOVE(&control->reasm, chk, sctp_next);
 		if (asoc->size_on_reasm_queue >= chk->send_size) {
 			asoc->size_on_reasm_queue -= chk->send_size;
