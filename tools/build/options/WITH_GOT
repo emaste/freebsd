@@ -1,0 +1,4 @@
+.\" $FreeBSD$
+Install
+.Xr got 1 ,
+OpenBSD's gameoftrees Git-repository-compatible version control system.
