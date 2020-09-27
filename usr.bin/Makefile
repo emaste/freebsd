@@ -211,6 +211,7 @@ SUBDIR+=		gh-bc
 .if ${MK_GNU_DIFF} == "no"
 SUBDIR+=		diff3
 .endif
+SUBDIR.${MK_GOT}+=	got
 SUBDIR.${MK_HESIOD}+=	hesinfo
 SUBDIR.${MK_ICONV}+=	iconv
 SUBDIR.${MK_ICONV}+=	mkcsmapper
