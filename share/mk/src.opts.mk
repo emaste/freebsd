@@ -109,6 +109,7 @@ __DEFAULT_YES_OPTIONS = \
     GAMES \
     GH_BC \
     GOOGLETEST \
+    GOT \
     GPIO \
     HAST \
     HTML \
