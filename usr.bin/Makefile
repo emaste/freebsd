@@ -222,6 +222,7 @@ SUBDIR+=		gh-bc
 SUBDIR.${MK_OPENSSL}+=	bc
 SUBDIR.${MK_OPENSSL}+=	dc
 .endif
+SUBDIR.${MK_GOT}+=	got
 SUBDIR.${MK_HESIOD}+=	hesinfo
 SUBDIR.${MK_ICONV}+=	iconv
 SUBDIR.${MK_ICONV}+=	mkcsmapper
