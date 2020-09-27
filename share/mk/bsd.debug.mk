@@ -4,6 +4,8 @@
 # not be included directly by Makefiles.
 #
 
+# XXX need to port change
+
 .include <bsd.opts.mk>
 
 .if ${MK_ASSERT_DEBUG} == "no"
