@@ -5,3 +5,6 @@
 	path = usr.bin/got
 	url = https://github.com/emaste/got
 	branch = port-0.41
+[submodule "sys/modules/drm-kmod"]
+	path = sys/modules/drm-kmod
+	url = https://github.com/emaste/drm-kmod
