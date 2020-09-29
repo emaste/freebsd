@@ -103,6 +103,7 @@ SUBDIR=	\
 	dcons \
 	dcons_crom \
 	${_dpms} \
+	drm-kmod \
 	dummynet \
 	${_efirt} \
 	${_em} \
