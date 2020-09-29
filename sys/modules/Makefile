@@ -717,6 +717,7 @@ _cbb=		cbb
 _cpuctl=	cpuctl
 _cpufreq=	cpufreq
 _dpms=		dpms
+SUBDIR+=	drm-kmod
 _em=		em
 _et=		et
 _ftgpio=	ftgpio
