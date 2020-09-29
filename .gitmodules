@@ -1,3 +1,6 @@
 [submodule "local/pkg"]
 	path = local/pkg
 	url = https://github.com/emaste/pkg
+[submodule "sys/modules/drm-kmod"]
+	path = sys/modules/drm-kmod
+	url = https://github.com/emaste/drm-kmod
