@@ -105,6 +105,7 @@ SUBDIR=	\
 	${_dpdk_lpm4} \
 	${_dpdk_lpm6} \
 	${_dpms} \
+	${_drm_kmod} \
 	dummymbuf \
 	dummynet \
 	${_dwwdt} \
@@ -767,6 +768,9 @@ _cardbus=	cardbus
 _cbb=		cbb
 _cpuctl=	cpuctl
 _cpufreq=	cpufreq
+.if exists(${SYSDIR}/modules/Makefile)
+_drm_kmod=	drm-kmod
+.endif
 _dpms=		dpms
 _em=		em
 _et=		et
