@@ -1,11 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
- * Copyright (c) 2013 The FreeBSD Foundation
- * All rights reserved.
- *
- * This software was developed by Konstantin Belousov <kib@FreeBSD.org>
- * under sponsorship from the FreeBSD Foundation.
+ * Copyright (c) 2020 M. Warner Losh <imp@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -19,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -27,38 +21,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef __X86_IOMMU_BUSDMA_DMAR_H
-#define __X86_IOMMU_BUSDMA_DMAR_H
+/*
+ * The parts of kern_tc.c and other timekeeping bits of the kernel.
+ */
 
-#include <dev/iommu/iommu.h>
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-struct bus_dma_tag_iommu {
-	struct bus_dma_tag_common common;
-	struct iommu_ctx *ctx;
-	device_t owner;
-	int map_count;
-	bus_dma_segment_t *segments;
-};
+#include <sys/time.h>
 
-struct bus_dmamap_iommu {
-	struct bus_dma_tag_iommu *tag;
-	struct memdesc mem;
-	bus_dmamap_callback_t *callback;
-	void *callback_arg;
-	struct iommu_map_entries_tailq map_entries;
-	TAILQ_ENTRY(bus_dmamap_iommu) delay_link;
-	bool locked;
-	bool cansleep;
-	int flags;
-};
-
-#define	BUS_DMAMAP_IOMMU_MALLOC	0x0001
-#define	BUS_DMAMAP_IOMMU_KMEM_ALLOC 0x0002
-
-extern struct bus_dma_impl bus_dma_iommu_impl;
-
-#endif
+volatile time_t time_second = 1;
