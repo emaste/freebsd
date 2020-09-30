@@ -156,6 +156,9 @@ int main(int argc, char *argv[])
 	atexit(exit_cleanup);
 
 #ifndef WITHOUT_CAPSICUM
+	if (cap_enter() < 0)
+		err(1, "failed to enter security sandbox");
+
 	cap_rights_init(&rights_ro, CAP_READ, CAP_FSTAT, CAP_SEEK);
 	cap_rights_init(&rights_wr, CAP_WRITE);
 	cap_rights_init(&rights_dir, CAP_UNLINKAT);
@@ -169,9 +172,6 @@ int main(int argc, char *argv[])
 	    cap_rights_limit(dirfd, &rights_dir) < 0)
 		err(1, "cap_rights_limit() failed, could not restrict"
 		    " capabilities");
-
-	if (cap_enter() < 0)
-		err(1, "failed to enter security sandbox");
 #endif
 
 	/*
