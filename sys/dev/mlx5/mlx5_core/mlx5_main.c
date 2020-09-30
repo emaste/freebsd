@@ -2007,6 +2007,8 @@ static const struct pci_device_id mlx5_core_pci_table[] = {
 };
 
 MODULE_DEVICE_TABLE(pci, mlx5_core_pci_table);
+MODULE_PNP_INFO("U32:vendor;U32:device", pci, mlx5,
+    mlx5_core_pci_table, nitems(mlx5_core_pci_table) -1);
 
 void mlx5_disable_device(struct mlx5_core_dev *dev)
 {
