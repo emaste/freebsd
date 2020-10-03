@@ -31,6 +31,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libsqlite3 \
 	geom \
 	lcurses \
+	lib9p \
 	libalias \
 	libarchive \
 	libauditd \
