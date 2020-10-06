@@ -1510,7 +1510,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			 *   ----INIT-ACK(tag=t)-->
 			 *   ----INIT(tag=t)------> *1
 			 *   <---INIT-ACK(tag=a)---
-                         *   <----CE(tag=t)------------- *2
+			 *   <----CE(tag=t)------------- *2
 			 *
 			 * At point *1 we should be generating a different
 			 * tag t'. Which means we would throw away the CE and send
@@ -1741,8 +1741,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			if (((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 			    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) &&
 			    (!SCTP_IS_LISTENING(inp))) {
-				stcb->sctp_ep->sctp_flags |=
-				    SCTP_PCB_FLAGS_CONNECTED;
+				stcb->sctp_ep->sctp_flags |= SCTP_PCB_FLAGS_CONNECTED;
 				soisconnected(stcb->sctp_socket);
 			}
 			if (SCTP_GET_STATE(stcb) == SCTP_STATE_COOKIE_ECHOED)
@@ -4117,7 +4116,6 @@ sctp_handle_packet_dropped(struct sctp_pktdrop_chunk *cp,
 	struct sctp_idata_chunk *idata_chunk;
 	uint32_t bottle_bw, on_queue;
 	uint32_t offset, chk_len;
-	uint16_t trunc_len;
 	uint16_t pktdrp_len;
 	uint8_t pktdrp_flags;
 
@@ -4127,13 +4125,10 @@ sctp_handle_packet_dropped(struct sctp_pktdrop_chunk *cp,
 	pktdrp_len = ntohs(cp->ch.chunk_length);
 	KASSERT(limit <= pktdrp_len, ("Inconsistent limit"));
 	if (pktdrp_flags & SCTP_PACKET_TRUNCATED) {
-		trunc_len = ntohs(cp->trunc_len);
-		if (trunc_len <= pktdrp_len - sizeof(struct sctp_pktdrop_chunk)) {
+		if (ntohs(cp->trunc_len) <= pktdrp_len - sizeof(struct sctp_pktdrop_chunk)) {
 			/* The peer plays games with us. */
 			return;
 		}
-	} else {
-		trunc_len = 0;
 	}
 	limit -= sizeof(struct sctp_pktdrop_chunk);
 	offset = 0;
@@ -5558,7 +5553,9 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 			stcb = NULL;
 			goto out;
 		}
-		data_processed = 1;
+		if (retval == 0) {
+			data_processed = 1;
+		}
 		/*
 		 * Anything important needs to have been m_copy'ed in
 		 * process_data
