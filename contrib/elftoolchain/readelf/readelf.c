@@ -6903,7 +6903,7 @@ get_symbol_value(struct readelf *re, int symtab, int i)
 	return (sym.st_value);
 }
 
-/* 
+/*
  * Decompress a data section if needed (using ZLIB).
  */
 static int
@@ -6929,7 +6929,7 @@ decompress_section(struct section *s, unsigned char **buffer, uint64_t *sz) {
 		        elf_errmsg(-1));
 		if (chdr.ch_type != ELFCOMPRESS_ZLIB)
 		    goto fail;
-		
+
 		compressed_data_buffer = *buffer;
 		compressed_size = *sz;
 		inflated_size = 0;
@@ -6948,7 +6948,7 @@ decompress_section(struct section *s, unsigned char **buffer, uint64_t *sz) {
 		if (ret != Z_OK)
 			goto fail;
 		/*
-		 * The section can contain several compressed buffers, 
+		 * The section can contain several compressed buffers,
 		 * so decompress in a loop until all data is inflated.
 		 */
 		while (inflated_size < compressed_size) {
