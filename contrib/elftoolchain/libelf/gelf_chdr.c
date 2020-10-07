@@ -36,7 +36,6 @@
 
 #include "_libelf.h"
 
-
 Elf32_Chdr *
 elf32_getchdr(Elf_Scn *s)
 {
@@ -69,13 +68,13 @@ gelf_getchdr(Elf_Scn *s, GElf_Chdr *d)
 	assert(ec == ELFCLASS32 || ec == ELFCLASS64);
 
 	if (ec == ELFCLASS32) {
-		ch32 = (Elf32_Chdr *) ch;
+		ch32 = (Elf32_Chdr *)ch;
 
-		d->ch_type      = (Elf64_Word) ch32->ch_type;
-        d->ch_size      = (Elf64_Xword) ch32->ch_size;
-        d->ch_addralign      = (Elf64_Xword) ch32->ch_addralign;
+		d->ch_type = (Elf64_Word)ch32->ch_type;
+		d->ch_size = (Elf64_Xword)ch32->ch_size;
+		d->ch_addralign = (Elf64_Xword)ch32->ch_addralign;
 	} else {
-		ch64 = (Elf64_Chdr *) ch;
+		ch64 = (Elf64_Chdr *)ch;
 		*d = *ch64;
 	}
 
