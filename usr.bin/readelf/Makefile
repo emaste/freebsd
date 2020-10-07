@@ -15,6 +15,7 @@ LIBADD=	dwarf elftc elf
 .if ${MK_CASPER} != "no"
 LIBADD+=	casper
 LIBADD+=	cap_fileargs
+LIBADD+=	z
 CFLAGS+=	-DWITH_CASPER
 .endif
 
