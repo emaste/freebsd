@@ -48,7 +48,7 @@ typedef	__time_t	time_t;
  */
 struct timeval {
 	time_t		tv_sec;		/* seconds */
-	suseconds_t	tv_usec;	/* and microseconds */
+	suseconds_t	tv_usec;	/* and microseconds */ // XXX make 64?
 };
 
 #endif /* !_SYS__TIMEVAL_H_ */
