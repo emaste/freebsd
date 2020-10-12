@@ -2763,6 +2763,8 @@ options 	RCTL
 options 	MAXFILES=999
 
 # Random number generator
+# Alternative algorithm.
+#options 	RANDOM_FENESTRASX
 # Allow the CSPRNG algorithm to be loaded as a module.
 #options 	RANDOM_LOADABLE
 # Select this to allow high-rate but potentially expensive
