@@ -38,7 +38,7 @@ REPOS_DIR=[]
 repositories={local {url = file://$(dirname $OBJTOP)/repo/\${ABI}/latest}}
 EOF
 	ASSUME_ALWAYS_YES=true INSTALL_AS_USER=true pkg \
-	    -o ABI_FILE=$OBJTOP/bin/sh/sh \
+	    -o ABI_FILE=$ABIFILE \
 	    -C ${ROOTDIR}/pkg.conf -r ${ROOTDIR} install \
 	    FreeBSD-kernel-generic FreeBSD-bootloader \
 	    FreeBSD-clibs FreeBSD-runtime
@@ -75,6 +75,10 @@ fi
 : ${OBJTOP:=$(make -V OBJTOP)}
 if [ -z "${OBJTOP}" ]; then
 	die "Cannot locate top of object tree"
+fi
+ABIFILE=$OBJTOP/bin/sh/sh
+if [ ! -f "$ABIFILE" ]; then
+	die "ABI file $ABIFILE does not exist"
 fi
 
 # Locate the uefi firmware file used by qemu.
