@@ -164,8 +164,8 @@ enum Elf_Error {
 	ELF_E_VERSION,	/* Unknown API version */
 	ELF_E_INVALID_SECTION_FLAGS, /* Invalid ELF section header flags */
 	ELF_E_INVALID_SECTION_TYPE, /* Invalid ELF section header type */
-	ELF_E_NOT_COMPRESSED /* Section is not compressed */
-	ELF_E_NUM,	/* Max error number */
+	ELF_E_NOT_COMPRESSED, /* Section is not compressed */
+	ELF_E_NUM	/* Max error number */
 };
 
 /*
