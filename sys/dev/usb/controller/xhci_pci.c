@@ -95,6 +95,8 @@ xhci_pci_match(device_t self)
 	switch (device_id) {
 	case 0x145c1022:
 		return ("AMD KERNCZ USB 3.0 controller");
+	case 0x148c1022:
+		return ("AMD Starship USB 3.0 controller");
 	case 0x43ba1022:
 		return ("AMD X399 USB 3.0 controller");
 	case 0x43b91022: /* X370 */
