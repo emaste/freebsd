@@ -153,6 +153,7 @@ SUBDIR=	\
 	${_if_gif} \
 	${_if_gre} \
 	${_if_me} \
+	if_infiniband \
 	if_lagg \
 	${_if_ndis} \
 	${_if_stf} \

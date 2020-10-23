@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018 The FreeBSD Foundation
+ * Copyright (c) 2020 The FreeBSD Foundation
  *
  * This software was developed by Tiger Gao under sponsorship from
  * the FreeBSD Foundation.

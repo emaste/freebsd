@@ -162,6 +162,7 @@ struct	namecache_ts {
 	struct	timespec nc_time;	/* timespec provided by fs */
 	struct	timespec nc_dotdottime;	/* dotdot timespec provided by fs */
 	int	nc_ticks;		/* ticks value when entry was added */
+	int	nc_pad;
 	struct namecache nc_nc;
 };
 
@@ -172,12 +173,19 @@ struct	namecache_ts {
  * alignment for everyone. Note this is a nop for 64-bit platforms.
  */
 #define CACHE_ZONE_ALIGNMENT	UMA_ALIGNOF(time_t)
-#define	CACHE_PATH_CUTOFF	39
 
-#define CACHE_ZONE_SMALL_SIZE		(sizeof(struct namecache) + CACHE_PATH_CUTOFF + 1)
-#define CACHE_ZONE_SMALL_TS_SIZE	(sizeof(struct namecache_ts) + CACHE_PATH_CUTOFF + 1)
-#define CACHE_ZONE_LARGE_SIZE		(sizeof(struct namecache) + NAME_MAX + 1)
-#define CACHE_ZONE_LARGE_TS_SIZE	(sizeof(struct namecache_ts) + NAME_MAX + 1)
+#ifdef __LP64__
+#define	CACHE_PATH_CUTOFF	45
+#define	CACHE_LARGE_PAD		6
+#else
+#define	CACHE_PATH_CUTOFF	41
+#define	CACHE_LARGE_PAD		2
+#endif
+
+#define CACHE_ZONE_SMALL_SIZE		(offsetof(struct namecache, nc_name) + CACHE_PATH_CUTOFF + 1)
+#define CACHE_ZONE_SMALL_TS_SIZE	(offsetof(struct namecache_ts, nc_nc) + CACHE_ZONE_SMALL_SIZE)
+#define CACHE_ZONE_LARGE_SIZE		(offsetof(struct namecache, nc_name) + NAME_MAX + 1 + CACHE_LARGE_PAD)
+#define CACHE_ZONE_LARGE_TS_SIZE	(offsetof(struct namecache_ts, nc_nc) + CACHE_ZONE_LARGE_SIZE)
 
 _Static_assert((CACHE_ZONE_SMALL_SIZE % (CACHE_ZONE_ALIGNMENT + 1)) == 0, "bad zone size");
 _Static_assert((CACHE_ZONE_SMALL_TS_SIZE % (CACHE_ZONE_ALIGNMENT + 1)) == 0, "bad zone size");
@@ -1676,7 +1684,8 @@ cache_lookup_fallback(struct vnode *dvp, struct vnode **vpp, struct componentnam
 	int error;
 	bool whiteout;
 
-	MPASS((cnp->cn_flags & (MAKEENTRY | ISDOTDOT)) == MAKEENTRY);
+	MPASS((cnp->cn_flags & ISDOTDOT) == 0);
+	MPASS((cnp->cn_flags & (MAKEENTRY | NC_KEEPPOSENTRY)) != 0);
 
 retry:
 	hash = cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp);
@@ -1768,7 +1777,7 @@ cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 
 	MPASS((cnp->cn_flags & ISDOTDOT) == 0);
 
-	if ((cnp->cn_flags & MAKEENTRY) == 0) {
+	if ((cnp->cn_flags & (MAKEENTRY | NC_KEEPPOSENTRY)) == 0) {
 		cache_remove_cnp(dvp, cnp);
 		return (0);
 	}
@@ -2104,6 +2113,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	int len;
 	u_long lnumcache;
 
+	VNPASS(dvp != vp, dvp);
 	VNPASS(!VN_IS_DOOMED(dvp), dvp);
 	VNPASS(dvp->v_type != VNON, dvp);
 	if (vp != NULL) {
@@ -2594,6 +2604,35 @@ cache_rename(struct vnode *fdvp, struct vnode *fvp, struct vnode *tdvp,
 		cache_remove_cnp(tdvp, tcnp);
 	}
 }
+
+#ifdef INVARIANTS
+/*
+ * Validate that if an entry exists it matches.
+ */
+void
+cache_validate(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
+{
+	struct namecache *ncp;
+	struct mtx *blp;
+	uint32_t hash;
+
+	hash = cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp);
+	if (CK_SLIST_EMPTY(NCHHASH(hash)))
+		return;
+	blp = HASH2BUCKETLOCK(hash);
+	mtx_lock(blp);
+	CK_SLIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
+		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
+		    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen)) {
+			if (ncp->nc_vp != vp)
+				panic("%s: mismatch (%p != %p); ncp %p [%s] dvp %p vp %p\n",
+				    __func__, vp, ncp->nc_vp, ncp, ncp->nc_name, ncp->nc_dvp,
+				    ncp->nc_vp);
+		}
+	}
+	mtx_unlock(blp);
+}
+#endif
 
 /*
  * Flush all entries referencing a particular filesystem.
