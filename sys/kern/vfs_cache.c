@@ -110,6 +110,7 @@ SDT_PROBE_DEFINE2(vfs, namecache, removecnp, hit, "struct vnode *",
 SDT_PROBE_DEFINE2(vfs, namecache, removecnp, miss, "struct vnode *",
     "struct componentname *");
 SDT_PROBE_DEFINE1(vfs, namecache, purge, done, "struct vnode *");
+SDT_PROBE_DEFINE1(vfs, namecache, purge, batch, "int");
 SDT_PROBE_DEFINE1(vfs, namecache, purge_negative, done, "struct vnode *");
 SDT_PROBE_DEFINE1(vfs, namecache, purgevfs, done, "struct mount *");
 SDT_PROBE_DEFINE3(vfs, namecache, zap, done, "struct vnode *", "char *",
@@ -166,6 +167,8 @@ struct	namecache_ts {
 	struct namecache nc_nc;
 };
 
+TAILQ_HEAD(cache_freebatch, namecache);
+
 /*
  * At least mips n32 performs 64-bit accesses to timespec as found
  * in namecache_ts and requires them to be aligned. Since others
@@ -174,6 +177,19 @@ struct	namecache_ts {
  */
 #define CACHE_ZONE_ALIGNMENT	UMA_ALIGNOF(time_t)
 
+/*
+ * TODO: the initial value of CACHE_PATH_CUTOFF was inherited from the
+ * 4.4 BSD codebase. Later on struct namecache was tweaked to become
+ * smaller and the value was bumped to retain the total size, but it
+ * was never re-evaluated for suitability. A simple test counting
+ * lengths during package building shows that the value of 45 covers
+ * about 86% of all added entries, reaching 99% at 65.
+ *
+ * Regardless of the above, use of dedicated zones instead of malloc may be
+ * inducing additional waste. This may be hard to address as said zones are
+ * tied to VFS SMR. Even if retaining them, the current split should be
+ * re-evaluated.
+ */
 #ifdef __LP64__
 #define	CACHE_PATH_CUTOFF	45
 #define	CACHE_LARGE_PAD		6
@@ -212,6 +228,8 @@ _Static_assert((CACHE_ZONE_LARGE_TS_SIZE % (CACHE_ZONE_ALIGNMENT + 1)) == 0, "ba
  */
 #define NEG_HOT		0x01
 
+static bool	cache_neg_evict_cond(u_long lnumcache);
+
 /*
  * Mark an entry as invalid.
  *
@@ -233,13 +251,14 @@ cache_ncp_invalidate(struct namecache *ncp)
  * All places which elide locks are supposed to call this after they are
  * done with reading from an entry.
  */
-static bool
-cache_ncp_canuse(struct namecache *ncp)
-{
-
-	atomic_thread_fence_acq();
-	return ((atomic_load_char(&ncp->nc_flag) & (NCF_INVALID | NCF_WIP)) == 0);
-}
+#define cache_ncp_canuse(ncp)	({					\
+	struct namecache *_ncp = (ncp);					\
+	u_char _nc_flag;						\
+									\
+	atomic_thread_fence_acq();					\
+	_nc_flag = atomic_load_char(&_ncp->nc_flag);			\
+	__predict_true((_nc_flag & (NCF_INVALID | NCF_WIP)) == 0);	\
+})
 
 /*
  * Name caching works as follows:
@@ -305,7 +324,7 @@ SYSCTL_ULONG(_vfs_cache_param, OID_AUTO, negfactor, CTLFLAG_RW, &ncnegfactor, 0,
     "Ratio of negative namecache entries");
 
 /*
- * Negative entry % of namecahe capacity above which automatic eviction is allowed.
+ * Negative entry % of namecache capacity above which automatic eviction is allowed.
  *
  * Check cache_neg_evict_cond for details.
  */
@@ -377,61 +396,6 @@ VP2VNODELOCK(struct vnode *vp)
 {
 
 	return (&vnodelocks[(((uintptr_t)(vp) >> 8) & ncvnodehash)]);
-}
-
-/*
- * UMA zones for the VFS cache.
- *
- * The small cache is used for entries with short names, which are the
- * most common.  The large cache is used for entries which are too big to
- * fit in the small cache.
- */
-static uma_zone_t __read_mostly cache_zone_small;
-static uma_zone_t __read_mostly cache_zone_small_ts;
-static uma_zone_t __read_mostly cache_zone_large;
-static uma_zone_t __read_mostly cache_zone_large_ts;
-
-static struct namecache *
-cache_alloc(int len, int ts)
-{
-	struct namecache_ts *ncp_ts;
-	struct namecache *ncp;
-
-	if (__predict_false(ts)) {
-		if (len <= CACHE_PATH_CUTOFF)
-			ncp_ts = uma_zalloc_smr(cache_zone_small_ts, M_WAITOK);
-		else
-			ncp_ts = uma_zalloc_smr(cache_zone_large_ts, M_WAITOK);
-		ncp = &ncp_ts->nc_nc;
-	} else {
-		if (len <= CACHE_PATH_CUTOFF)
-			ncp = uma_zalloc_smr(cache_zone_small, M_WAITOK);
-		else
-			ncp = uma_zalloc_smr(cache_zone_large, M_WAITOK);
-	}
-	return (ncp);
-}
-
-static void
-cache_free(struct namecache *ncp)
-{
-	struct namecache_ts *ncp_ts;
-
-	MPASS(ncp != NULL);
-	if ((ncp->nc_flag & NCF_DVDROP) != 0)
-		vdrop(ncp->nc_dvp);
-	if (__predict_false(ncp->nc_flag & NCF_TS)) {
-		ncp_ts = __containerof(ncp, struct namecache_ts, nc_nc);
-		if (ncp->nc_nlen <= CACHE_PATH_CUTOFF)
-			uma_zfree_smr(cache_zone_small_ts, ncp_ts);
-		else
-			uma_zfree_smr(cache_zone_large_ts, ncp_ts);
-	} else {
-		if (ncp->nc_nlen <= CACHE_PATH_CUTOFF)
-			uma_zfree_smr(cache_zone_small, ncp);
-		else
-			uma_zfree_smr(cache_zone_large, ncp);
-	}
 }
 
 static void
@@ -543,6 +507,147 @@ cache_assert_vnode_locked(struct vnode *vp)
 
 	vlp = VP2VNODELOCK(vp);
 	cache_assert_vlp_locked(vlp);
+}
+
+/*
+ * Directory vnodes with entries are held for two reasons:
+ * 1. make them less of a target for reclamation in vnlru
+ * 2. suffer smaller performance penalty in locked lookup as requeieing is avoided
+ *
+ * Note this preferably would not be done and it's a hold over from. It will be
+ * feasible to eliminate altogether if all filesystems start supporting
+ * lockless lookup.
+ */
+static void
+cache_hold_vnode(struct vnode *vp)
+{
+
+	cache_assert_vnode_locked(vp);
+	VNPASS(LIST_EMPTY(&vp->v_cache_src), vp);
+	vhold(vp);
+	counter_u64_add(numcachehv, 1);
+}
+
+static void
+cache_drop_vnode(struct vnode *vp)
+{
+
+	/*
+	 * Called after all locks are dropped, meaning we can't assert
+	 * on the state of v_cache_src.
+	 */
+	vdrop(vp);
+	counter_u64_add(numcachehv, -1);
+}
+
+/*
+ * UMA zones.
+ */
+static uma_zone_t __read_mostly cache_zone_small;
+static uma_zone_t __read_mostly cache_zone_small_ts;
+static uma_zone_t __read_mostly cache_zone_large;
+static uma_zone_t __read_mostly cache_zone_large_ts;
+
+static struct namecache *
+cache_alloc_uma(int len, bool ts)
+{
+	struct namecache_ts *ncp_ts;
+	struct namecache *ncp;
+
+	if (__predict_false(ts)) {
+		if (len <= CACHE_PATH_CUTOFF)
+			ncp_ts = uma_zalloc_smr(cache_zone_small_ts, M_WAITOK);
+		else
+			ncp_ts = uma_zalloc_smr(cache_zone_large_ts, M_WAITOK);
+		ncp = &ncp_ts->nc_nc;
+	} else {
+		if (len <= CACHE_PATH_CUTOFF)
+			ncp = uma_zalloc_smr(cache_zone_small, M_WAITOK);
+		else
+			ncp = uma_zalloc_smr(cache_zone_large, M_WAITOK);
+	}
+	return (ncp);
+}
+
+static void
+cache_free_uma(struct namecache *ncp)
+{
+	struct namecache_ts *ncp_ts;
+
+	if (__predict_false(ncp->nc_flag & NCF_TS)) {
+		ncp_ts = __containerof(ncp, struct namecache_ts, nc_nc);
+		if (ncp->nc_nlen <= CACHE_PATH_CUTOFF)
+			uma_zfree_smr(cache_zone_small_ts, ncp_ts);
+		else
+			uma_zfree_smr(cache_zone_large_ts, ncp_ts);
+	} else {
+		if (ncp->nc_nlen <= CACHE_PATH_CUTOFF)
+			uma_zfree_smr(cache_zone_small, ncp);
+		else
+			uma_zfree_smr(cache_zone_large, ncp);
+	}
+}
+
+static struct namecache *
+cache_alloc(int len, bool ts)
+{
+	u_long lnumcache;
+
+	/*
+	 * Avoid blowout in namecache entries.
+	 *
+	 * Bugs:
+	 * 1. filesystems may end up trying to add an already existing entry
+	 * (for example this can happen after a cache miss during concurrent
+	 * lookup), in which case we will call cache_neg_evict despite not
+	 * adding anything.
+	 * 2. the routine may fail to free anything and no provisions are made
+	 * to make it try harder (see the inside for failure modes)
+	 * 3. it only ever looks at negative entries.
+	 */
+	lnumcache = atomic_fetchadd_long(&numcache, 1) + 1;
+	if (cache_neg_evict_cond(lnumcache)) {
+		lnumcache = atomic_load_long(&numcache);
+	}
+	if (__predict_false(lnumcache >= ncsize)) {
+		atomic_subtract_long(&numcache, 1);
+		counter_u64_add(numdrops, 1);
+		return (NULL);
+	}
+	return (cache_alloc_uma(len, ts));
+}
+
+static void
+cache_free(struct namecache *ncp)
+{
+
+	MPASS(ncp != NULL);
+	if ((ncp->nc_flag & NCF_DVDROP) != 0) {
+		cache_drop_vnode(ncp->nc_dvp);
+	}
+	cache_free_uma(ncp);
+	atomic_subtract_long(&numcache, 1);
+}
+
+static void
+cache_free_batch(struct cache_freebatch *batch)
+{
+	struct namecache *ncp, *nnp;
+	int i;
+
+	i = 0;
+	if (TAILQ_EMPTY(batch))
+		goto out;
+	TAILQ_FOREACH_SAFE(ncp, batch, nc_dst, nnp) {
+		if ((ncp->nc_flag & NCF_DVDROP) != 0) {
+			cache_drop_vnode(ncp->nc_dvp);
+		}
+		cache_free_uma(ncp);
+		i++;
+	}
+	atomic_subtract_long(&numcache, i);
+out:
+	SDT_PROBE1(vfs, namecache, purge, batch, i);
 }
 
 /*
@@ -750,7 +855,7 @@ sysctl_negminpct(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_vfs_cache_param, OID_AUTO, negminpct,
     CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, NULL, 0, sysctl_negminpct,
-    "I", "Negative entry \% of namecahe capacity above which automatic eviction is allowed");
+    "I", "Negative entry \% of namecache capacity above which automatic eviction is allowed");
 
 #ifdef DIAGNOSTIC
 /*
@@ -1056,7 +1161,7 @@ cache_neg_promote_cond(struct vnode *dvp, struct componentname *cnp,
 		goto out_abort;
 	}
 
-	if (__predict_false(!cache_ncp_canuse(ncp))) {
+	if (!cache_ncp_canuse(ncp)) {
 		goto out_abort;
 	}
 
@@ -1163,7 +1268,6 @@ cache_neg_evict(void)
 {
 	struct namecache *ncp, *ncp2;
 	struct neglist *nl;
-	struct negstate *ns;
 	struct vnode *dvp;
 	struct mtx *dvlp;
 	struct mtx *blp;
@@ -1188,7 +1292,6 @@ cache_neg_evict(void)
 		mtx_unlock(&nl->nl_evict_lock);
 		return (false);
 	}
-	ns = NCP2NEGSTATE(ncp);
 	nlen = ncp->nc_nlen;
 	dvp = ncp->nc_dvp;
 	hash = cache_get_hash(ncp->nc_name, nlen, dvp);
@@ -1299,10 +1402,8 @@ cache_zap_locked(struct namecache *ncp)
 		LIST_REMOVE(ncp, nc_src);
 		if (LIST_EMPTY(&ncp->nc_dvp->v_cache_src)) {
 			ncp->nc_flag |= NCF_DVDROP;
-			counter_u64_add(numcachehv, -1);
 		}
 	}
-	atomic_subtract_long(&numcache, 1);
 }
 
 static void
@@ -1836,7 +1937,7 @@ negative_success:
 	cache_out_ts(ncp, tsp, ticksp);
 	whiteout = (ncp->nc_flag & NCF_WHITE);
 	neg_promote = cache_neg_hit_prep(ncp);
-	if (__predict_false(!cache_ncp_canuse(ncp))) {
+	if (!cache_ncp_canuse(ncp)) {
 		cache_neg_hit_abort(ncp);
 		vfs_smr_exit();
 		goto out_fallback;
@@ -2111,7 +2212,6 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	uint32_t hash;
 	int flag;
 	int len;
-	u_long lnumcache;
 
 	VNPASS(dvp != vp, dvp);
 	VNPASS(!VN_IS_DOOMED(dvp), dvp);
@@ -2136,27 +2236,9 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 		}
 	}
 
-	/*
-	 * Avoid blowout in namecache entries.
-	 *
-	 * Bugs:
-	 * 1. filesystems may end up tryng to add an already existing entry
-	 * (for example this can happen after a cache miss during concurrent
-	 * lookup), in which case we will call cache_neg_evict despite not
-	 * adding anything.
-	 * 2. the routine may fail to free anything and no provisions are made
-	 * to make it try harder (see the inside for failure modes)
-	 * 3. it only ever looks at negative entries.
-	 */
-	lnumcache = atomic_fetchadd_long(&numcache, 1) + 1;
-	if (cache_neg_evict_cond(lnumcache)) {
-		lnumcache = atomic_load_long(&numcache);
-	}
-	if (__predict_false(lnumcache >= ncsize)) {
-		atomic_subtract_long(&numcache, 1);
-		counter_u64_add(numdrops, 1);
+	ncp = cache_alloc(cnp->cn_namelen, tsp != NULL);
+	if (ncp == NULL)
 		return;
-	}
 
 	cache_celockstate_init(&cel);
 	ndd = NULL;
@@ -2166,7 +2248,6 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	 * Calculate the hash key and setup as much of the new
 	 * namecache entry as possible before acquiring the lock.
 	 */
-	ncp = cache_alloc(cnp->cn_namelen, tsp != NULL);
 	ncp->nc_flag = flag | NCF_WIP;
 	ncp->nc_vp = vp;
 	if (vp == NULL)
@@ -2277,8 +2358,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 
 	if (flag != NCF_ISDOTDOT) {
 		if (LIST_EMPTY(&dvp->v_cache_src)) {
-			vhold(dvp);
-			counter_u64_add(numcachehv, 1);
+			cache_hold_vnode(dvp);
 		}
 		LIST_INSERT_HEAD(&dvp->v_cache_src, ncp, nc_src);
 	}
@@ -2319,7 +2399,6 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	return;
 out_unlock_free:
 	cache_enter_unlock(&cel);
-	atomic_subtract_long(&numcache, 1);
 	cache_free(ncp);
 	return;
 }
@@ -2469,11 +2548,11 @@ cache_changesize(u_long newmaxvnodes)
 static void
 cache_purge_impl(struct vnode *vp)
 {
-	TAILQ_HEAD(, namecache) ncps;
-	struct namecache *ncp, *nnp;
+	struct cache_freebatch batch;
+	struct namecache *ncp;
 	struct mtx *vlp, *vlp2;
 
-	TAILQ_INIT(&ncps);
+	TAILQ_INIT(&batch);
 	vlp = VP2VNODELOCK(vp);
 	vlp2 = NULL;
 	mtx_lock(vlp);
@@ -2482,13 +2561,13 @@ retry:
 		ncp = LIST_FIRST(&vp->v_cache_src);
 		if (!cache_zap_locked_vnode_kl2(ncp, vp, &vlp2))
 			goto retry;
-		TAILQ_INSERT_TAIL(&ncps, ncp, nc_dst);
+		TAILQ_INSERT_TAIL(&batch, ncp, nc_dst);
 	}
 	while (!TAILQ_EMPTY(&vp->v_cache_dst)) {
 		ncp = TAILQ_FIRST(&vp->v_cache_dst);
 		if (!cache_zap_locked_vnode_kl2(ncp, vp, &vlp2))
 			goto retry;
-		TAILQ_INSERT_TAIL(&ncps, ncp, nc_dst);
+		TAILQ_INSERT_TAIL(&batch, ncp, nc_dst);
 	}
 	ncp = vp->v_cache_dd;
 	if (ncp != NULL) {
@@ -2496,15 +2575,13 @@ retry:
 		   ("lost dotdot link"));
 		if (!cache_zap_locked_vnode_kl2(ncp, vp, &vlp2))
 			goto retry;
-		TAILQ_INSERT_TAIL(&ncps, ncp, nc_dst);
+		TAILQ_INSERT_TAIL(&batch, ncp, nc_dst);
 	}
 	KASSERT(vp->v_cache_dd == NULL, ("incomplete purge"));
 	mtx_unlock(vlp);
 	if (vlp2 != NULL)
 		mtx_unlock(vlp2);
-	TAILQ_FOREACH_SAFE(ncp, &ncps, nc_dst, nnp) {
-		cache_free(ncp);
-	}
+	cache_free_batch(&batch);
 }
 
 /*
@@ -2562,26 +2639,24 @@ cache_purge_vgone(struct vnode *vp)
 void
 cache_purge_negative(struct vnode *vp)
 {
-	TAILQ_HEAD(, namecache) ncps;
+	struct cache_freebatch batch;
 	struct namecache *ncp, *nnp;
 	struct mtx *vlp;
 
 	SDT_PROBE1(vfs, namecache, purge_negative, done, vp);
 	if (LIST_EMPTY(&vp->v_cache_src))
 		return;
-	TAILQ_INIT(&ncps);
+	TAILQ_INIT(&batch);
 	vlp = VP2VNODELOCK(vp);
 	mtx_lock(vlp);
 	LIST_FOREACH_SAFE(ncp, &vp->v_cache_src, nc_src, nnp) {
 		if (!(ncp->nc_flag & NCF_NEGATIVE))
 			continue;
 		cache_zap_negative_locked_vnode_kl(ncp, vp);
-		TAILQ_INSERT_TAIL(&ncps, ncp, nc_dst);
+		TAILQ_INSERT_TAIL(&batch, ncp, nc_dst);
 	}
 	mtx_unlock(vlp);
-	TAILQ_FOREACH_SAFE(ncp, &ncps, nc_dst, nnp) {
-		cache_free(ncp);
-	}
+	cache_free_batch(&batch);
 }
 
 void
@@ -3210,12 +3285,12 @@ vn_fullpath_any(struct vnode *vp, struct vnode *rdir, char *buf, char **retbuf,
 /*
  * Resolve an arbitrary vnode to a pathname (taking care of hardlinks).
  *
- * Since the namecache does not track handlings, the caller is expected to first
+ * Since the namecache does not track hardlinks, the caller is expected to first
  * look up the target vnode with SAVENAME | WANTPARENT flags passed to namei.
  *
  * Then we have 2 cases:
  * - if the found vnode is a directory, the path can be constructed just by
- *   fullowing names up the chain
+ *   following names up the chain
  * - otherwise we populate the buffer with the saved name and start resolving
  *   from the parent
  */
@@ -3252,7 +3327,7 @@ vn_fullpath_hardlink(struct nameidata *ndp, char **retbuf, char **freebuf,
 	 * populate part of the buffer and descend to vn_fullpath_dir with
 	 * vp == vp_crossmp. Prevent the problem by checking for VBAD.
 	 *
-	 * This should be atomic_load(&vp->v_type) but it is ilegal to take
+	 * This should be atomic_load(&vp->v_type) but it is illegal to take
 	 * an address of a bit field, even if said field is sized to char.
 	 * Work around the problem by reading the value into a full-sized enum
 	 * and then re-reading it with atomic_load which will still prevent
@@ -3625,8 +3700,9 @@ cache_fpl_handled_impl(struct cache_fpl *fpl, int error, int line)
 #define cache_fpl_handled(x, e)	cache_fpl_handled_impl((x), (e), __LINE__)
 
 #define CACHE_FPL_SUPPORTED_CN_FLAGS \
-	(LOCKLEAF | LOCKPARENT | WANTPARENT | NOCACHE | FOLLOW | LOCKSHARED | SAVENAME | \
-	 SAVESTART | WILLBEDIR | ISOPEN | NOMACCHECK | AUDITVNODE1 | AUDITVNODE2 | NOCAPCHECK)
+	(NC_NOMAKEENTRY | NC_KEEPPOSENTRY | LOCKLEAF | LOCKPARENT | WANTPARENT | \
+	 FOLLOW | LOCKSHARED | SAVENAME | SAVESTART | WILLBEDIR | ISOPEN | \
+	 NOMACCHECK | AUDITVNODE1 | AUDITVNODE2 | NOCAPCHECK)
 
 #define CACHE_FPL_INTERNAL_CN_FLAGS \
 	(ISDOTDOT | MAKEENTRY | ISLASTCN)
@@ -4010,7 +4086,7 @@ cache_fplookup_dotdot(struct cache_fpl *fpl)
 		fpl->tvp = ncp->nc_dvp;
 	}
 
-	if (__predict_false(!cache_ncp_canuse(ncp))) {
+	if (!cache_ncp_canuse(ncp)) {
 		return (cache_fpl_aborted(fpl));
 	}
 
@@ -4043,7 +4119,7 @@ cache_fplookup_neg(struct cache_fpl *fpl, struct namecache *ncp, uint32_t hash)
 		return (cache_fpl_partial(fpl));
 	}
 	neg_promote = cache_neg_hit_prep(ncp);
-	if (__predict_false(!cache_ncp_canuse(ncp))) {
+	if (!cache_ncp_canuse(ncp)) {
 		cache_neg_hit_abort(ncp);
 		return (cache_fpl_partial(fpl));
 	}
@@ -4098,7 +4174,7 @@ cache_fplookup_next(struct cache_fpl *fpl)
 		return (cache_fplookup_neg(fpl, ncp, hash));
 	}
 
-	if (__predict_false(!cache_ncp_canuse(ncp))) {
+	if (!cache_ncp_canuse(ncp)) {
 		return (cache_fpl_partial(fpl));
 	}
 
@@ -4322,11 +4398,9 @@ cache_fplookup_parse_advance(struct cache_fpl *fpl)
 static int __noinline
 cache_fplookup_failed_vexec(struct cache_fpl *fpl, int error)
 {
-	struct componentname *cnp;
 	struct vnode *dvp;
 	seqc_t dvp_seqc;
 
-	cnp = fpl->cnp;
 	dvp = fpl->dvp;
 	dvp_seqc = fpl->dvp_seqc;
 
