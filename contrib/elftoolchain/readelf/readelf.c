@@ -6908,80 +6908,79 @@ get_symbol_value(struct readelf *re, int symtab, int i)
  * Returns 0 if sucessful, 1 otherwise.
  */
 static int decompress_section(struct section *s,
-                              unsigned char *compressed_data_buffer,
-                              uint64_t compressed_size,
-                              unsigned char **ret_buf,
-                              uint64_t *ret_sz)
+    unsigned char *compressed_data_buffer, uint64_t compressed_size,
+    unsigned char **ret_buf, uint64_t *ret_sz)
 {
-  GElf_Shdr sh;
+	GElf_Shdr sh;
 
-  if (gelf_getshdr(s->scn, &sh) == NULL)
-    errx(EXIT_FAILURE, "gelf_getshdr() failed: %s", elf_errmsg(-1));
+	if (gelf_getshdr(s->scn, &sh) == NULL)
+		errx(EXIT_FAILURE, "gelf_getshdr() failed: %s", elf_errmsg(-1));
 
-  if (sh.sh_flags & SHF_COMPRESSED) {
-    int ret;
-    GElf_Chdr chdr;
-    Elf64_Xword inflated_size;
-    unsigned char *uncompressed_data_buffer = NULL;
-    Elf64_Xword uncompressed_size;
-    z_stream strm;
+	if (sh.sh_flags & SHF_COMPRESSED) {
+		int ret;
+		GElf_Chdr chdr;
+		Elf64_Xword inflated_size;
+		unsigned char *uncompressed_data_buffer = NULL;
+		Elf64_Xword uncompressed_size;
+		z_stream strm;
 
-    if (gelf_getchdr(s->scn, &chdr) == NULL)
-      errx(EXIT_FAILURE, "gelf_getchdr() failed: %s", elf_errmsg(-1));
-    if (chdr.ch_type != ELFCOMPRESS_ZLIB) {
-      warnx("unknown compression type: %d", chdr.ch_type);
-      return (1);
-    }
+		if (gelf_getchdr(s->scn, &chdr) == NULL)
+			errx(EXIT_FAILURE, "gelf_getchdr() failed: %s",
+			    elf_errmsg(-1));
+		if (chdr.ch_type != ELFCOMPRESS_ZLIB) {
+			warnx("unknown compression type: %d", chdr.ch_type);
+			return (1);
+		}
 
-    inflated_size = 0;
-    uncompressed_size = chdr.ch_size;
-    uncompressed_data_buffer = malloc(uncompressed_size);
-    compressed_data_buffer += sizeof(chdr);
-    compressed_size -= sizeof(chdr);
+		inflated_size = 0;
+		uncompressed_size = chdr.ch_size;
+		uncompressed_data_buffer = malloc(uncompressed_size);
+		compressed_data_buffer += sizeof(chdr);
+		compressed_size -= sizeof(chdr);
 
-    strm.zalloc = Z_NULL;
-    strm.zfree = Z_NULL;
-    strm.opaque = Z_NULL;
-    strm.avail_in = compressed_size;
-    strm.avail_out = uncompressed_size;
-    ret = inflateInit(&strm);
+		strm.zalloc = Z_NULL;
+		strm.zfree = Z_NULL;
+		strm.opaque = Z_NULL;
+		strm.avail_in = compressed_size;
+		strm.avail_out = uncompressed_size;
+		ret = inflateInit(&strm);
 
-    if (ret != Z_OK)
-      goto fail;
-    /*
-     * The section can contain several compressed buffers,
-     * so decompress in a loop until all data is inflated.
-     */
-    while (inflated_size < compressed_size) {
-      strm.next_in = compressed_data_buffer + inflated_size;
-      strm.next_out = uncompressed_data_buffer + inflated_size;
-      ret = inflate(&strm, Z_FINISH);
-      if (ret != Z_STREAM_END) {
-        goto fail;
-      }
-      inflated_size = uncompressed_size - strm.avail_out;
-      ret = inflateReset(&strm);
-      if (ret != Z_OK)
-        goto fail;
-    }
-    if (strm.avail_out != 0)
-      warnx("Warning: wrong info in compression header.");
-    ret = inflateEnd(&strm);
-    if (ret != Z_OK)
-      goto fail;
-    *ret_buf = uncompressed_data_buffer;
-    *ret_sz = uncompressed_size;
-    return (0);
-  fail:
-    inflateEnd(&strm);
-    if (strm.msg)
-      warnx("%s", strm.msg);
-    else
-      warnx("ZLIB error: %d", ret);
-    free(uncompressed_data_buffer);
-    return (1);
-  }
-  return (1);
+		if (ret != Z_OK)
+			goto fail;
+		/*
+		 * The section can contain several compressed buffers,
+		 * so decompress in a loop until all data is inflated.
+		 */
+		while (inflated_size < compressed_size) {
+			strm.next_in = compressed_data_buffer + inflated_size;
+			strm.next_out = uncompressed_data_buffer + inflated_size;
+			ret = inflate(&strm, Z_FINISH);
+			if (ret != Z_STREAM_END) {
+				goto fail;
+			}
+			inflated_size = uncompressed_size - strm.avail_out;
+			ret = inflateReset(&strm);
+			if (ret != Z_OK)
+			        goto fail;
+		}
+		if (strm.avail_out != 0)
+			warnx("Warning: wrong info in compression header.");
+		ret = inflateEnd(&strm);
+		if (ret != Z_OK)
+			goto fail;
+		*ret_buf = uncompressed_data_buffer;
+		*ret_sz = uncompressed_size;
+		return (0);
+fail:
+		inflateEnd(&strm);
+		if (strm.msg)
+			warnx("%s", strm.msg);
+		else
+			warnx("ZLIB error: %d", ret);
+		free(uncompressed_data_buffer);
+		return (1);
+	}
+	return (1);
 }
 
 static void
