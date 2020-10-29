@@ -14,7 +14,8 @@ task:
   only_if: $CIRRUS_BRANCH != 'svn_head'
   timeout_in: 120m
   install_script:
-  - pkg install -y git-lite qemu42 uefi-edk2-qemu-x86_64 llvm11
+  - pkg install -y qemu42 uefi-edk2-qemu-x86_64 llvm11
+  - pkg install -y git-lite
   setup_user_script:
   - pw useradd user
   - mkdir -p /usr/obj/$(pwd -P)
