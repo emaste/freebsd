@@ -464,19 +464,14 @@ rl_attach_txrtlmt(struct ifnet *ifp,
 		.rate_limit.flags = M_NOWAIT,
 	};
 
-	if (ifp->if_snd_tag_alloc == NULL) {
-		error = EOPNOTSUPP;
-	} else {
-		error = ifp->if_snd_tag_alloc(ifp, &params, tag);
+	error = m_snd_tag_alloc(ifp, &params, tag);
 #ifdef INET
-		if (error == 0) {
-			if_ref((*tag)->ifp);
-			counter_u64_add(rate_limit_set_ok, 1);
-			counter_u64_add(rate_limit_active, 1);
-		} else
-			counter_u64_add(rate_limit_alloc_fail, 1);
+	if (error == 0) {
+		counter_u64_add(rate_limit_set_ok, 1);
+		counter_u64_add(rate_limit_active, 1);
+	} else if (error != EOPNOTSUPP)
+		counter_u64_add(rate_limit_alloc_fail, 1);
 #endif
-	}
 	return (error);
 }
 
@@ -1015,13 +1010,7 @@ rt_find_real_interface(struct ifnet *ifp, struct inpcb *inp, int *error)
 #else
 	params.rate_limit.hdr.flowtype = M_HASHTYPE_OPAQUE_HASH;
 #endif
-	tag = NULL;
-	if (ifp->if_snd_tag_alloc) {
-		if (error)
-			*error = ENODEV;
-		return (NULL);
-	}
-	err = ifp->if_snd_tag_alloc(ifp, &params, &tag);
+	err = m_snd_tag_alloc(ifp, &params, &tag);
 	if (err) {
 		/* Failed to setup a tag? */
 		if (error)
@@ -1029,7 +1018,7 @@ rt_find_real_interface(struct ifnet *ifp, struct inpcb *inp, int *error)
 		return (NULL);
 	}
 	tifp = tag->ifp;
-	tifp->if_snd_tag_free(tag);
+	m_snd_tag_rele(tag);
 	return (tifp);
 }
 
@@ -1162,7 +1151,6 @@ static void
 tcp_rl_ifnet_departure(void *arg __unused, struct ifnet *ifp)
 {
 	struct tcp_rate_set *rs, *nrs;
-	struct ifnet *tifp;
 	int i;
 
 	mtx_lock(&rs_mtx);
@@ -1174,8 +1162,7 @@ tcp_rl_ifnet_departure(void *arg __unused, struct ifnet *ifp)
 			rs->rs_flags |= RS_IS_DEAD;
 			for (i = 0; i < rs->rs_rate_cnt; i++) {
 				if (rs->rs_rlt[i].flags & HDWRPACE_TAGPRESENT) {
-					tifp = rs->rs_rlt[i].tag->ifp;
-					in_pcbdetach_tag(tifp, rs->rs_rlt[i].tag);
+					in_pcbdetach_tag(rs->rs_rlt[i].tag);
 					rs->rs_rlt[i].tag = NULL;
 				}
 				rs->rs_rlt[i].flags = HDWRPACE_IFPDEPARTED;
@@ -1192,7 +1179,6 @@ static void
 tcp_rl_shutdown(void *arg __unused, int howto __unused)
 {
 	struct tcp_rate_set *rs, *nrs;
-	struct ifnet *tifp;
 	int i;
 
 	mtx_lock(&rs_mtx);
@@ -1202,8 +1188,7 @@ tcp_rl_shutdown(void *arg __unused, int howto __unused)
 		rs->rs_flags |= RS_IS_DEAD;
 		for (i = 0; i < rs->rs_rate_cnt; i++) {
 			if (rs->rs_rlt[i].flags & HDWRPACE_TAGPRESENT) {
-				tifp = rs->rs_rlt[i].tag->ifp;
-				in_pcbdetach_tag(tifp, rs->rs_rlt[i].tag);
+				in_pcbdetach_tag(rs->rs_rlt[i].tag);
 				rs->rs_rlt[i].tag = NULL;
 			}
 			rs->rs_rlt[i].flags = HDWRPACE_IFPDEPARTED;
