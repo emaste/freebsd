@@ -468,7 +468,7 @@ check_labels(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Unsigned addr,
 			    label_cnt++;
 			}
 		}
-		
+
 		if (dwarf_siblingof(dbg, prev_die, &ret_die, &de) != DW_DLV_OK) {
 			break;
 		}
@@ -484,7 +484,7 @@ check_labels(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Unsigned addr,
 	/* Allocate space for labels */
 	if ((labels = calloc(label_cnt, sizeof(struct range *))) == NULL)
 		err(EXIT_FAILURE, "calloc");
-	
+
 	/* Add labels to list */
 	ret = dwarf_child(die, &prev_die, &de);
 	if (ret == DW_DLV_ERROR)
@@ -504,7 +504,7 @@ check_labels(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Unsigned addr,
 							free(labels[i]);
 					}
 					free(labels);
-					return DW_DLV_ERROR;	
+					return DW_DLV_ERROR;
 				}
 				if ((labelp = calloc(1, sizeof(struct range))) == NULL)
 					err(EXIT_FAILURE, "calloc");
@@ -538,7 +538,7 @@ check_labels(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Unsigned addr,
 			}
 		}
 	}
-	
+
 	/* If addr in label's range, we have found the range for this label. */
 	for (i = 0; i < label_cnt; i++) {
 		if (addr >= labels[i]->lopc && addr < labels[i]->hipc) {
@@ -642,7 +642,7 @@ check_range(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Unsigned addr,
 			return ret;
 		}
 	}
-	
+
 	if (in_cu) {
 		if ((*range = calloc(1, sizeof(struct range))) == NULL)
 			err(EXIT_FAILURE, "calloc");
@@ -689,7 +689,7 @@ translate(Dwarf_Debug dbg, Elf *e, const char* addrstr)
 		dbg = range->dbg;
 		goto status_ok;
 	}
-	
+
 	while (true) {
 		/*
 		 * We resume the CU scan from the last place we found a match. 
