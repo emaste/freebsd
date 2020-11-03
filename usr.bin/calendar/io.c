@@ -89,22 +89,29 @@ static StringList *definitions = NULL;
 static struct event *events[MAXCOUNT];
 static char *extradata[MAXCOUNT];
 
-static void
+static char *
 trimlr(char **buf)
 {
 	char *walk = *buf;
+	char *sep;
 	char *last;
 
 	while (isspace(*walk))
 		walk++;
-	if (*walk != '\0') {
-		last = walk + strlen(walk) - 1;
+	*buf = walk;
+
+	sep = walk;
+	while (*sep != '\0' && !isspace(*sep))
+		sep++;
+
+	if (*sep != '\0') {
+		last = sep + strlen(sep) - 1;
 		while (last > walk && isspace(*last))
 			last--;
 		*(last+1) = 0;
 	}
 
-	*buf = walk;
+	return (sep);
 }
 
 static FILE *
@@ -147,15 +154,27 @@ cal_fopen(const char *file)
 	return (NULL);
 }
 
+static char*
+cal_path(void)
+{
+	static char buffer[MAXPATHLEN + 10];
+
+	if (cal_dir[0] == '/')
+		snprintf(buffer, sizeof(buffer), "%s/%s", cal_dir, cal_file);
+	else
+		snprintf(buffer, sizeof(buffer), "%s/%s/%s", cal_home, cal_dir, cal_file);
+	return (buffer);
+}
+
 #define	WARN0(format)		   \
-	warnx(format " in %s/%s/%s line %d", cal_home, cal_dir, cal_file, cal_line)
+	warnx(format " in %s line %d", cal_path(), cal_line)
 #define	WARN1(format, arg1)		   \
-	warnx(format " in %s/%s/%s line %d", arg1, cal_home, cal_dir, cal_file, cal_line)
+	warnx(format " in %s line %d", arg1, cal_path(), cal_line)
 
 static int
 token(char *line, FILE *out, int *skip, int *unskip)
 {
-	char *walk, c, a;
+	char *walk, *sep, a, c;
 	const char *this_cal_home;
 	const char *this_cal_dir;
 	const char *this_cal_file;
@@ -176,14 +195,20 @@ token(char *line, FILE *out, int *skip, int *unskip)
 
 	if (strncmp(line, "ifdef", 5) == 0) {
 		walk = line + 5;
-		trimlr(&walk);
+		sep = trimlr(&walk);
 
 		if (*walk == '\0') {
 			WARN0("Expecting arguments after #ifdef");
 			return (T_ERR);
 		}
+		if (*sep != '\0') {
+			WARN1("Expecting a single word after #ifdef "
+			    "but got \"%s\"", walk);
+			return (T_ERR);
+		}
 
-		if (*skip != 0 || definitions == NULL || sl_find(definitions, walk) == NULL)
+		if (*skip != 0 ||
+		    definitions == NULL || sl_find(definitions, walk) == NULL)
 			++*skip;
 		else
 			++*unskip;
@@ -193,14 +218,20 @@ token(char *line, FILE *out, int *skip, int *unskip)
 
 	if (strncmp(line, "ifndef", 6) == 0) {
 		walk = line + 6;
-		trimlr(&walk);
+		sep = trimlr(&walk);
 
 		if (*walk == '\0') {
 			WARN0("Expecting arguments after #ifndef");
 			return (T_ERR);
 		}
+		if (*sep != '\0') {
+			WARN1("Expecting a single word after #ifndef "
+			    "but got \"%s\"", walk);
+			return (T_ERR);
+		}
 
-		if (*skip != 0 || (definitions != NULL && sl_find(definitions, walk) != NULL))
+		if (*skip != 0 ||
+		    (definitions != NULL && sl_find(definitions, walk) != NULL))
 			++*skip;
 		else
 			++*unskip;
@@ -210,7 +241,7 @@ token(char *line, FILE *out, int *skip, int *unskip)
 
 	if (strncmp(line, "else", 4) == 0) {
 		walk = line + 4;
-		trimlr(&walk);
+		(void)trimlr(&walk);
 
 		if (*walk != '\0') {
 			WARN0("Expecting no arguments after #else");
@@ -239,7 +270,7 @@ token(char *line, FILE *out, int *skip, int *unskip)
 	if (strncmp(line, "include", 7) == 0) {
 		walk = line + 7;
 
-		trimlr(&walk);
+		(void)trimlr(&walk);
 
 		if (*walk == '\0') {
 			WARN0("Expecting arguments after #include");
@@ -279,7 +310,8 @@ token(char *line, FILE *out, int *skip, int *unskip)
 		if (definitions == NULL)
 			definitions = sl_init();
 		walk = line + 6;
-		trimlr(&walk);
+		sep = trimlr(&walk);
+		*sep = '\0';
 
 		if (*walk == '\0') {
 			WARN0("Expecting arguments after #define");
@@ -294,10 +326,15 @@ token(char *line, FILE *out, int *skip, int *unskip)
 	if (strncmp(line, "undef", 5) == 0) {
 		if (definitions != NULL) {
 			walk = line + 5;
-			trimlr(&walk);
+			sep = trimlr(&walk);
 
 			if (*walk == '\0') {
 				WARN0("Expecting arguments after #undef");
+				return (T_ERR);
+			}
+			if (*sep != '\0') {
+				WARN1("Expecting a single word after #undef "
+				    "but got \"%s\"", walk);
 				return (T_ERR);
 			}
 
@@ -431,8 +468,7 @@ cal_parse(FILE *in, FILE *out)
 		 * and does not run iconv(), this variable has little use.
 		 */
 		if (strncmp(buf, "LANG=", 5) == 0) {
-			(void)setlocale(LC_ALL, buf + 5);
-			d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
+			(void)setlocale(LC_CTYPE, buf + 5);
 #ifdef WITH_ICONV
 			if (!doall)
 				set_new_encoding();
