@@ -3,7 +3,7 @@ Options other than
 .Li none
 require the Clang compiler or GCC 12.0 or later.
 The default value is
-.Li none .
+.Li zero .
 Valid values are:
 .Bl -tag -width indent
 .It Li none
