@@ -163,6 +163,7 @@ struct {
 	{64, "malloc-64", },
 	{128, "malloc-128", },
 	{256, "malloc-256", },
+	{384, "malloc-384", },
 	{512, "malloc-512", },
 	{1024, "malloc-1024", },
 	{2048, "malloc-2048", },
@@ -173,11 +174,6 @@ struct {
 	{65536, "malloc-65536", },
 	{0, NULL},
 };
-
-/*
- * Zone to allocate per-CPU storage for statistics.
- */
-static uma_zone_t mt_stats_zone;
 
 u_long vm_kmem_size;
 SYSCTL_ULONG(_vm, OID_AUTO, kmem_size, CTLFLAG_RDTUN, &vm_kmem_size, 0,
@@ -1184,9 +1180,6 @@ mallocinit(void *dummy)
 	if (kmem_zmax < PAGE_SIZE || kmem_zmax > KMEM_ZMAX)
 		kmem_zmax = KMEM_ZMAX;
 
-	mt_stats_zone = uma_zcreate("mt_stats_zone",
-	    sizeof(struct malloc_type_stats), NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, UMA_ZONE_PCPU);
 	for (i = 0, indx = 0; kmemzones[indx].kz_size != 0; indx++) {
 		int size = kmemzones[indx].kz_size;
 		const char *name = kmemzones[indx].kz_name;
@@ -1222,7 +1215,7 @@ malloc_init(void *data)
 		    mtp->ks_shortdesc, mtp->ks_version);
 
 	mtip = &mtp->ks_mti;
-	mtip->mti_stats = uma_zalloc_pcpu(mt_stats_zone, M_WAITOK | M_ZERO);
+	mtip->mti_stats = uma_zalloc_pcpu(pcpu_zone_64, M_WAITOK | M_ZERO);
 	mtp_set_subzone(mtp);
 
 	mtx_lock(&malloc_mtx);
@@ -1279,7 +1272,7 @@ malloc_uninit(void *data)
 		    temp_allocs, temp_bytes);
 	}
 
-	uma_zfree_pcpu(mt_stats_zone, mtip->mti_stats);
+	uma_zfree_pcpu(pcpu_zone_64, mtip->mti_stats);
 }
 
 struct malloc_type *

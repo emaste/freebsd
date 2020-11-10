@@ -2787,9 +2787,10 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 		lwpidarray[i] = td->td_tid;
 		i++;
 	}
+	PROC_UNLOCK(p);
 	numthreads = i;
 	for (i = 0; i < numthreads; i++) {
-		td = thread_find(p, lwpidarray[i]);
+		td = tdfind(lwpidarray[i], p->p_pid);
 		if (td == NULL) {
 			continue;
 		}
@@ -2810,12 +2811,10 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 		sbuf_finish(&sb);
 		sbuf_delete(&sb);
 		error = SYSCTL_OUT(req, kkstp, sizeof(*kkstp));
-		PROC_LOCK(p);
 		if (error)
 			break;
 	}
-	_PRELE(p);
-	PROC_UNLOCK(p);
+	PRELE(p);
 	if (lwpidarray != NULL)
 		free(lwpidarray, M_TEMP);
 	stack_destroy(st);
