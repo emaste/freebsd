@@ -99,7 +99,7 @@ __SINGLE_OPTIONS = \
 	INIT_ALL
 
 __INIT_ALL_OPTIONS=	none pattern zero
-__INIT_ALL_DEFAULT=	none
+__INIT_ALL_DEFAULT=	zero
 .if ${MACHINE} == "amd64"
 # PR251083 conflict between INIT_ALL_ZERO and ifunc memset
 BROKEN_SINGLE_OPTIONS+=	INIT_ALL zero none
