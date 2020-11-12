@@ -24,6 +24,7 @@ LDIRS=	BSD_daemon \
 	netgraph \
 	oci \
 	perfmon \
+	pkgbase \
 	ppi \
 	ppp \
 	printing \
