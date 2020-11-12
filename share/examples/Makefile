@@ -22,6 +22,7 @@ LDIRS=	BSD_daemon \
 	mdoc \
 	netgraph \
 	oci \
+	pkgbase \
 	ppi \
 	ppp \
 	ses \
