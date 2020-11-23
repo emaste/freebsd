@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sleepqueue.h>
 #include <sys/selinfo.h>
 #include <sys/syscallsubr.h>
+#include <sys/dtrace_bsd.h>
 #include <sys/sysent.h>
 #include <sys/turnstile.h>
 #include <sys/taskqueue.h>
@@ -346,6 +347,7 @@ thread_ctor(void *mem, int size, void *arg, int flags)
 	td = (struct thread *)mem;
 	td->td_state = TDS_INACTIVE;
 	td->td_lastcpu = td->td_oncpu = NOCPU;
+	td->td_allocdomain = vm_phys_domain(vtophys(td));
 
 	/*
 	 * Note that td_critnest begins life as 1 because the thread is not
@@ -356,6 +358,9 @@ thread_ctor(void *mem, int size, void *arg, int flags)
 	td->td_lend_user_pri = PRI_MAX;
 #ifdef AUDIT
 	audit_thread_alloc(td);
+#endif
+#ifdef KDTRACE_HOOKS
+	kdtrace_thread_ctor(td);
 #endif
 	umtx_thread_alloc(td);
 	MPASS(td->td_sel == NULL);
@@ -394,6 +399,9 @@ thread_dtor(void *mem, int size, void *arg)
 #endif
 #ifdef AUDIT
 	audit_thread_free(td);
+#endif
+#ifdef KDTRACE_HOOKS
+	kdtrace_thread_dtor(td);
 #endif
 	/* Free all OSD associated to this thread. */
 	osd_thread_exit(td);
@@ -544,7 +552,7 @@ thread_zombie(struct thread *td)
 	struct thread_domain_data *tdd;
 	struct thread *ztd;
 
-	tdd = &thread_domain_data[vm_phys_domain(vtophys(td))];
+	tdd = &thread_domain_data[td->td_allocdomain];
 	ztd = atomic_load_ptr(&tdd->tdd_zombies);
 	for (;;) {
 		td->td_zombie = ztd;
