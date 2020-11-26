@@ -53,7 +53,23 @@ void isp_destroy_handle(ispsoftc_t *, uint32_t);
 /*
  * Request Queue allocation
  */
-void *isp_getrqentry(ispsoftc_t *);
+inline int
+isp_rqentry_avail(ispsoftc_t *isp, uint32_t num)
+{
+	if (ISP_QAVAIL(isp) >= num)
+		return (1);
+	/* We don't have enough in cached.  Reread the hardware. */
+	isp->isp_reqodx = ISP_READ(isp, BIU2400_REQOUTP);
+	return (ISP_QAVAIL(isp) >= num);
+}
+
+inline void *
+isp_getrqentry(ispsoftc_t *isp)
+{
+	if (!isp_rqentry_avail(isp, 1))
+		return (NULL);
+	return (ISP_QUEUE_ENTRY(isp->isp_rquest, isp->isp_reqidx));
+}
 
 /*
  * Queue Entry debug functions
@@ -146,8 +162,6 @@ int isp_find_pdb_by_portid(ispsoftc_t *, int, uint32_t, fcportdb_t **);
 void isp_find_chan_by_did(ispsoftc_t *, uint32_t, uint16_t *);
 void isp_add_wwn_entry(ispsoftc_t *, int, uint64_t, uint64_t, uint16_t, uint32_t, uint16_t);
 void isp_del_wwn_entry(ispsoftc_t *, int, uint64_t, uint16_t, uint32_t);
-void isp_del_all_wwn_entries(ispsoftc_t *, int);
-void isp_del_wwn_entries(ispsoftc_t *, isp_notify_t *);
 
 void isp_get_atio7(ispsoftc_t *isp, at7_entry_t *, at7_entry_t *);
 void isp_put_ctio7(ispsoftc_t *, ct7_entry_t *, ct7_entry_t *);

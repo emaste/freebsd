@@ -65,7 +65,7 @@ isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs)
 {
 	ispcontreq64_t crq;
 	uint8_t type, nqe = 1;
-	uint32_t seg, seglim, nxt, nxtnxt;
+	uint32_t seg, seglim, nxt;
 	ispds64_t *dsp64 = NULL;
 	void *qe0, *qe1;
 
@@ -109,14 +109,8 @@ isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs)
 	 * Second, start building additional continuation segments as needed.
 	 */
 	while (seg < nsegs) {
-		nxtnxt = ISP_NXT_QENTRY(nxt, RQUEST_QUEUE_LEN(isp));
-		if (nxtnxt == isp->isp_reqodx) {
-			isp->isp_reqodx = ISP_READ(isp, BIU2400_REQOUTP);
-			if (nxtnxt == isp->isp_reqodx)
-				return (CMD_EAGAIN);
-		}
-		qe1 = ISP_QUEUE_ENTRY(isp->isp_rquest, nxt);
-		nxt = nxtnxt;
+		if (!isp_rqentry_avail(isp, ++nqe))
+			return (CMD_EAGAIN);
 
 		ISP_MEMZERO(&crq, QENTRY_LEN);
 		crq.req_header.rqs_entry_type = RQSTYPE_A64_CONT;
@@ -128,13 +122,16 @@ isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs)
 			seglim = nsegs;
 		while (seg < seglim)
 			XS_GET_DMA64_SEG(dsp64++, segp, seg++);
+
+		qe1 = ISP_QUEUE_ENTRY(isp->isp_rquest, nxt);
 		isp_put_cont64_req(isp, &crq, qe1);
 		if (isp->isp_dblev & ISP_LOGDEBUG1) {
 			isp_print_bytes(isp, "additional queue entry",
 			    QENTRY_LEN, qe1);
 		}
-		nqe++;
-        }
+
+		nxt = ISP_NXT_QENTRY(nxt, RQUEST_QUEUE_LEN(isp));
+	}
 
 copy_and_sync:
 	((isphdr_t *)fqe)->rqs_entry_count = nqe;
@@ -216,26 +213,6 @@ isp_destroy_handle(ispsoftc_t *isp, uint32_t handle)
 		isp->isp_xflist[(handle & ISP_HANDLE_CMD_MASK)].cmd = isp->isp_xffree;
 		isp->isp_xffree = &isp->isp_xflist[(handle & ISP_HANDLE_CMD_MASK)];
 	}
-}
-
-/*
- * Make sure we have space to put something on the request queue.
- * Return a pointer to that entry if we do. A side effect of this
- * function is to update the output index. The input index
- * stays the same.
- */
-void *
-isp_getrqentry(ispsoftc_t *isp)
-{
-	uint32_t next;
-
-	next = ISP_NXT_QENTRY(isp->isp_reqidx, RQUEST_QUEUE_LEN(isp));
-	if (next == isp->isp_reqodx) {
-		isp->isp_reqodx = ISP_READ(isp, BIU2400_REQOUTP);
-		if (next == isp->isp_reqodx)
-			return (NULL);
-	}
-	return (ISP_QUEUE_ENTRY(isp->isp_rquest, isp->isp_reqidx));
 }
 
 #define	TBA	(4 * (((QENTRY_LEN >> 2) * 3) + 1) + 1)
@@ -805,8 +782,8 @@ isp_put_icb_2400(ispsoftc_t *isp, isp_icb_2400_t *src, isp_icb_2400_t *dst)
 	ISP_IOXPUT_16(isp, src->icb_qos, &dst->icb_qos);
 	for (i = 0; i < 3; i++)
 		ISP_IOXPUT_16(isp, src->icb_reserved2[i], &dst->icb_reserved2[i]);
-	for (i = 0; i < 3; i++)
-		ISP_IOXPUT_16(isp, src->icb_enodemac[i], &dst->icb_enodemac[i]);
+	for (i = 0; i < 6; i++)
+		ISP_IOXPUT_8(isp, src->icb_enodemac[i], &dst->icb_enodemac[i]);
 	ISP_IOXPUT_16(isp, src->icb_disctime, &dst->icb_disctime);
 	for (i = 0; i < 4; i++)
 		ISP_IOXPUT_16(isp, src->icb_reserved3[i], &dst->icb_reserved3[i]);
@@ -1676,82 +1653,6 @@ isp_del_wwn_entry(ispsoftc_t *isp, int chan, uint64_t wwpn, uint16_t nphdl, uint
 
 	/* Notify above levels about gone port. */
 	isp_async(isp, ISPASYNC_DEV_GONE, chan, lp);
-}
-
-void
-isp_del_all_wwn_entries(ispsoftc_t *isp, int chan)
-{
-	fcparam *fcp;
-	int i;
-
-	/*
-	 * Handle iterations over all channels via recursion
-	 */
-	if (chan == ISP_NOCHAN) {
-		for (chan = 0; chan < isp->isp_nchan; chan++) {
-			isp_del_all_wwn_entries(isp, chan);
-		}
-		return;
-	}
-
-	if (chan > isp->isp_nchan) {
-		return;
-	}
-
-	fcp = FCPARAM(isp, chan);
-	if (fcp == NULL) {
-		return;
-	}
-	for (i = 0; i < MAX_FC_TARG; i++) {
-		fcportdb_t *lp = &fcp->portdb[i];
-
-		if (lp->state != FC_PORTDB_STATE_NIL)
-			isp_del_wwn_entry(isp, chan, lp->port_wwn, lp->handle, lp->portid);
-	}
-}
-
-void
-isp_del_wwn_entries(ispsoftc_t *isp, isp_notify_t *mp)
-{
-	fcportdb_t *lp;
-
-	/*
-	 * Handle iterations over all channels via recursion
-	 */
-	if (mp->nt_channel == ISP_NOCHAN) {
-		for (mp->nt_channel = 0; mp->nt_channel < isp->isp_nchan; mp->nt_channel++) {
-			isp_del_wwn_entries(isp, mp);
-		}
-		mp->nt_channel = ISP_NOCHAN;
-		return;
-	}
-
-	/*
-	 * We have an entry which is only partially identified.
-	 *
-	 * It's only known by WWN, N-Port handle, or Port ID.
-	 * We need to find the actual entry so we can delete it.
-	 */
-	if (mp->nt_nphdl != NIL_HANDLE) {
-		if (isp_find_pdb_by_handle(isp, mp->nt_channel, mp->nt_nphdl, &lp)) {
-			isp_del_wwn_entry(isp, mp->nt_channel, lp->port_wwn, lp->handle, lp->portid);
-			return;
-		}
-	}
-	if (VALID_INI(mp->nt_wwn)) {
-		if (isp_find_pdb_by_wwpn(isp, mp->nt_channel, mp->nt_wwn, &lp)) {
-			isp_del_wwn_entry(isp, mp->nt_channel, lp->port_wwn, lp->handle, lp->portid);
-			return;
-		}
-	}
-	if (VALID_PORT(mp->nt_sid)) {
-		if (isp_find_pdb_by_portid(isp, mp->nt_channel, mp->nt_sid, &lp)) {
-			isp_del_wwn_entry(isp, mp->nt_channel, lp->port_wwn, lp->handle, lp->portid);
-			return;
-		}
-	}
-	isp_prt(isp, ISP_LOGWARN, "Chan %d unable to find entry to delete WWPN 0x%016jx PortID 0x%06x handle 0x%x",
-	    mp->nt_channel, mp->nt_wwn, mp->nt_sid, mp->nt_nphdl);
 }
 
 void

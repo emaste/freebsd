@@ -333,6 +333,7 @@
  * All IOCB Queue entries are this size
  */
 #define	QENTRY_LEN			64
+#define	QENTRY_MAX			255
 
 /*
  * Command Structure Definitions
@@ -352,10 +353,8 @@ typedef struct {
 } isphdr_t;
 
 /* RQS Flag definitions */
-#define	RQSFLAG_CONTINUATION	0x01
-#define	RQSFLAG_FULL		0x02
-#define	RQSFLAG_BADHEADER	0x04
-#define	RQSFLAG_BADPACKET	0x08
+#define	RQSFLAG_BADTYPE		0x04
+#define	RQSFLAG_BADPARAM	0x08
 #define	RQSFLAG_BADCOUNT	0x10
 #define	RQSFLAG_BADORDER	0x20
 #define	RQSFLAG_MASK		0x3f
@@ -806,7 +805,7 @@ typedef struct {
 	uint32_t	icb_fwoptions3;
 	uint16_t	icb_qos;
 	uint16_t	icb_reserved2[3];
-	uint16_t	icb_enodemac[3];
+	uint8_t		icb_enodemac[6];
 	uint16_t	icb_disctime;
 	uint16_t	icb_reserved3[4];
 } isp_icb_2400_t;
@@ -1694,14 +1693,12 @@ typedef struct {
 /*
  * Miscellaneous
  *
- * These are the limits of the number of dma segments we
- * can deal with based not on the size of the segment counter
- * (which is 16 bits), but on the size of the number of 
- * queue entries field (which is 8 bits). We assume no
- * segments in the first queue entry, so we can have
- * have 5 dma segments per continuation entry...
- * multiplying out by 254....
+ * This is the limit of the number of dma segments we can deal with based
+ * not on the size of the segment counter (which is 16 bits), but on the
+ * size of the number of queue entries field (which is 8 bits).  We assume
+ * one segment in the first queue entry, plus we can have 5 segments per
+ * continuation entry, multiplied by maximum of continuation entries.
  */
-#define	ISP_NSEG64_MAX	1270
+#define	ISP_NSEG64_MAX	(1 + (QENTRY_MAX - 1) * 5)
 
 #endif	/* _ISPMBOX_H */

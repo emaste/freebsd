@@ -131,16 +131,17 @@ struct ispmdvec {
  */
 /* This is the size of a queue entry (request and response) */
 #define	QENTRY_LEN			64
-/* Queue lengths must be a power of two and at least 8 elements. */
+/*
+ * Hardware requires queue lengths of at least 8 elements.  Driver requires
+ * lengths to be a power of two, and request queue of at least 256 elements.
+ */
 #define	RQUEST_QUEUE_LEN(x)		8192
 #define	RESULT_QUEUE_LEN(x)		1024
 #define	ATIO_QUEUE_LEN(x)		1024
 #define	ISP_QUEUE_ENTRY(q, idx)		(((uint8_t *)q) + ((size_t)(idx) * QENTRY_LEN))
 #define	ISP_QUEUE_SIZE(n)		((size_t)(n) * QENTRY_LEN)
 #define	ISP_NXT_QENTRY(idx, qlen)	(((idx) + 1) & ((qlen)-1))
-#define	ISP_QFREE(in, out, qlen)	\
-	((in == out)? (qlen - 1) : ((in > out)? \
-	((qlen - 1) - (in - out)) : (out - in - 1)))
+#define	ISP_QFREE(in, out, qlen)	((out - in - 1) & ((qlen) - 1))
 #define	ISP_QAVAIL(isp)	\
 	ISP_QFREE(isp->isp_reqidx, isp->isp_reqodx, RQUEST_QUEUE_LEN(isp))
 
@@ -446,22 +447,17 @@ struct ispsoftc {
 	 * may contain some volatile state (e.g., current loop state).
 	 */
 
-	void * 			isp_param;	/* type specific */
+	fcparam			*isp_param;	/* Per-channel storage. */
 	uint64_t		isp_fwattr;	/* firmware attributes */
 	uint16_t		isp_fwrev[3];	/* Loaded F/W revision */
 	uint16_t		isp_maxcmds;	/* max possible I/O cmds */
+	uint16_t		isp_nchan;	/* number of channels */
+	uint16_t		isp_dblev;	/* debug log mask */
 	uint8_t			isp_type;	/* HBA Chip Type */
 	uint8_t			isp_revision;	/* HBA Chip H/W Revision */
 	uint8_t			isp_nirq;	/* number of IRQs */
-	uint16_t		isp_nchan;	/* number of channels */
-
-	uint32_t		isp_clock	: 8,	/* input clock */
-						: 5,
-				isp_port	: 1,	/* 23XX/24XX only */
-				isp_loaded_fw	: 1,	/* loaded firmware */
-				isp_dblev	: 16;	/* debug log mask */
-
-
+	uint8_t			isp_port;	/* physical port on a card */
+	uint8_t			isp_loaded_fw;	/* loaded firmware */
 	uint32_t		isp_confopts;	/* config options */
 
 	/*
@@ -472,7 +468,6 @@ struct ispsoftc {
 	volatile mbreg_t	isp_curmbx;	/* currently active mailbox command */
 	volatile uint32_t	isp_reqodx;	/* index of last ISP pickup */
 	volatile uint32_t	isp_reqidx;	/* index of next request */
-	volatile uint32_t	isp_residx;	/* index of last ISP write */
 	volatile uint32_t	isp_resodx;	/* index of next result */
 	volatile uint32_t	isp_atioodx;	/* index of next ATIO */
 	volatile uint32_t	isp_obits;	/* mailbox command output */
@@ -480,6 +475,7 @@ struct ispsoftc {
 	volatile uint16_t	isp_mboxtmp[MAX_MAILBOX];
 	volatile uint16_t	isp_lastmbxcmd;	/* last mbox command sent */
 	volatile uint16_t	isp_seqno;	/* running sequence number */
+	u_int			isp_rqovf;	/* request queue overflow */
 
 	/*
 	 * Active commands are stored here, indexed by handle functions.
@@ -507,7 +503,7 @@ struct ispsoftc {
 #endif
 };
 
-#define	FCPARAM(isp, chan)	(&((fcparam *)(isp)->isp_param)[(chan)])
+#define	FCPARAM(isp, chan)	(&(isp)->isp_param[(chan)])
 
 #define	ISP_SET_SENDMARKER(isp, chan, val)	\
     FCPARAM(isp, chan)->sendmarker = val	\
@@ -742,7 +738,6 @@ int isp_control(ispsoftc_t *, ispctl_t, ...);
  */
 
 typedef enum {
-	ISPASYNC_BUS_RESET,		/* All Bus Was Reset */
 	ISPASYNC_LOOP_DOWN,		/* FC Loop Down */
 	ISPASYNC_LOOP_UP,		/* FC Loop Up */
 	ISPASYNC_LIP,			/* FC LIP Received */
@@ -829,11 +824,6 @@ void isp_async(ispsoftc_t *, ispasync_t, ...);
  *		Function/Macro the provides memory synchronization on
  *		various objects so that the ISP's and the system's view
  *		of the same object is consistent.
- *
- *	MBOX_ACQUIRE(ispsoftc_t *)		acquire lock on mailbox regs
- *	MBOX_WAIT_COMPLETE(ispsoftc_t *, mbreg_t *) wait for cmd to be done
- *	MBOX_NOTIFY_COMPLETE(ispsoftc_t *)	notification of mbox cmd donee
- *	MBOX_RELEASE(ispsoftc_t *)		release lock on mailbox regs
  *
  *	FC_SCRATCH_ACQUIRE(ispsoftc_t *, chan)	acquire lock on FC scratch area
  *						return -1 if you cannot
