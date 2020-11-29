@@ -631,11 +631,12 @@ check_range(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Unsigned addr,
 
 		if (addr >= lopc && addr < hipc) {
 			in_cu = true;
-		}
-	} else {
+			}
+		} else {
 		/* Addr not found above, try labels. */
 		ret = check_labels(dbg, die, addr, range);
 		return ret;
+		}
 	}
 
 	if (in_cu) {

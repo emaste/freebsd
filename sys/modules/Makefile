@@ -120,6 +120,7 @@ SUBDIR=	\
 	filemon \
 	firewire \
 	firmware \
+	${_ftwd} \
 	fusefs \
 	${_fxp} \
 	gem \
@@ -617,6 +618,7 @@ _cpufreq=	cpufreq
 _dpms=		dpms
 _em=		em
 _et=		et
+_ftwd=		ftwd
 _exca=		exca
 _if_ndis=	if_ndis
 _io=		io
