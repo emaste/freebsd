@@ -217,7 +217,11 @@ arm64/iommu/smmu.c				optional iommu
 arm64/iommu/smmu_acpi.c				optional acpi iommu
 arm64/iommu/smmu_quirks.c			optional iommu
 arm64/qoriq/ls1046_gpio.c			optional ls1046_gpio gpio fdt SOC_NXP_LS
+arm64/qoriq/qoriq_dw_pci.c			optional pci fdt SOC_NXP_LS
+arm64/qoriq/qoriq_therm.c			optional pci fdt SOC_NXP_LS
+arm64/qoriq/qoriq_therm_if.m			optional pci fdt SOC_NXP_LS
 arm64/qoriq/clk/ls1046a_clkgen.c		optional clk SOC_NXP_LS
+arm64/qoriq/clk/lx2160a_clkgen.c		optional clk SOC_NXP_LS
 arm64/qoriq/clk/qoriq_clk_pll.c			optional clk SOC_NXP_LS
 arm64/qoriq/clk/qoriq_clkgen.c			optional clk SOC_NXP_LS
 arm64/qualcomm/qcom_gcc.c			optional qcom_gcc fdt
@@ -245,6 +249,13 @@ armv8_crypto_wrap.o		optional	armv8crypto		\
 	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc:N-mgeneral-regs-only} -I$S/crypto/armv8/ ${WERROR} ${NO_WCAST_QUAL} ${PROF} -march=armv8-a+crypto ${.IMPSRC}" \
 	no-implicit-rule						\
 	clean		"armv8_crypto_wrap.o"
+crypto/openssl/ossl_aarch64.c	optional	ossl
+crypto/openssl/aarch64/sha1-armv8.S	optional ossl		\
+	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} ${WERROR} ${PROF} ${.IMPSRC}"
+crypto/openssl/aarch64/sha256-armv8.S	optional ossl		\
+	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} ${WERROR} ${PROF} ${.IMPSRC}"
+crypto/openssl/aarch64/sha512-armv8.S	optional ossl		\
+	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} ${WERROR} ${PROF} ${.IMPSRC}"
 dev/acpica/acpi_bus_if.m	optional	acpi
 dev/acpica/acpi_if.m		optional	acpi
 dev/acpica/acpi_pci_link.c	optional	acpi pci

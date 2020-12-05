@@ -208,7 +208,6 @@ __DEFAULT_NO_OPTIONS = \
     GDB \
     GNU_DIFF \
     GNU_GREP \
-    GNU_GREP_COMPAT \
     HESIOD \
     LIBSOFT \
     LOADER_FIREWIRE \

@@ -1,8 +1,10 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (C) 2018 Turing Robotic Industries Inc.
- * Copyright (C) 2020 Andrew Turner <andrew@FreeBSD.org>
+ * Copyright (c) 2020 The FreeBSD Foundation
+ *
+ * This software was developed by Mitchell Horne <mhorne@FreeBSD.org>
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -16,7 +18,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -28,40 +30,33 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
+
+#include <machine/elf.h>
+#include <machine/md_var.h>
+
+#include <crypto/openssl/ossl.h>
+#include <crypto/openssl/aarch64/arm_arch.h>
+
 /*
- * arm64 Linux VDSO implementation.
+ * Feature bits defined in arm_arch.h
  */
+unsigned int OPENSSL_armcap_P;
 
-#include <machine/asm.h>
+void
+ossl_cpuid(void)
+{
+	/* SHA features */
+	if ((elf_hwcap & HWCAP_SHA1) != 0)
+		OPENSSL_armcap_P |= ARMV8_SHA1;
+	if ((elf_hwcap & HWCAP_SHA2) != 0)
+		OPENSSL_armcap_P |= ARMV8_SHA256;
+	if ((elf_hwcap & HWCAP_SHA512) != 0)
+		OPENSSL_armcap_P |= ARMV8_SHA512;
 
-#include <arm64/linux/linux_syscall.h>
-
-	.data
-
-	.globl linux_platform
-linux_platform:
-	.asciz "arm64"
-
-	.text
-
-ENTRY(__kernel_rt_sigreturn)
-	brk #0 /* LINUXTODO: implement __kernel_rt_sigreturn */
-	ret
-END(__kernel_rt_sigreturn)
-
-ENTRY(__kernel_gettimeofday)
-	ldr	x8, =LINUX_SYS_gettimeofday
-	svc	#0
-	ret
-END(__kernel_gettimeofday)
-
-ENTRY(__kernel_clock_gettime)
-	ldr	x8, =LINUX_SYS_linux_clock_gettime
-	svc	#0
-	ret
-END(__kernel_clock_gettime)
-
-ENTRY(__kernel_clock_getres)
-	brk #0 /* LINUXTODO: implement __kernel_clock_getres */
-	ret
-END(__kernel_clock_getres)
+	/* AES features */
+	if ((elf_hwcap & HWCAP_AES) != 0)
+		OPENSSL_armcap_P |= ARMV8_AES;
+	if ((elf_hwcap & HWCAP_PMULL) != 0)
+		OPENSSL_armcap_P |= ARMV8_PMULL;
+}
