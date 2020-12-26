@@ -106,7 +106,6 @@ __DEFAULT_YES_OPTIONS = \
     FTP \
     GAMES \
     GH_BC \
-    GNU_DIFF \
     GOOGLETEST \
     GPIO \
     HAST \
@@ -166,7 +165,6 @@ __DEFAULT_YES_OPTIONS = \
     REPRODUCIBLE_BUILD \
     RESCUE \
     ROUTED \
-    SENDMAIL \
     SERVICESDB \
     SETUID_LOGIN \
     SHARED_TOOLCHAIN \
@@ -179,7 +177,6 @@ __DEFAULT_YES_OPTIONS = \
     SYSTEM_COMPILER \
     SYSTEM_LINKER \
     TALK \
-    TCP_WRAPPERS \
     TCSH \
     TELNET \
     TEXTPROC \
@@ -202,6 +199,7 @@ __DEFAULT_NO_OPTIONS = \
     DETECT_TZ_CHANGES \
     DTRACE_TESTS \
     EXPERIMENTAL \
+    GNU_DIFF \
     HESIOD \
     LIBSOFT \
     LOADER_FIREWIRE \
@@ -211,7 +209,9 @@ __DEFAULT_NO_OPTIONS = \
     OFED_EXTRA \
     OPENLDAP \
     RPCBIND_WARMSTART_SUPPORT \
+    SENDMAIL \
     SORT_THREADS \
+    TCP_WRAPPERS \
     ZONEINFO_LEAPSECONDS_SUPPORT \
 
 # LEFT/RIGHT. Left options which default to "yes" unless their corresponding
