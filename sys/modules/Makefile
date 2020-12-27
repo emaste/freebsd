@@ -415,6 +415,7 @@ SUBDIR+=	opensolaris
 .endif
 
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
+_blake2=	blake2
 .if exists(${SRCTOP}/sys/opencrypto)
 _crypto=	crypto
 _cryptodev=	cryptodev
@@ -659,9 +660,6 @@ _amdsmn=	amdsmn
 _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
-.if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
-_blake2=	blake2
-.endif
 _bytgpio=	bytgpio
 _chvgpio=	chvgpio
 _ciss=		ciss
