@@ -328,6 +328,8 @@ struct siginfo32 {
 #define SEGV_MAPERR	1	/* Address not mapped to object.	*/
 #define SEGV_ACCERR	2	/* Invalid permissions for mapped	*/
 				/* object.				*/
+#define SEGV_MTEAERR	8	/* Asynchronous ARM MTE report.		*/
+#define SEGV_MTESERR	9	/* Synchronous ARM MTE exception.	*/
 #define	SEGV_PKUERR	100	/* x86: PKU violation			*/
 
 /* codes for SIGFPE */
