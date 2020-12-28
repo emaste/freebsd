@@ -30,6 +30,7 @@
 #define	_DEV_EVDEV_EVDEV_H
 
 #include <sys/types.h>
+#include <sys/epoch.h>
 #include <sys/kbio.h>
 #include <dev/evdev/input.h>
 #include <dev/kbd/kbdreg.h>
@@ -110,6 +111,7 @@ void evdev_set_methods(struct evdev_dev *, void *,
     const struct evdev_methods *);
 int evdev_register(struct evdev_dev *);
 int evdev_register_mtx(struct evdev_dev *, struct mtx *);
+int evdev_register_epoch(struct evdev_dev *, epoch_t);
 int evdev_unregister(struct evdev_dev *);
 int evdev_push_event(struct evdev_dev *, uint16_t, uint16_t, int32_t);
 void evdev_support_prop(struct evdev_dev *, uint16_t);
@@ -117,7 +119,7 @@ void evdev_support_event(struct evdev_dev *, uint16_t);
 void evdev_support_key(struct evdev_dev *, uint16_t);
 void evdev_support_rel(struct evdev_dev *, uint16_t);
 void evdev_support_abs(struct evdev_dev *, uint16_t, int32_t, int32_t, int32_t,
-   int32_t, int32_t, int32_t);
+   int32_t, int32_t);
 void evdev_support_msc(struct evdev_dev *, uint16_t);
 void evdev_support_led(struct evdev_dev *, uint16_t);
 void evdev_support_snd(struct evdev_dev *, uint16_t);

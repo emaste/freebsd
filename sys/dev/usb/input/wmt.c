@@ -456,7 +456,7 @@ wmt_attach(device_t dev)
 	}
 	WMT_FOREACH_USAGE(sc->caps, i) {
 		if (wmt_hid_map[i].code != WMT_NO_CODE)
-			evdev_support_abs(sc->evdev, wmt_hid_map[i].code, 0,
+			evdev_support_abs(sc->evdev, wmt_hid_map[i].code,
 			    sc->ai[i].min, sc->ai[i].max, 0, 0, sc->ai[i].res);
 	}
 
@@ -1048,11 +1048,13 @@ wmt_set_input_mode(struct wmt_softc *sc, enum wmt_input_mode mode)
 	return (err);
 }
 
+#ifndef USBHID_ENABLED
 static const STRUCT_USB_HOST_ID wmt_devs[] = {
 	/* generic HID class w/o boot interface */
 	{USB_IFACE_CLASS(UICLASS_HID),
 	 USB_IFACE_SUBCLASS(0),},
 };
+#endif
 
 static devclass_t wmt_devclass;
 
@@ -1072,6 +1074,9 @@ static driver_t wmt_driver = {
 
 DRIVER_MODULE(wmt, uhub, wmt_driver, wmt_devclass, NULL, 0);
 MODULE_DEPEND(wmt, usb, 1, 1, 1);
+MODULE_DEPEND(wmt, hid, 1, 1, 1);
 MODULE_DEPEND(wmt, evdev, 1, 1, 1);
 MODULE_VERSION(wmt, 1);
+#ifndef USBHID_ENABLED
 USB_PNP_HOST_INFO(wmt_devs);
+#endif
