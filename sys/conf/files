@@ -1813,6 +1813,22 @@ dev/gpio/gpio_if.m		optional gpio
 dev/gpio/gpiobus_if.m		optional gpio
 dev/gpio/gpiopps.c		optional gpiopps fdt
 dev/gpio/ofw_gpiobus.c		optional fdt gpio
+dev/hid/hconf.c			optional hconf
+dev/hid/hcons.c			optional hcons
+dev/hid/hgame.c			optional hgame
+dev/hid/hid.c			optional hid
+dev/hid/hid_if.m		optional hid
+dev/hid/hidbus.c		optional hidbus
+dev/hid/hidmap.c		optional hidmap
+dev/hid/hidquirk.c		optional hid
+dev/hid/hidraw.c		optional hidraw
+dev/hid/hkbd.c			optional hkbd
+dev/hid/hms.c			optional hms
+dev/hid/hmt.c			optional hmt hconf
+dev/hid/hpen.c			optional hpen
+dev/hid/hsctrl.c		optional hsctrl
+dev/hid/ps4dshock.c		optional ps4dshock
+dev/hid/xb360gp.c		optional xb360gp
 dev/hifn/hifn7751.c		optional hifn
 dev/hptiop/hptiop.c		optional hptiop scbus
 dev/hwpmc/hwpmc_logging.c	optional hwpmc
@@ -1842,6 +1858,7 @@ dev/iicbus/iicbb.c		optional iicbb
 dev/iicbus/iicbb_if.m		optional iicbb
 dev/iicbus/iicbus.c		optional iicbus
 dev/iicbus/iicbus_if.m		optional iicbus
+dev/iicbus/iichid.c		optional iichid acpi hid iicbus
 dev/iicbus/iiconf.c		optional iicbus
 dev/iicbus/iicsmb.c		optional iicsmb				\
 	dependency	"iicbus_if.h"
@@ -2318,7 +2335,7 @@ dev/ixgbe/ixgbe_dcb_82599.c	optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/jedec_dimm/jedec_dimm.c	optional jedec_dimm smbus
 dev/jme/if_jme.c		optional jme pci
-dev/kbd/kbd.c			optional atkbd | pckbd | sc | ukbd | vt
+dev/kbd/kbd.c			optional atkbd | pckbd | sc | ukbd | vt | hkbd
 dev/kbdmux/kbdmux.c		optional kbdmux
 dev/ksyms/ksyms.c		optional ksyms
 dev/le/am7990.c			optional le
@@ -3398,6 +3415,7 @@ dev/usb/input/uhid.c		optional uhid
 dev/usb/input/uhid_snes.c	optional uhid_snes
 dev/usb/input/ukbd.c		optional ukbd
 dev/usb/input/ums.c		optional ums
+dev/usb/input/usbhid.c		optional usbhid
 dev/usb/input/wmt.c		optional wmt
 dev/usb/input/wsp.c		optional wsp
 #
@@ -4048,6 +4066,7 @@ libkern/qsort_r.c		standard
 libkern/random.c		standard
 libkern/scanc.c			standard
 libkern/strcasecmp.c		standard
+libkern/strcasestr.c		standard
 libkern/strcat.c		standard
 libkern/strchr.c		standard
 libkern/strchrnul.c		optional gdb

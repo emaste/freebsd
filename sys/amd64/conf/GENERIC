@@ -373,3 +373,12 @@ device		netmap			# netmap(4) support
 options 	EVDEV_SUPPORT		# evdev support in legacy drivers
 device		evdev			# input event device support
 device		uinput			# install /dev/uinput cdev
+
+# HID support
+options 	HID_DEBUG		# enable debug msgs
+device		hid			# Generic HID support
+options 	IICHID_DEBUG		# enable debug msgs for I2C transport
+options 	IICHID_SAMPLING		# Workaround missing GPIO INTR support
+#device		usbhid			# USB transport support.
+#device		hidbus			# HID bus (required by usbhid/iichid)
+#options 	USBHID_ENABLED		# Prefer usbhid to other USB drivers

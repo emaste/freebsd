@@ -179,13 +179,24 @@ MAN=	aac.4 \
 	gpioths.4 \
 	gre.4 \
 	h_ertt.4 \
+	hconf.4 \
+	hcons.4 \
+	hgame.4 \
+	hidbus.4 \
+	hidquirk.4 \
+	hidraw.4 \
 	hifn.4 \
+	hkbd.4 \
+	hms.4 \
+	hmt.4 \
+	hpen.4 \
 	hpet.4 \
 	${_hpt27xx.4} \
 	${_hptiop.4} \
 	${_hptmv.4} \
 	${_hptnr.4} \
 	${_hptrr.4} \
+	hsctrl.4 \
 	${_hv_kvp.4} \
 	${_hv_netvsc.4} \
 	${_hv_storvsc.4} \
@@ -209,6 +220,7 @@ MAN=	aac.4 \
 	iic_gpiomux.4 \
 	iicbb.4 \
 	iicbus.4 \
+	iichid.4 \
 	iicmux.4 \
 	iicsmb.4 \
 	iir.4 \
@@ -425,6 +437,7 @@ MAN=	aac.4 \
 	ppi.4 \
 	procdesc.4 \
 	proto.4 \
+	ps4dshock.4 \
 	psm.4 \
 	pst.4 \
 	pt.4 \
@@ -581,6 +594,7 @@ MAN=	aac.4 \
 	wmt.4 \
 	${_wpi.4} \
 	wsp.4 \
+	xb360gp.4 \
 	${_xen.4} \
 	xhci.4 \
 	xl.4 \
@@ -1014,6 +1028,7 @@ MAN+=	\
 	usb.4 \
 	usb_quirk.4 \
 	usb_template.4 \
+	usbhid.4 \
 	usfs.4 \
 	uslcom.4 \
 	uvisor.4 \

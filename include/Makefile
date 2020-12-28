@@ -159,7 +159,7 @@ copies: .PHONY .META
 		done; \
 	fi
 .endfor
-.for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/evdev:Ndev/hyperv:Ndev/pci:Ndev/veriexec} ${LSUBSUBDIRS}
+.for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/evdev:Ndev/hid:Ndev/hyperv:Ndev/pci:Ndev/veriexec} ${LSUBSUBDIRS}
 	cd ${SRCTOP}/sys; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 	    ${SDESTDIR}${INCLUDEDIR}/$i
@@ -179,6 +179,11 @@ copies: .PHONY .META
 	    ${SDESTDIR}${INCLUDEDIR}/dev/evdev; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 uinput.h \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/evdev
+	cd ${SRCTOP}/sys/dev/hid; \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 hid.h \
+	    ${SDESTDIR}${INCLUDEDIR}/dev/hid; \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 hidraw.h \
+	    ${SDESTDIR}${INCLUDEDIR}/dev/hid
 	cd ${SRCTOP}/sys/dev/hyperv/include; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 hyperv.h \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/hyperv
@@ -262,7 +267,7 @@ symlinks: .PHONY .META
 		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../sys/$i/$$h ${SDESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
-.for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/evdev:Ndev/hyperv:Ndev/pci:Ndev/veriexec}
+.for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/evdev:Ndev/hid:Ndev/hyperv:Ndev/pci:Ndev/veriexec}
 	cd ${SRCTOP}/sys/$i; \
 	for h in *.h; do \
 		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/$i/$$h ${SDESTDIR}${INCLUDEDIR}/$i; \
@@ -282,6 +287,11 @@ symlinks: .PHONY .META
 	for h in input.h input-event-codes.h uinput.h; do \
 		ln -fs ../../../../sys/dev/evdev/$$h \
 		    ${SDESTDIR}${INCLUDEDIR}/dev/evdev; \
+	done
+	cd ${SRCTOP}/sys/dev/hid; \
+	for h in hid.h hidraw.h; do \
+		ln -fs ../../../../sys/dev/hid/$$h \
+		    ${SDESTDIR}${INCLUDEDIR}/dev/hid; \
 	done
 	cd ${SRCTOP}/sys/dev/hyperv/include; \
 	for h in hyperv.h; do \
