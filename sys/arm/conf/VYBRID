@@ -103,5 +103,9 @@ device		vt
 device		kbdmux
 device		ukbd
 
+# HID support
+options 	HID_DEBUG		# enable debug msgs
+device		hid			# Generic HID support
+
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data

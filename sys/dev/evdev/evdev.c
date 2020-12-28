@@ -31,12 +31,15 @@
 
 #include <sys/param.h>
 #include <sys/bitstring.h>
+#include <sys/ck.h>
 #include <sys/conf.h>
+#include <sys/epoch.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/proc.h>
+#include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
@@ -295,12 +298,14 @@ evdev_register_common(struct evdev_dev *evdev)
 	    evdev->ev_shortname, evdev->ev_name, evdev->ev_serial);
 
 	/* Initialize internal structures */
-	LIST_INIT(&evdev->ev_clients);
+	CK_SLIST_INIT(&evdev->ev_clients);
+	sx_init(&evdev->ev_list_lock, "evsx");
 
 	if (evdev_event_supported(evdev, EV_REP) &&
 	    bit_test(evdev->ev_flags, EVDEV_FLAG_SOFTREPEAT)) {
 		/* Initialize callout */
-		callout_init_mtx(&evdev->ev_rep_callout, evdev->ev_lock, 0);
+		callout_init_mtx(&evdev->ev_rep_callout,
+		    evdev->ev_state_lock, 0);
 
 		if (evdev->ev_rep[REP_DELAY] == 0 &&
 		    evdev->ev_rep[REP_PERIOD] == 0) {
@@ -332,6 +337,8 @@ evdev_register_common(struct evdev_dev *evdev)
 	evdev_sysctl_create(evdev);
 
 bail_out:
+	if (ret != 0)
+		sx_destroy(&evdev->ev_list_lock);
 	return (ret);
 }
 
@@ -341,8 +348,9 @@ evdev_register(struct evdev_dev *evdev)
 	int ret;
 
 	evdev->ev_lock_type = EV_LOCK_INTERNAL;
-	evdev->ev_lock = &evdev->ev_mtx;
+	evdev->ev_state_lock = &evdev->ev_mtx;
 	mtx_init(&evdev->ev_mtx, "evmtx", NULL, MTX_DEF);
+	evdev->ev_epoch = global_epoch_preempt;
 
 	ret = evdev_register_common(evdev);
 	if (ret != 0)
@@ -356,8 +364,25 @@ evdev_register_mtx(struct evdev_dev *evdev, struct mtx *mtx)
 {
 
 	evdev->ev_lock_type = EV_LOCK_MTX;
-	evdev->ev_lock = mtx;
+	evdev->ev_state_lock = mtx;
 	return (evdev_register_common(evdev));
+}
+
+int
+evdev_register_epoch(struct evdev_dev *evdev, epoch_t epoch)
+{
+	int ret;
+
+	evdev->ev_lock_type = EV_LOCK_EPOCH;
+	evdev->ev_state_lock = &evdev->ev_mtx;
+	mtx_init(&evdev->ev_mtx, "evmtx", NULL, MTX_DEF);
+	evdev->ev_epoch = epoch;
+
+	ret = evdev_register_common(evdev);
+	if (ret != 0)
+		mtx_destroy(&evdev->ev_mtx);
+
+	return (ret);
 }
 
 int
@@ -370,22 +395,23 @@ evdev_unregister(struct evdev_dev *evdev)
 
 	sysctl_ctx_free(&evdev->ev_sysctl_ctx);
 
-	EVDEV_LOCK(evdev);
+	EVDEV_LIST_LOCK(evdev);
 	evdev->ev_cdev->si_drv1 = NULL;
 	/* Wake up sleepers */
-	LIST_FOREACH_SAFE(client, &evdev->ev_clients, ec_link, tmp) {
+	CK_SLIST_FOREACH_SAFE(client, &evdev->ev_clients, ec_link, tmp) {
 		evdev_revoke_client(client);
 		evdev_dispose_client(evdev, client);
 		EVDEV_CLIENT_LOCKQ(client);
 		evdev_notify_event(client);
 		EVDEV_CLIENT_UNLOCKQ(client);
 	}
-	EVDEV_UNLOCK(evdev);
+	EVDEV_LIST_UNLOCK(evdev);
 
-	/* destroy_dev can sleep so release lock */
+	/* release lock to avoid deadlock with evdev_dtor */
 	ret = evdev_cdev_destroy(evdev);
 	evdev->ev_cdev = NULL;
-	if (ret == 0 && evdev->ev_lock_type == EV_LOCK_INTERNAL)
+	sx_destroy(&evdev->ev_list_lock);
+	if (ret == 0 && evdev->ev_lock_type != EV_LOCK_MTX)
 		mtx_destroy(&evdev->ev_mtx);
 
 	evdev_free_absinfo(evdev->ev_absinfo);
@@ -477,16 +503,15 @@ evdev_support_rel(struct evdev_dev *evdev, uint16_t code)
 }
 
 inline void
-evdev_support_abs(struct evdev_dev *evdev, uint16_t code, int32_t value,
-    int32_t minimum, int32_t maximum, int32_t fuzz, int32_t flat,
-    int32_t resolution)
+evdev_support_abs(struct evdev_dev *evdev, uint16_t code, int32_t minimum,
+    int32_t maximum, int32_t fuzz, int32_t flat, int32_t resolution)
 {
 	struct input_absinfo absinfo;
 
 	KASSERT(code < ABS_CNT, ("invalid evdev abs property"));
 
 	absinfo = (struct input_absinfo) {
-		.value = value,
+		.value = 0,
 		.minimum = minimum,
 		.maximum = maximum,
 		.fuzz = fuzz,
@@ -690,7 +715,7 @@ evdev_modify_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 		} else {
 			/* Start/stop callout for evdev repeats */
 			if (bit_test(evdev->ev_key_states, code) == !*value &&
-			    !LIST_EMPTY(&evdev->ev_clients)) {
+			    !CK_SLIST_EMPTY(&evdev->ev_clients)) {
 				if (*value == KEY_EVENT_DOWN)
 					evdev_start_repeat(evdev, code);
 				else
@@ -818,6 +843,7 @@ static void
 evdev_propagate_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
     int32_t value)
 {
+	struct epoch_tracker et;
 	struct evdev_client *client;
 
 	debugf(evdev, "%s pushed event %d/%d/%d",
@@ -826,7 +852,9 @@ evdev_propagate_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 	EVDEV_LOCK_ASSERT(evdev);
 
 	/* Propagate event through all clients */
-	LIST_FOREACH(client, &evdev->ev_clients, ec_link) {
+	if (evdev->ev_lock_type != EV_LOCK_MTX)
+		epoch_enter_preempt(evdev->ev_epoch, &et);
+	CK_SLIST_FOREACH(client, &evdev->ev_clients, ec_link) {
 		if (evdev->ev_grabber != NULL && evdev->ev_grabber != client)
 			continue;
 
@@ -836,6 +864,8 @@ evdev_propagate_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 			evdev_notify_event(client);
 		EVDEV_CLIENT_UNLOCKQ(client);
 	}
+	if (evdev->ev_lock_type != EV_LOCK_MTX)
+		epoch_exit_preempt(evdev->ev_epoch, &et);
 
 	evdev->ev_event_count++;
 }
@@ -963,10 +993,10 @@ evdev_inject_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 	case EV_ABS:
 	case EV_SW:
 push:
-		if (evdev->ev_lock_type != EV_LOCK_INTERNAL)
+		if (evdev->ev_lock_type == EV_LOCK_MTX)
 			EVDEV_LOCK(evdev);
 		ret = evdev_push_event(evdev, type,  code, value);
-		if (evdev->ev_lock_type != EV_LOCK_INTERNAL)
+		if (evdev->ev_lock_type == EV_LOCK_MTX)
 			EVDEV_UNLOCK(evdev);
 		break;
 
@@ -984,16 +1014,16 @@ evdev_register_client(struct evdev_dev *evdev, struct evdev_client *client)
 
 	debugf(evdev, "adding new client for device %s", evdev->ev_shortname);
 
-	EVDEV_LOCK_ASSERT(evdev);
+	EVDEV_LIST_LOCK_ASSERT(evdev);
 
-	if (LIST_EMPTY(&evdev->ev_clients) && evdev->ev_methods != NULL &&
+	if (CK_SLIST_EMPTY(&evdev->ev_clients) && evdev->ev_methods != NULL &&
 	    evdev->ev_methods->ev_open != NULL) {
 		debugf(evdev, "calling ev_open() on device %s",
 		    evdev->ev_shortname);
 		ret = evdev->ev_methods->ev_open(evdev);
 	}
 	if (ret == 0)
-		LIST_INSERT_HEAD(&evdev->ev_clients, client, ec_link);
+		CK_SLIST_INSERT_HEAD(&evdev->ev_clients, client, ec_link);
 	return (ret);
 }
 
@@ -1002,18 +1032,27 @@ evdev_dispose_client(struct evdev_dev *evdev, struct evdev_client *client)
 {
 	debugf(evdev, "removing client for device %s", evdev->ev_shortname);
 
-	EVDEV_LOCK_ASSERT(evdev);
+	EVDEV_LIST_LOCK_ASSERT(evdev);
 
-	LIST_REMOVE(client, ec_link);
-	if (LIST_EMPTY(&evdev->ev_clients)) {
+	CK_SLIST_REMOVE(&evdev->ev_clients, client, evdev_client, ec_link);
+	if (CK_SLIST_EMPTY(&evdev->ev_clients)) {
 		if (evdev->ev_methods != NULL &&
 		    evdev->ev_methods->ev_close != NULL)
 			(void)evdev->ev_methods->ev_close(evdev);
 		if (evdev_event_supported(evdev, EV_REP) &&
-		    bit_test(evdev->ev_flags, EVDEV_FLAG_SOFTREPEAT))
+		    bit_test(evdev->ev_flags, EVDEV_FLAG_SOFTREPEAT)) {
+			if (evdev->ev_lock_type != EV_LOCK_MTX)
+				EVDEV_LOCK(evdev);
 			evdev_stop_repeat(evdev);
+			if (evdev->ev_lock_type != EV_LOCK_MTX)
+				EVDEV_UNLOCK(evdev);
+		}
 	}
+	if (evdev->ev_lock_type != EV_LOCK_MTX)
+		EVDEV_LOCK(evdev);
 	evdev_release_client(evdev, client);
+	if (evdev->ev_lock_type != EV_LOCK_MTX)
+		EVDEV_UNLOCK(evdev);
 }
 
 int

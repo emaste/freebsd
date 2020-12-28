@@ -280,6 +280,10 @@ device		aw_sid		# Allwinner Secure ID EFUSE
 # Thermal sensors
 device		aw_thermal	# Allwinner Thermal Sensor Controller
 
+# HID support
+options 	HID_DEBUG	# enable debug msgs
+device		hid		# Generic HID support
+
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
 makeoptions	MODULES_EXTRA+="dtb/allwinner"
