@@ -67,6 +67,9 @@ __FBSDID("$FreeBSD$");
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
+#ifdef INVARIANTS
+#include <machine/_inttypes.h>
+#endif
 
 #include <sys/capsicum.h>
 
@@ -3733,8 +3736,8 @@ cache_fpl_terminated(struct cache_fpl *fpl)
 
 #define CACHE_FPL_SUPPORTED_CN_FLAGS \
 	(NC_NOMAKEENTRY | NC_KEEPPOSENTRY | LOCKLEAF | LOCKPARENT | WANTPARENT | \
-	 FOLLOW | LOCKSHARED | SAVENAME | SAVESTART | WILLBEDIR | ISOPEN | \
-	 NOMACCHECK | AUDITVNODE1 | AUDITVNODE2 | NOCAPCHECK)
+	 FAILIFEXISTS | FOLLOW | LOCKSHARED | SAVENAME | SAVESTART | WILLBEDIR | \
+	 ISOPEN | NOMACCHECK | AUDITVNODE1 | AUDITVNODE2 | NOCAPCHECK)
 
 #define CACHE_FPL_INTERNAL_CN_FLAGS \
 	(ISDOTDOT | MAKEENTRY | ISLASTCN)
@@ -3742,7 +3745,7 @@ cache_fpl_terminated(struct cache_fpl *fpl)
 _Static_assert((CACHE_FPL_SUPPORTED_CN_FLAGS & CACHE_FPL_INTERNAL_CN_FLAGS) == 0,
     "supported and internal flags overlap");
 
-static bool cache_fplookup_need_climb_mount(struct cache_fpl *fpl);
+static bool cache_fplookup_is_mp(struct cache_fpl *fpl);
 
 static bool
 cache_fpl_islastcn(struct nameidata *ndp)
@@ -3893,7 +3896,6 @@ cache_fplookup_partial_setup(struct cache_fpl *fpl)
 	cache_fpl_restore_partial(fpl, &fpl->snd);
 
 	ndp->ni_startdir = dvp;
-	MPASS((cnp->cn_flags & MAKEENTRY) == 0);
 	cnp->cn_flags |= MAKEENTRY;
 	if (cache_fpl_islastcn(ndp))
 		cnp->cn_flags |= ISLASTCN;
@@ -3964,6 +3966,8 @@ cache_fplookup_final_modifying(struct cache_fpl *fpl)
 	MPASS((cnp->cn_flags & TRAILINGSLASH) == 0);
 	MPASS(cnp->cn_nameiop == CREATE || cnp->cn_nameiop == DELETE ||
 	    cnp->cn_nameiop == RENAME);
+	MPASS((cnp->cn_flags & MAKEENTRY) == 0);
+	MPASS((cnp->cn_flags & ISDOTDOT) == 0);
 
 	docache = (cnp->cn_flags & NOCACHE) ^ NOCACHE;
 	if (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)
@@ -3984,6 +3988,11 @@ cache_fplookup_final_modifying(struct cache_fpl *fpl)
 			return (cache_fpl_aborted(fpl));
 		}
 		return (cache_fpl_handled(fpl, EROFS));
+	}
+
+	if (fpl->tvp != NULL && (cnp->cn_flags & FAILIFEXISTS) != 0) {
+		cache_fpl_smr_exit(fpl);
+		return (cache_fpl_handled(fpl, EEXIST));
 	}
 
 	/*
@@ -4019,10 +4028,11 @@ cache_fplookup_final_modifying(struct cache_fpl *fpl)
 	}
 
 	tvp = NULL;
-	MPASS((cnp->cn_flags & MAKEENTRY) == 0);
+	cnp->cn_flags |= ISLASTCN;
 	if (docache)
 		cnp->cn_flags |= MAKEENTRY;
-	cnp->cn_flags |= ISLASTCN;
+	if (cache_fpl_isdotdot(cnp))
+		cnp->cn_flags |= ISDOTDOT;
 	cnp->cn_lkflags = LK_EXCLUSIVE;
 	error = VOP_LOOKUP(dvp, &tvp, cnp);
 	switch (error) {
@@ -4059,10 +4069,16 @@ cache_fplookup_final_modifying(struct cache_fpl *fpl)
 	 * almost never be true.
 	 */
 	if (__predict_false(!cache_fplookup_vnode_supported(tvp) ||
-	    cache_fplookup_need_climb_mount(fpl))) {
+	    cache_fplookup_is_mp(fpl))) {
 		vput(dvp);
 		vput(tvp);
 		return (cache_fpl_aborted(fpl));
+	}
+
+	if ((cnp->cn_flags & FAILIFEXISTS) != 0) {
+		vput(dvp);
+		vput(tvp);
+		return (cache_fpl_handled(fpl, EEXIST));
 	}
 
 	if ((cnp->cn_flags & LOCKLEAF) == 0) {
@@ -4211,7 +4227,12 @@ cache_fplookup_noentry(struct cache_fpl *fpl)
 	dvp = fpl->dvp;
 	dvp_seqc = fpl->dvp_seqc;
 
+	MPASS((cnp->cn_flags & MAKEENTRY) == 0);
+	MPASS((cnp->cn_flags & ISDOTDOT) == 0);
+	MPASS(!cache_fpl_isdotdot(cnp));
+
 	if (cnp->cn_nameiop != LOOKUP) {
+		fpl->tvp = NULL;
 		return (cache_fplookup_modifying(fpl));
 	}
 
@@ -4252,11 +4273,10 @@ cache_fplookup_noentry(struct cache_fpl *fpl)
 	/*
 	 * TODO: provide variants which don't require locking either vnode.
 	 */
+	cnp->cn_flags |= ISLASTCN;
 	docache = (cnp->cn_flags & NOCACHE) ^ NOCACHE;
-	MPASS((cnp->cn_flags & MAKEENTRY) == 0);
 	if (docache)
 		cnp->cn_flags |= MAKEENTRY;
-	cnp->cn_flags |= ISLASTCN;
 	cnp->cn_lkflags = LK_SHARED;
 	if ((cnp->cn_flags & LOCKSHARED) == 0) {
 		cnp->cn_lkflags = LK_EXCLUSIVE;
@@ -4288,7 +4308,7 @@ cache_fplookup_noentry(struct cache_fpl *fpl)
 	}
 
 	if (__predict_false(!cache_fplookup_vnode_supported(tvp) ||
-	    cache_fplookup_need_climb_mount(fpl))) {
+	    cache_fplookup_is_mp(fpl))) {
 		vput(dvp);
 		vput(tvp);
 		return (cache_fpl_aborted(fpl));
@@ -4309,19 +4329,18 @@ cache_fplookup_noentry(struct cache_fpl *fpl)
 static int __noinline
 cache_fplookup_dot(struct cache_fpl *fpl)
 {
-	struct vnode *dvp;
 
-	dvp = fpl->dvp;
-
-	fpl->tvp = dvp;
-	fpl->tvp_seqc = vn_seqc_read_any(dvp);
-	if (seqc_in_modify(fpl->tvp_seqc)) {
-		return (cache_fpl_aborted(fpl));
-	}
+	MPASS(!seqc_in_modify(fpl->dvp_seqc));
+	/*
+	 * Just re-assign the value. seqc will be checked later for the first
+	 * non-dot path component in line and/or before deciding to return the
+	 * vnode.
+	 */
+	fpl->tvp = fpl->dvp;
+	fpl->tvp_seqc = fpl->dvp_seqc;
 
 	counter_u64_add(dothits, 1);
-	SDT_PROBE3(vfs, namecache, lookup, hit, dvp, ".", dvp);
-
+	SDT_PROBE3(vfs, namecache, lookup, hit, fpl->dvp, ".", fpl->dvp);
 	return (0);
 }
 
@@ -4525,8 +4544,9 @@ cache_fplookup_climb_mount(struct cache_fpl *fpl)
 
 	VNPASS(vp->v_type == VDIR || vp->v_type == VBAD, vp);
 	mp = atomic_load_ptr(&vp->v_mountedhere);
-	if (mp == NULL)
+	if (__predict_false(mp == NULL)) {
 		return (0);
+	}
 
 	prev_mp = NULL;
 	for (;;) {
@@ -4568,8 +4588,64 @@ cache_fplookup_climb_mount(struct cache_fpl *fpl)
 	return (0);
 }
 
+static int __noinline
+cache_fplookup_cross_mount(struct cache_fpl *fpl)
+{
+	struct mount *mp;
+	struct mount_pcpu *mpcpu;
+	struct vnode *vp;
+	seqc_t vp_seqc;
+
+	vp = fpl->tvp;
+	vp_seqc = fpl->tvp_seqc;
+
+	VNPASS(vp->v_type == VDIR || vp->v_type == VBAD, vp);
+	mp = atomic_load_ptr(&vp->v_mountedhere);
+	if (__predict_false(mp == NULL)) {
+		return (0);
+	}
+
+	if (!vfs_op_thread_enter_crit(mp, mpcpu)) {
+		return (cache_fpl_partial(fpl));
+	}
+	if (!vn_seqc_consistent(vp, vp_seqc)) {
+		vfs_op_thread_exit_crit(mp, mpcpu);
+		return (cache_fpl_partial(fpl));
+	}
+	if (!cache_fplookup_mp_supported(mp)) {
+		vfs_op_thread_exit_crit(mp, mpcpu);
+		return (cache_fpl_partial(fpl));
+	}
+	vp = atomic_load_ptr(&mp->mnt_rootvnode);
+	if (__predict_false(vp == NULL || VN_IS_DOOMED(vp))) {
+		vfs_op_thread_exit_crit(mp, mpcpu);
+		return (cache_fpl_partial(fpl));
+	}
+	vp_seqc = vn_seqc_read_any(vp);
+	vfs_op_thread_exit_crit(mp, mpcpu);
+	if (seqc_in_modify(vp_seqc)) {
+		return (cache_fpl_partial(fpl));
+	}
+	mp = atomic_load_ptr(&vp->v_mountedhere);
+	if (__predict_false(mp != NULL)) {
+		/*
+		 * There are possibly more mount points on top.
+		 * Normally this does not happen so for simplicity just start
+		 * over.
+		 */
+		return (cache_fplookup_climb_mount(fpl));
+	}
+
+	fpl->tvp = vp;
+	fpl->tvp_seqc = vp_seqc;
+	return (0);
+}
+
+/*
+ * Check if a vnode is mounted on.
+ */
 static bool
-cache_fplookup_need_climb_mount(struct cache_fpl *fpl)
+cache_fplookup_is_mp(struct cache_fpl *fpl)
 {
 	struct mount *mp;
 	struct vnode *vp;
@@ -4815,8 +4891,8 @@ cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
 
 			VNPASS(!seqc_in_modify(fpl->tvp_seqc), fpl->tvp);
 
-			if (cache_fplookup_need_climb_mount(fpl)) {
-				error = cache_fplookup_climb_mount(fpl);
+			if (cache_fplookup_is_mp(fpl)) {
+				error = cache_fplookup_cross_mount(fpl);
 				if (__predict_false(error != 0)) {
 					break;
 				}
@@ -4969,6 +5045,9 @@ cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 	fpl.ndp = ndp;
 	fpl.cnp = &ndp->ni_cnd;
 	MPASS(curthread == fpl.cnp->cn_thread);
+	KASSERT ((fpl.cnp->cn_flags & CACHE_FPL_INTERNAL_CN_FLAGS) == 0,
+	    ("%s: internal flags found in cn_flags %" PRIx64, __func__,
+	    fpl.cnp->cn_flags));
 
 	if ((fpl.cnp->cn_flags & SAVESTART) != 0)
 		MPASS(fpl.cnp->cn_nameiop != LOOKUP);
