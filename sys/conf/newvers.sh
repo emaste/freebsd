@@ -255,7 +255,7 @@ if [ -n "$git_cmd" ] ; then
 	if [ "$($git_cmd rev-parse --is-shallow-repository)" = false ] ; then
 		git_cnt=$($git_cmd rev-list --count HEAD 2>/dev/null)
 		if [ -n "$git_cnt" ] ; then
-			git="c${git_cnt}-g${git}"
+			git="c${git_cnt}-${git}"
 		fi
 	fi
 	git_b=$($git_cmd rev-parse --abbrev-ref HEAD)
