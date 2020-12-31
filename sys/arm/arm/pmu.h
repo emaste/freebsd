@@ -1,7 +1,10 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * All rights reserved.
  *
- * Copyright (C) 1992-2021 The FreeBSD Project. All rights reserved.
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,25 +26,27 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-/* Copyrights macros  */
+#ifndef _ARM_PMU_H_
+#define _ARM_PMU_H_
 
-/* Add a FreeBSD vendor copyright here */
-#define	COPYRIGHT_Vendor \
-	""
+#define	MAX_RLEN	8
 
-/* FreeBSD */
-#define COPYRIGHT_FreeBSD \
-	"Copyright (c) 1992-2021 The FreeBSD Project.\n"
+struct pmu_intr {
+	struct resource	*res;
+	void		*ih;
+	int		cpuid;
+};
 
-/* Foundation */
-#define	TRADEMARK_Foundation \
-	"FreeBSD is a registered trademark of The FreeBSD Foundation.\n"
+struct pmu_softc {
+	device_t		dev;
+	struct pmu_intr		irq[MAX_RLEN];
+};
 
-/* Berkeley */
-#define COPYRIGHT_UCB \
-	"Copyright (c) 1979, 1980, 1983, 1986, 1988, 1989, 1991, 1992, 1993, 1994\n\tThe Regents of the University of California. All rights reserved.\n"
 
-char copyright[] = COPYRIGHT_Vendor COPYRIGHT_FreeBSD COPYRIGHT_UCB;
-char trademark[] = TRADEMARK_Foundation;
+int pmu_attach(device_t dev);
+
+#endif
