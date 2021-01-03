@@ -2230,6 +2230,9 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	int flag;
 	int len;
 
+	KASSERT(cnp->cn_namelen <= NAME_MAX,
+	    ("%s: passed len %ld exceeds NAME_MAX (%d)", __func__, cnp->cn_namelen,
+	    NAME_MAX));
 	VNPASS(dvp != vp, dvp);
 	VNPASS(!VN_IS_DOOMED(dvp), dvp);
 	VNPASS(dvp->v_type != VNON, dvp);
@@ -3579,7 +3582,6 @@ SYSCTL_BOOL(_vfs, OID_AUTO, cache_fast_lookup, CTLFLAG_RW,
  * need restoring in case fast path lookup fails.
  */
 struct nameidata_saved {
-	long cn_namelen;
 	char *cn_nameptr;
 	size_t ni_pathlen;
 	int cn_flags;
@@ -3620,9 +3622,15 @@ cache_fpl_handle_root(struct cache_fpl *fpl)
 	ndp = fpl->ndp;
 	cnp = fpl->cnp;
 
-	while (*(cnp->cn_nameptr) == '/') {
-		cnp->cn_nameptr++;
-		ndp->ni_pathlen--;
+	MPASS(*(cnp->cn_nameptr) == '/');
+	cnp->cn_nameptr++;
+	ndp->ni_pathlen--;
+
+	if (__predict_false(*(cnp->cn_nameptr) == '/')) {
+		do {
+			cnp->cn_nameptr++;
+			ndp->ni_pathlen--;
+		} while (*(cnp->cn_nameptr) == '/');
 	}
 
 	return (ndp->ni_rootdir);
@@ -3633,7 +3641,6 @@ cache_fpl_checkpoint(struct cache_fpl *fpl, struct nameidata_saved *snd)
 {
 
 	snd->cn_flags = fpl->ndp->ni_cnd.cn_flags;
-	snd->cn_namelen = fpl->ndp->ni_cnd.cn_namelen;
 	snd->cn_nameptr = fpl->ndp->ni_cnd.cn_nameptr;
 	snd->ni_pathlen = fpl->ndp->ni_pathlen;
 }
@@ -3643,7 +3650,6 @@ cache_fpl_restore_partial(struct cache_fpl *fpl, struct nameidata_saved *snd)
 {
 
 	fpl->ndp->ni_cnd.cn_flags = snd->cn_flags;
-	fpl->ndp->ni_cnd.cn_namelen = snd->cn_namelen;
 	fpl->ndp->ni_cnd.cn_nameptr = snd->cn_nameptr;
 	fpl->ndp->ni_pathlen = snd->ni_pathlen;
 }
@@ -4310,6 +4316,14 @@ cache_fplookup_noentry(struct cache_fpl *fpl)
 	MPASS((cnp->cn_flags & ISDOTDOT) == 0);
 	MPASS(!cache_fpl_isdotdot(cnp));
 
+	/*
+	 * Hack: delayed name len checking.
+	 */
+	if (__predict_false(cnp->cn_namelen > NAME_MAX)) {
+		cache_fpl_smr_exit(fpl);
+		return (cache_fpl_handled(fpl, ENAMETOOLONG));
+	}
+
 	if (cnp->cn_nameiop != LOOKUP) {
 		fpl->tvp = NULL;
 		return (cache_fplookup_modifying(fpl));
@@ -4741,21 +4755,10 @@ cache_fplookup_cross_mount(struct cache_fpl *fpl)
 static bool
 cache_fplookup_is_mp(struct cache_fpl *fpl)
 {
-	struct mount *mp;
 	struct vnode *vp;
 
 	vp = fpl->tvp;
-
-	/*
-	 * Hack: while this is a union, the pointer tends to be NULL so save on
-	 * a branch.
-	 */
-	mp = atomic_load_ptr(&vp->v_mountedhere);
-	if (mp == NULL)
-		return (false);
-	if (vp->v_type == VDIR)
-		return (true);
-	return (false);
+	return ((vn_irflag_read(vp) & VIRF_MOUNTPOINT) != 0);
 }
 
 /*
@@ -4834,13 +4837,15 @@ cache_fplookup_parse(struct cache_fpl *fpl)
 	cnp->cn_nameptr[ndp->ni_pathlen - 1] = '\0';
 
 	cnp->cn_namelen = cp - cnp->cn_nameptr;
-	if (__predict_false(cnp->cn_namelen > NAME_MAX)) {
-		cache_fpl_smr_exit(fpl);
-		return (cache_fpl_handled(fpl, ENAMETOOLONG));
-	}
 	ndp->ni_pathlen -= cnp->cn_namelen;
 	KASSERT(ndp->ni_pathlen <= PATH_MAX,
 	    ("%s: ni_pathlen underflow to %zd\n", __func__, ndp->ni_pathlen));
+	/*
+	 * Hack: we have to check if the found path component's length exceeds
+	 * NAME_MAX. However, the condition is very rarely true and check can
+	 * be elided in the common case -- if an entry was found in the cache,
+	 * then it could not have been too long to begin with.
+	 */
 	ndp->ni_next = cp;
 
 #ifdef INVARIANTS
@@ -4888,11 +4893,21 @@ cache_fplookup_parse_advance(struct cache_fpl *fpl)
 static int __noinline
 cache_fplookup_failed_vexec(struct cache_fpl *fpl, int error)
 {
+	struct componentname *cnp;
 	struct vnode *dvp;
 	seqc_t dvp_seqc;
 
+	cnp = fpl->cnp;
 	dvp = fpl->dvp;
 	dvp_seqc = fpl->dvp_seqc;
+
+	/*
+	 * Hack: delayed name len checking.
+	 */
+	if (__predict_false(cnp->cn_namelen > NAME_MAX)) {
+		cache_fpl_smr_exit(fpl);
+		return (cache_fpl_handled(fpl, ENAMETOOLONG));
+	}
 
 	/*
 	 * Hack: they may be looking up foo/bar, where foo is a
@@ -5207,8 +5222,9 @@ out:
 		__assert_unreachable();
 		break;
 	case CACHE_FPL_STATUS_HANDLED:
-		SDT_PROBE3(vfs, namei, lookup, return, error,
-		    (error == 0 ? ndp->ni_vp : NULL), true);
+		if (error != 0)
+			MPASS(ndp->ni_vp == NULL);
+		SDT_PROBE3(vfs, namei, lookup, return, error, ndp->ni_vp, true);
 		break;
 	case CACHE_FPL_STATUS_PARTIAL:
 		*pwdp = fpl.pwd;
