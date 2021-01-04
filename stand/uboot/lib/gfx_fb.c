@@ -1,7 +1,6 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
- * Copyright 2019 Michal Meloun <mmel@FreeBSD.org>
+ * Copyright 2021 Toomas Soome <tsoome@freebsd.org>
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,26 +22,57 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _RK_CLK_FRACT_H_
-#define _RK_CLK_FRACT_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#include <dev/extres/clk/clk.h>
+/*
+ * U-Boot-specific gfx stubs.
+ */
 
-struct rk_clk_fract_def {
-	struct clknode_init_def clkdef;
-	uint32_t		offset;
-	uint32_t		gate_offset;
-	uint32_t		gate_shift;
-	uint32_t		flags;
-};
+#include <sys/types.h>
+#include <pnglite.h>
+#include "bootstrap.h"
+#include "gfx_fb.h"
 
-#define	RK_CLK_FRACT_HAVE_GATE	0x0001
+font_list_t fonts = STAILQ_HEAD_INITIALIZER(fonts);
+teken_gfx_t gfx_state = { 0 };
 
-int rk_clk_fract_register(struct clkdom *clkdom,
-    struct rk_clk_fract_def *clkdef);
+void
+gfx_fb_setpixel(uint32_t x __unused, uint32_t y __unused)
+{
+}
 
-#endif /* _RK_CLK_FRACT_H_ */
+void
+gfx_fb_drawrect(uint32_t x1 __unused, uint32_t y1 __unused,
+    uint32_t x2 __unused, uint32_t y2 __unused, uint32_t fill __unused)
+{
+}
+
+void
+gfx_term_drawrect(uint32_t x1 __unused, uint32_t y1 __unused,
+    uint32_t x2 __unused, uint32_t y2 __unused)
+{
+}
+
+void
+gfx_fb_line(uint32_t x0 __unused, uint32_t y0 __unused,
+    uint32_t x1 __unused, uint32_t y1 __unused, uint32_t w __unused)
+{
+}
+
+void
+gfx_fb_bezier(uint32_t x0 __unused, uint32_t y0 __unused,
+    uint32_t x1 __unused, uint32_t y1 __unused, uint32_t x2 __unused,
+    uint32_t y2 __unused, uint32_t w __unused)
+{
+}
+
+int
+gfx_fb_putimage(png_t *png __unused, uint32_t ux1 __unused,
+    uint32_t uy1 __unused, uint32_t ux2 __unused, uint32_t uy2 __unused,
+    uint32_t flags __unused)
+{
+	return (1);
+}

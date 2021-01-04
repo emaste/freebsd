@@ -330,7 +330,7 @@ fuse_vnop_do_lseek(struct vnode *vp, struct thread *td, struct ucred *cred,
 	struct mount *mp = vnode_mount(vp);
 	int err;
 
-	MPASS(VOP_ISLOCKED(vp));
+	ASSERT_VOP_LOCKED(vp, __func__);
 
 	err = fuse_filehandle_getrw(vp, FREAD, &fufh, cred, pid);
 	if (err)
@@ -432,18 +432,6 @@ fuse_vnop_advlock(struct vop_advlock_args *ap)
 		return ENXIO;
 	}
 
-	if (!(dataflags & FSESS_POSIX_LOCKS))
-		return vop_stdadvlock(ap);
-	/* FUSE doesn't properly support flock until protocol 7.17 */
-	if (flags & F_FLOCK)
-		return vop_stdadvlock(ap);
-
-	err = fuse_filehandle_get_anyflags(vp, &fufh, cred, pid);
-	if (err)
-		return err;
-
-	fdisp_init(&fdi, sizeof(*fli));
-
 	switch(ap->a_op) {
 	case F_GETLK:
 		op = FUSE_GETLK;
@@ -457,6 +445,20 @@ fuse_vnop_advlock(struct vop_advlock_args *ap)
 	default:
 		return EINVAL;
 	}
+
+	if (!(dataflags & FSESS_POSIX_LOCKS))
+		return vop_stdadvlock(ap);
+	/* FUSE doesn't properly support flock until protocol 7.17 */
+	if (flags & F_FLOCK)
+		return vop_stdadvlock(ap);
+
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+
+	err = fuse_filehandle_get_anyflags(vp, &fufh, cred, pid);
+	if (err)
+		goto out;
+
+	fdisp_init(&fdi, sizeof(*fli));
 
 	fdisp_make_vp(&fdi, op, vp, td, cred);
 	fli = fdi.indata;
@@ -487,6 +489,8 @@ fuse_vnop_advlock(struct vop_advlock_args *ap)
 		}
 	}
 
+out:
+	VOP_UNLOCK(vp);
 	return err;
 }
 
@@ -660,14 +664,6 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 		td = ap->a_fsizetd;
 	pid = td->td_proc->p_pid;
 
-	err = fuse_filehandle_getrw(invp, FREAD, &infufh, incred, pid);
-	if (err)
-		return (err);
-
-	err = fuse_filehandle_getrw(outvp, FWRITE, &outfufh, outcred, pid);
-	if (err)
-		return (err);
-
 	/* Lock both vnodes, avoiding risk of deadlock. */
 	do {
 		err = vn_lock(outvp, LK_EXCLUSIVE);
@@ -685,6 +681,14 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 	} while (err == 0);
 	if (err != 0)
 		return (err);
+
+	err = fuse_filehandle_getrw(invp, FREAD, &infufh, incred, pid);
+	if (err)
+		goto unlock;
+
+	err = fuse_filehandle_getrw(outvp, FWRITE, &outfufh, outcred, pid);
+	if (err)
+		goto unlock;
 
 	if (ap->a_fsizetd) {
 		io.uio_offset = *ap->a_outoffp;
