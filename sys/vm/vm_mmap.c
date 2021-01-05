@@ -107,8 +107,8 @@ SYSCTL_INT(_vm, OID_AUTO, mincore_mapped, CTLFLAG_RWTUN, &mincore_mapped, 0,
 static int imply_prot_max = 0;
 SYSCTL_INT(_vm, OID_AUTO, imply_prot_max, CTLFLAG_RWTUN, &imply_prot_max, 0,
     "Imply maximum page protections in mmap() when none are specified");
-static int allow_wx = 1;
-SYSCTL_INT(_vm, OID_AUTO, allow_writable_executable_mappings, CTLFLAG_RWTUN,
+static bool allow_wx = true;
+SYSCTL_BOOL(_vm, OID_AUTO, allow_wx, CTLFLAG_RWTUN,
     &allow_wx, 0, "Allow pages to be mapped writable and executable");
 
 #ifdef MAP_32BIT
@@ -216,10 +216,10 @@ kern_mmap(struct thread *td, uintptr_t addr0, size_t len, int prot, int flags,
 }
 
 static inline bool
-allow_prot(int prot)
+allow_prot(struct proc *p, int prot)
 {
 	if ((prot & (PROT_WRITE | PROT_EXEC)) == (PROT_WRITE | PROT_EXEC) &&
-	    allow_wx == 0)
+	    allow_wx == 0 && (p->p_fctl0 & NT_FREEBSD_FCTL_WXNEEDED) == 0)
 		return (false);
 	return (true);
 }
@@ -252,7 +252,7 @@ kern_mmap_req(struct thread *td, const struct mmap_req *mrp)
 	prot = PROT_EXTRACT(prot);
 	if (max_prot != 0 && (max_prot & prot) != prot)
 		return (ENOTSUP);
-	if (!allow_prot(prot))
+	if (!allow_prot(td->td_proc, prot))
 		return (ENOTSUP);
 
 	p = td->td_proc;
@@ -685,7 +685,7 @@ kern_mprotect(struct thread *td, uintptr_t addr0, size_t size, int prot)
 #endif
 	if (addr + size < addr)
 		return (EINVAL);
-	if (!allow_prot(prot))
+	if (!allow_prot(td->td_proc, prot))
 		return (ENOTSUP);
 
 	vm_error = KERN_SUCCESS;
