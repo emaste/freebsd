@@ -657,6 +657,7 @@ cache_validate(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 {
 }
 #endif
+void	cache_fast_lookup_enabled_recalc(void);
 int	change_dir(struct vnode *vp, struct thread *td);
 void	cvtstat(struct stat *st, struct ostat *ost);
 void	freebsd11_cvtnstat(struct stat *sb, struct nstat *nsb);
@@ -782,6 +783,7 @@ void	vn_seqc_write_begin(struct vnode *vp);
 void	vn_seqc_write_end_locked(struct vnode *vp);
 void	vn_seqc_write_end(struct vnode *vp);
 #define	vn_seqc_read_any(vp)		seqc_read_any(&(vp)->v_seqc)
+#define	vn_seqc_read_notmodify(vp)	seqc_read_notmodify(&(vp)->v_seqc)
 #define	vn_seqc_consistent(vp, seq)	seqc_consistent(&(vp)->v_seqc, seq)
 
 #define	vn_rangelock_unlock(vp, cookie)					\
