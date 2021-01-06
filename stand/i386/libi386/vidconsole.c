@@ -620,7 +620,7 @@ env_screen_nounset(struct env_var *ev __unused)
 }
 
 static int
-vidc_load_palette(uint32_t *cmap)
+vidc_load_palette(void)
 {
 	int i, roff, goff, boff, rc;
 
@@ -780,6 +780,10 @@ vidc_install_font(void)
 	int bpc, f_offset;
 	teken_attr_t a = { 0 };
 
+	/* We can only program VGA registers. */
+	if (!vbe_is_vga())
+		return;
+
 	if (gfx_state.tg_fb_type != FB_TEXT)
 		return;
 
@@ -932,7 +936,7 @@ cons_update_mode(bool use_gfx_mode)
 	    gfx_state.tg_fb.fb_mask_blue >> boff, boff);
 
 	if (gfx_state.tg_ctype == CT_INDEXED)
-		vidc_load_palette(cmap);
+		vidc_load_palette();
 
 	teken_set_winsize(&gfx_state.tg_teken, &gfx_state.tg_tp);
 	a = teken_get_defattr(&gfx_state.tg_teken);
