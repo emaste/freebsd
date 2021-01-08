@@ -685,6 +685,7 @@ main(int argc, char *argv[])
 {
 	FTS *ftsp;
 	FTSENT *p;
+	char *dot = NULL;
 	int opt, fts_options, ival;
 	struct stat sb;
 
@@ -752,14 +753,15 @@ main(int argc, char *argv[])
 			fwrite(&ival, sizeof(ival), 1, fxref);
 			reccnt = 0;
 		}
-		/* skip non-files and separate debug files */
+		/* Skip non-files... */
 		if (p->fts_info != FTS_F)
 			continue;
-		if (p->fts_namelen >= 6 &&
-		    strcmp(p->fts_name + p->fts_namelen - 6, ".debug") == 0)
-			continue;
-		if (p->fts_namelen >= 8 &&
-		    strcmp(p->fts_name + p->fts_namelen - 8, ".symbols") == 0)
+		/*
+		 * ... and files with two or more dots such as .debug,
+		 * .symbols, and .pkgsave.
+		 */
+		dot = strchr(p->fts_name, '.');
+		if (dot != NULL && strchr(dot + 1, '.') != NULL)
 			continue;
 		read_kld(p->fts_path, p->fts_name);
 	}
