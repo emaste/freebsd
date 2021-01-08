@@ -111,7 +111,6 @@ MAN=	aac.4 \
 	${_chvgpio.4} \
 	ciss.4 \
 	cloudabi.4 \
-	cmx.4 \
 	${_coretemp.4} \
 	cp2112.4 \
 	${_cpuctl.4} \
@@ -338,7 +337,6 @@ MAN=	aac.4 \
 	ng_atmllc.4 \
 	ng_bpf.4 \
 	ng_bridge.4 \
-	ng_bt3c.4 \
 	ng_btsocket.4 \
 	ng_car.4 \
 	ng_ccatm.4 \
@@ -582,7 +580,6 @@ MAN=	aac.4 \
 	${_vtnet.4} \
 	watchdog.4 \
 	${_wbwd.4} \
-	wi.4 \
 	witness.4 \
 	wlan.4 \
 	wlan_acl.4 \
@@ -764,7 +761,6 @@ MLINKS+=vr.4 if_vr.4
 MLINKS+=vte.4 if_vte.4
 MLINKS+=${_vtnet.4} ${_if_vtnet.4}
 MLINKS+=watchdog.4 SW_WATCHDOG.4
-MLINKS+=wi.4 if_wi.4
 MLINKS+=${_wpi.4} ${_if_wpi.4}
 MLINKS+=xl.4 if_xl.4
 
