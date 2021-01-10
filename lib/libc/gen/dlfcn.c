@@ -257,7 +257,7 @@ int
 _rtld_get_stack_prot(void)
 {
 
-	return (PROT_EXEC | PROT_READ | PROT_WRITE);
+	return (PROT_READ | PROT_WRITE);
 }
 
 #pragma weak _rtld_is_dlopened
