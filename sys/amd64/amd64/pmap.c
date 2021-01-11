@@ -1275,10 +1275,12 @@ static void pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde,
     pd_entry_t newpde);
 static void pmap_update_pde_invalidate(pmap_t, vm_offset_t va, pd_entry_t pde);
 
-static vm_page_t _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex,
-		struct rwlock **lockp, vm_offset_t va);
 static pd_entry_t *pmap_alloc_pde(pmap_t pmap, vm_offset_t va, vm_page_t *pdpgp,
 		struct rwlock **lockp);
+static vm_page_t pmap_allocpte_alloc(pmap_t pmap, vm_pindex_t ptepindex,
+		struct rwlock **lockp, vm_offset_t va);
+static vm_page_t pmap_allocpte_nosleep(pmap_t pmap, vm_pindex_t ptepindex,
+		struct rwlock **lockp, vm_offset_t va);
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va,
 		struct rwlock **lockp);
 
@@ -4294,8 +4296,8 @@ pmap_allocpte_getpml4(pmap_t pmap, struct rwlock **lockp, vm_offset_t va,
 	pml5index = pmap_pml5e_index(va);
 	pml5 = &pmap->pm_pmltop[pml5index];
 	if ((*pml5 & PG_V) == 0) {
-		if (_pmap_allocpte(pmap, pmap_pml5e_pindex(va), lockp, va) ==
-		    NULL)
+		if (pmap_allocpte_nosleep(pmap, pmap_pml5e_pindex(va), lockp,
+		    va) == NULL)
 			return (NULL);
 		allocated = true;
 	} else {
@@ -4331,8 +4333,8 @@ pmap_allocpte_getpdp(pmap_t pmap, struct rwlock **lockp, vm_offset_t va,
 
 	if ((*pml4 & PG_V) == 0) {
 		/* Have to allocate a new pdp, recurse */
-		if (_pmap_allocpte(pmap, pmap_pml4e_pindex(va), lockp, va) ==
-		    NULL) {
+		if (pmap_allocpte_nosleep(pmap, pmap_pml4e_pindex(va), lockp,
+		    va) == NULL) {
 			if (pmap_is_la57(pmap))
 				pmap_allocpte_free_unref(pmap, va,
 				    pmap_pml5e(pmap, va));
@@ -4355,16 +4357,6 @@ pmap_allocpte_getpdp(pmap_t pmap, struct rwlock **lockp, vm_offset_t va,
 }
 
 /*
- * This routine is called if the desired page table page does not exist.
- *
- * If page table page allocation fails, this routine may sleep before
- * returning NULL.  It sleeps only if a lock pointer was given.
- *
- * Note: If a page allocation fails at page table level two, three, or four,
- * up to three pages may be held during the wait, only to be released
- * afterwards.  This conservative approach is easily argued to avoid
- * race conditions.
- *
  * The ptepindexes, i.e. page indices, of the page table pages encountered
  * while translating virtual address va are defined as follows:
  * - for the page table page (last level),
@@ -4395,11 +4387,11 @@ pmap_allocpte_getpdp(pmap_t pmap, struct rwlock **lockp, vm_offset_t va,
  * regardless of the actual mode of operation.
  *
  * The root page at PML4/PML5 does not participate in this indexing scheme,
- * since it is statically allocated by pmap_pinit() and not by _pmap_allocpte().
+ * since it is statically allocated by pmap_pinit() and not by pmap_allocpte().
  */
 static vm_page_t
-_pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp,
-    vm_offset_t va __unused)
+pmap_allocpte_nosleep(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp,
+    vm_offset_t va)
 {
 	vm_pindex_t pml5index, pml4index;
 	pml5_entry_t *pml5, *pml5u;
@@ -4420,21 +4412,8 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp,
 	 * Allocate a page table page.
 	 */
 	if ((m = vm_page_alloc(NULL, ptepindex, VM_ALLOC_NOOBJ |
-	    VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL) {
-		if (lockp != NULL) {
-			RELEASE_PV_LIST_LOCK(lockp);
-			PMAP_UNLOCK(pmap);
-			PMAP_ASSERT_NOT_IN_DI();
-			vm_wait(NULL);
-			PMAP_LOCK(pmap);
-		}
-
-		/*
-		 * Indicate the need to retry.  While waiting, the page table
-		 * page may have been allocated.
-		 */
+	    VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL)
 		return (NULL);
-	}
 	if ((m->flags & PG_ZERO) == 0)
 		pmap_zero_page(m);
 
@@ -4509,8 +4488,8 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp,
 		}
 		if ((*pdp & PG_V) == 0) {
 			/* Have to allocate a new pd, recurse */
-			if (_pmap_allocpte(pmap, pmap_pdpe_pindex(va),
-			    lockp, va) == NULL) {
+		  if (pmap_allocpte_nosleep(pmap, pmap_pdpe_pindex(va),
+		      lockp, va) == NULL) {
 				pmap_allocpte_free_unref(pmap, va,
 				    pmap_pml4e(pmap, va));
 				vm_page_unwire_noq(m);
@@ -4532,7 +4511,32 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp,
 	}
 
 	pmap_resident_count_inc(pmap, 1);
+	return (m);
+}
 
+/*
+ * This routine is called if the desired page table page does not exist.
+ *
+ * If page table page allocation fails, this routine may sleep before
+ * returning NULL.  It sleeps only if a lock pointer was given.  Sleep
+ * occurs right before returning to the caller. This way, we never
+ * drop pmap lock to sleep while a page table page has ref_count == 0,
+ * which prevents the page from being freed under us.
+ */
+static vm_page_t
+pmap_allocpte_alloc(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp,
+    vm_offset_t va)
+{
+	vm_page_t m;
+
+	m = pmap_allocpte_nosleep(pmap, ptepindex, lockp, va);
+	if (m == NULL && lockp != NULL) {
+		RELEASE_PV_LIST_LOCK(lockp);
+		PMAP_UNLOCK(pmap);
+		PMAP_ASSERT_NOT_IN_DI();
+		vm_wait(NULL);
+		PMAP_LOCK(pmap);
+	}
 	return (m);
 }
 
@@ -4560,7 +4564,7 @@ retry:
 	} else if (va < VM_MAXUSER_ADDRESS) {
 		/* Allocate a pd page. */
 		pdpindex = pmap_pde_pindex(va) >> NPDPEPGSHIFT;
-		pdpg = _pmap_allocpte(pmap, NUPDE + pdpindex, lockp, va);
+		pdpg = pmap_allocpte_alloc(pmap, NUPDE + pdpindex, lockp, va);
 		if (pdpg == NULL) {
 			if (lockp != NULL)
 				goto retry;
@@ -4621,7 +4625,7 @@ retry:
 		 * Here if the pte page isn't mapped, or if it has been
 		 * deallocated.
 		 */
-		m = _pmap_allocpte(pmap, ptepindex, lockp, va);
+		m = pmap_allocpte_alloc(pmap, ptepindex, lockp, va);
 		if (m == NULL && lockp != NULL)
 			goto retry;
 	}
@@ -6640,7 +6644,7 @@ restart:
 	if (psind == 2) {	/* 1G */
 		pml4e = pmap_pml4e(pmap, va);
 		if (pml4e == NULL || (*pml4e & PG_V) == 0) {
-			mp = _pmap_allocpte(pmap, pmap_pml4e_pindex(va),
+			mp = pmap_allocpte_alloc(pmap, pmap_pml4e_pindex(va),
 			    NULL, va);
 			if (mp == NULL)
 				goto allocf;
@@ -6661,7 +6665,7 @@ restart:
 	} else /* (psind == 1) */ {	/* 2M */
 		pde = pmap_pde(pmap, va);
 		if (pde == NULL) {
-			mp = _pmap_allocpte(pmap, pmap_pdpe_pindex(va),
+			mp = pmap_allocpte_alloc(pmap, pmap_pdpe_pindex(va),
 			    NULL, va);
 			if (mp == NULL)
 				goto allocf;
@@ -6816,7 +6820,7 @@ retry:
 		 * deallocated.
 		 */
 		nosleep = (flags & PMAP_ENTER_NOSLEEP) != 0;
-		mpte = _pmap_allocpte(pmap, pmap_pde_pindex(va),
+		mpte = pmap_allocpte_alloc(pmap, pmap_pde_pindex(va),
 		    nosleep ? NULL : &lock, va);
 		if (mpte == NULL && nosleep) {
 			rv = KERN_RESOURCE_SHORTAGE;
@@ -7300,8 +7304,8 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 				 * Pass NULL instead of the PV list lock
 				 * pointer, because we don't intend to sleep.
 				 */
-				mpte = _pmap_allocpte(pmap, ptepindex, NULL,
-				    va);
+				mpte = pmap_allocpte_alloc(pmap, ptepindex,
+				    NULL, va);
 				if (mpte == NULL)
 					return (mpte);
 			}
@@ -7629,7 +7633,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			srcptepaddr = *pdpe;
 			pdpe = pmap_pdpe(dst_pmap, addr);
 			if (pdpe == NULL) {
-				if (_pmap_allocpte(dst_pmap,
+				if (pmap_allocpte_alloc(dst_pmap,
 				    pmap_pml4e_pindex(addr), NULL, addr) ==
 				    NULL)
 					break;
@@ -9490,6 +9494,8 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 	pa = 0;
 	val = 0;
 	pdpe = pmap_pdpe(pmap, addr);
+	if (pdpe == NULL)
+		goto out;
 	if ((*pdpe & PG_V) != 0) {
 		if ((*pdpe & PG_PS) != 0) {
 			pte = *pdpe;
@@ -9525,6 +9531,7 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 	    (pte & (PG_MANAGED | PG_V)) == (PG_MANAGED | PG_V)) {
 		*pap = pa;
 	}
+out:
 	PMAP_UNLOCK(pmap);
 	return (val);
 }
