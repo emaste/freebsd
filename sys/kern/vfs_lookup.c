@@ -76,7 +76,8 @@ __FBSDID("$FreeBSD$");
 SDT_PROVIDER_DEFINE(vfs);
 SDT_PROBE_DEFINE4(vfs, namei, lookup, entry, "struct vnode *", "char *",
     "unsigned long", "bool");
-SDT_PROBE_DEFINE3(vfs, namei, lookup, return, "int", "struct vnode *", "bool");
+SDT_PROBE_DEFINE4(vfs, namei, lookup, return, "int", "struct vnode *", "bool",
+    "struct nameidata");
 
 /* Allocation zone for namei. */
 uma_zone_t namei_zone;
@@ -643,6 +644,8 @@ namei(struct nameidata *ndp)
 		 * If not a symbolic link, we're done.
 		 */
 		if ((cnp->cn_flags & ISSYMLINK) == 0) {
+			SDT_PROBE4(vfs, namei, lookup, return, error,
+			    (error == 0 ? ndp->ni_vp : NULL), false, ndp);
 			if ((cnp->cn_flags & (SAVENAME | SAVESTART)) == 0) {
 				namei_cleanup_cnp(cnp);
 			} else
@@ -653,8 +656,6 @@ namei(struct nameidata *ndp)
 				error = ENOTCAPABLE;
 			}
 			nameicap_cleanup(ndp, true);
-			SDT_PROBE3(vfs, namei, lookup, return, error,
-			    (error == 0 ? ndp->ni_vp : NULL), false);
 			pwd_drop(pwd);
 			if (error == 0)
 				NDVALIDATE(ndp);
@@ -729,9 +730,9 @@ namei(struct nameidata *ndp)
 	vrele(ndp->ni_dvp);
 out:
 	MPASS(error != 0);
+	SDT_PROBE4(vfs, namei, lookup, return, error, NULL, false, ndp);
 	namei_cleanup_cnp(cnp);
 	nameicap_cleanup(ndp, true);
-	SDT_PROBE3(vfs, namei, lookup, return, error, NULL, false);
 	pwd_drop(pwd);
 	return (error);
 }
@@ -1486,6 +1487,33 @@ NDFREE_PNBUF(struct nameidata *ndp)
 		ndp->ni_cnd.cn_flags &= ~HASBUF;
 	}
 }
+
+/*
+ * NDFREE_PNBUF replacement for callers that know there is no buffer.
+ *
+ * This is a hack. Preferably the VFS layer would not produce anything more
+ * than it was asked to do. Unfortunately several non-LOOKUP cases can add the
+ * HASBUF flag to the result. Even then an interface could be implemented where
+ * the caller specifies what they expected to see in the result and what they
+ * are going to take care of.
+ *
+ * In the meantime provide this kludge as a trivial replacement for NDFREE_PNBUF
+ * calls scattered throughout the kernel where we know for a fact the flag must not
+ * be seen.
+ */
+#ifdef INVARIANTS
+void
+NDFREE_NOTHING(struct nameidata *ndp)
+{
+	struct componentname *cnp;
+
+	cnp = &ndp->ni_cnd;
+	KASSERT(cnp->cn_nameiop == LOOKUP, ("%s: got non-LOOKUP op %d\n",
+	    __func__, cnp->cn_nameiop));
+	KASSERT((cnp->cn_flags & (SAVENAME | HASBUF)) == 0,
+	    ("%s: bad flags \%" PRIx64 "\n", __func__, cnp->cn_flags));
+}
+#endif
 
 void
 (NDFREE)(struct nameidata *ndp, const u_int flags)

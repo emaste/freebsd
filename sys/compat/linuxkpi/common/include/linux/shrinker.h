@@ -1,9 +1,6 @@
 /*-
- * Copyright (c) 2013 The FreeBSD Foundation
- * All rights reserved.
+ * Copyright (c) 2020 Emmanuel Vadot <manu@FreeBSD.org>
  *
- * This software was developed by Benno Rice under sponsorship from
- * the FreeBSD Foundation.
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -28,11 +25,32 @@
  * $FreeBSD$
  */
 
-#include <gfx_fb.h>
+#ifndef __LINUX_SHRINKER_H__
+#define	__LINUX_SHRINKER_H__
 
-#ifndef	_EFIFB_H_
-#define	_EFIFB_H_
+#include <sys/queue.h>
 
-int	efi_find_framebuffer(teken_gfx_t *gfx_state);
+struct shrink_control {
+	unsigned long	nr_to_scan;
+	unsigned long	nr_scanned;
+};
 
-#endif /* _EFIFB_H_ */
+struct shrinker {
+	unsigned long		(*count_objects)(struct shrinker *, struct shrink_control *);
+	unsigned long		(*scan_objects)(struct shrinker *, struct shrink_control *);
+	int			seeks;
+	long			batch;
+	TAILQ_ENTRY(shrinker)	next;
+};
+
+#define	SHRINK_STOP	(~0UL)
+
+#define	DEFAULT_SEEKS	2
+
+int	linuxkpi_register_shrinker(struct shrinker *s);
+void	linuxkpi_unregister_shrinker(struct shrinker *s);
+
+#define	register_shrinker(s)	linuxkpi_register_shrinker(s)
+#define	unregister_shrinker(s)	linuxkpi_unregister_shrinker(s)
+
+#endif	/* __LINUX_SHRINKER_H__ */
