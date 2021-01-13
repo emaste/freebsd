@@ -2752,7 +2752,7 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	if ((flags & (VM_MAP_PROTECT_SET_PROT | VM_MAP_PROTECT_SET_MAXPROT)) ==
 	    (VM_MAP_PROTECT_SET_PROT | VM_MAP_PROTECT_SET_MAXPROT) &&
 	    (new_prot & new_maxprot) != new_prot)
-		return (KERN_INVALID_ARGUMENT);
+		return (KERN_OUT_OF_BOUNDS);
 
 again:
 	in_tran = NULL;

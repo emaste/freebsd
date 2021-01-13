@@ -686,7 +686,7 @@ kern_mprotect(struct thread *td, uintptr_t addr0, size_t size, int prot)
 		return (EACCES);
 	case KERN_RESOURCE_SHORTAGE:
 		return (ENOMEM);
-	case KERN_INVALID_ARGUMENT:
+	case KERN_OUT_OF_BOUNDS:
 		return (ENOTSUP);
 	}
 	return (EINVAL);
