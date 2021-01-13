@@ -107,6 +107,7 @@ SUBDIR=	\
 	${_dpms} \
 	drm-kmod \
 	dummynet \
+	${_dwwdt} \
 	${_efirt} \
 	${_em} \
 	${_ena} \
@@ -611,6 +612,7 @@ _cxgb=		cxgb
 .if ${MACHINE_CPUARCH} == "aarch64"
 _allwinner=	allwinner
 _armv8crypto=	armv8crypto
+_dwwdt=		dwwdt
 _em=		em
 _rockchip=	rockchip
 .endif

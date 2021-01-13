@@ -1979,13 +1979,14 @@ falloc_caps(struct thread *td, struct file **resultfp, int *resultfd, int flags,
 	MPASS(resultfp != NULL);
 	MPASS(resultfd != NULL);
 
-	error = falloc_noinstall(td, &fp);
-	if (error)
-		return (error);		/* no reference held on error */
+	error = _falloc_noinstall(td, &fp, 2);
+	if (__predict_false(error != 0)) {
+		return (error);
+	}
 
-	error = finstall(td, fp, &fd, flags, fcaps);
-	if (error) {
-		fdrop(fp, td);		/* one reference (fp only) */
+	error = finstall_refed(td, fp, &fd, flags, fcaps);
+	if (__predict_false(error != 0)) {
+		falloc_abort(td, fp);
 		return (error);
 	}
 
@@ -1999,7 +2000,7 @@ falloc_caps(struct thread *td, struct file **resultfp, int *resultfd, int flags,
  * Create a new open file structure without allocating a file descriptor.
  */
 int
-falloc_noinstall(struct thread *td, struct file **resultfp)
+_falloc_noinstall(struct thread *td, struct file **resultfp, u_int n)
 {
 	struct file *fp;
 	int maxuserfiles = maxfiles - (maxfiles / 20);
@@ -2008,6 +2009,7 @@ falloc_noinstall(struct thread *td, struct file **resultfp)
 	static int curfail;
 
 	KASSERT(resultfp != NULL, ("%s: resultfp == NULL", __func__));
+	MPASS(n > 0);
 
 	openfiles_new = atomic_fetchadd_int(&openfiles, 1) + 1;
 	if ((openfiles_new >= maxuserfiles &&
@@ -2022,11 +2024,22 @@ falloc_noinstall(struct thread *td, struct file **resultfp)
 	}
 	fp = uma_zalloc(file_zone, M_WAITOK);
 	bzero(fp, sizeof(*fp));
-	refcount_init(&fp->f_count, 1);
+	refcount_init(&fp->f_count, n);
 	fp->f_cred = crhold(td->td_ucred);
 	fp->f_ops = &badfileops;
 	*resultfp = fp;
 	return (0);
+}
+
+void
+falloc_abort(struct thread *td, struct file *fp)
+{
+
+	/*
+	 * For assertion purposes.
+	 */
+	refcount_init(&fp->f_count, 0);
+	_fdrop(fp, td);
 }
 
 /*
@@ -2059,7 +2072,7 @@ _finstall(struct filedesc *fdp, struct file *fp, int fd, int flags,
 }
 
 int
-finstall(struct thread *td, struct file *fp, int *fd, int flags,
+finstall_refed(struct thread *td, struct file *fp, int *fd, int flags,
     struct filecaps *fcaps)
 {
 	struct filedesc *fdp = td->td_proc->p_fd;
@@ -2067,18 +2080,30 @@ finstall(struct thread *td, struct file *fp, int *fd, int flags,
 
 	MPASS(fd != NULL);
 
-	if (!fhold(fp))
-		return (EBADF);
 	FILEDESC_XLOCK(fdp);
 	error = fdalloc(td, 0, fd);
-	if (__predict_false(error != 0)) {
-		FILEDESC_XUNLOCK(fdp);
-		fdrop(fp, td);
-		return (error);
+	if (__predict_true(error == 0)) {
+		_finstall(fdp, fp, *fd, flags, fcaps);
 	}
-	_finstall(fdp, fp, *fd, flags, fcaps);
 	FILEDESC_XUNLOCK(fdp);
-	return (0);
+	return (error);
+}
+
+int
+finstall(struct thread *td, struct file *fp, int *fd, int flags,
+    struct filecaps *fcaps)
+{
+	int error;
+
+	MPASS(fd != NULL);
+
+	if (!fhold(fp))
+		return (EBADF);
+	error = finstall_refed(td, fp, fd, flags, fcaps);
+	if (__predict_false(error != 0)) {
+		fdrop(fp, td);
+	}
+	return (error);
 }
 
 /*
@@ -2737,6 +2762,8 @@ closef(struct file *fp, struct thread *td)
 	struct filedesc_to_leader *fdtol;
 	struct filedesc *fdp;
 
+	MPASS(td != NULL);
+
 	/*
 	 * POSIX record locking dictates that any close releases ALL
 	 * locks owned by this process.  This is handled by setting
@@ -2749,7 +2776,7 @@ closef(struct file *fp, struct thread *td)
 	 * context that might have locks, or the locks will be
 	 * leaked.
 	 */
-	if (fp->f_type == DTYPE_VNODE && td != NULL) {
+	if (fp->f_type == DTYPE_VNODE) {
 		vp = fp->f_vnode;
 		if ((td->td_proc->p_leader->p_flag & P_ADVLOCK) != 0) {
 			lf.l_whence = SEEK_SET;
@@ -2795,6 +2822,16 @@ closef(struct file *fp, struct thread *td)
 		}
 	}
 	return (fdrop_close(fp, td));
+}
+
+/*
+ * Hack for file descriptor passing code.
+ */
+void
+closef_nothread(struct file *fp)
+{
+
+	fdrop(fp, NULL);
 }
 
 /*
