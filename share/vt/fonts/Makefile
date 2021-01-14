@@ -4,7 +4,8 @@ PACKAGE=	vt-data
 
 .PATH:	${SRCTOP}/contrib/spleen
 
-FONTS=	gallant.fnt \
+FONTS=	comic-8x14.fnt \
+	gallant.fnt \
 	spleen-5x8.fnt \
 	spleen-8x16.fnt \
 	spleen-12x24.fnt \
