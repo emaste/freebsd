@@ -25,6 +25,8 @@ MENU:da:Vælg skrifttypen til din terminal
 MENU:de:Wählen Sie Ihre Schrift
 MENU:fr:Choisissez votre fonte écran
 
+comic-8x14.fnt:en:Comic Sans, 8x14
+
 gallant.fnt:en:Gallant Character set, 12x22
 gallant.fnt:da:Gallant-tegnsæt, 12x22
 gallant.fnt:de:Gallant Zeichensatz, 12x22
