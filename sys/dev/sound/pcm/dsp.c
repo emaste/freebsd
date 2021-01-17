@@ -2704,13 +2704,11 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai)
 			fmts = 0;
 			for (i = 0; caps->fmtlist[i]; i++) {
 				fmts |= caps->fmtlist[i];
-				if (AFMT_CHANNEL(caps->fmtlist[i]) > 1) {
-					minch = (minch == 0) ? 2 : minch;
-					maxch = 2;
-				} else {
-					minch = 1;
-					maxch = (maxch == 0) ? 1 : maxch;
-				}
+				if (AFMT_CHANNEL(caps->fmtlist[i]) > maxch)
+					maxch = AFMT_CHANNEL(caps->fmtlist[i]);
+				if (AFMT_CHANNEL(caps->fmtlist[i]) < minch ||
+				    minch == 0)
+					minch = AFMT_CHANNEL(caps->fmtlist[i]);
 			}
 
 			if (ch->direction == PCMDIR_PLAY)
