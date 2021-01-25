@@ -122,6 +122,7 @@ SDT_PROBE_DEFINE2(vfs, namecache, zap_negative, done, "struct vnode *",
     "char *");
 SDT_PROBE_DEFINE2(vfs, namecache, evict_negative, done, "struct vnode *",
     "char *");
+SDT_PROBE_DEFINE1(vfs, namecache, symlink, alloc__fail, "size_t");
 
 SDT_PROBE_DEFINE3(vfs, fplookup, lookup, done, "struct nameidata", "int", "bool");
 SDT_PROBE_DECLARE(vfs, namei, lookup, entry);
@@ -477,6 +478,7 @@ STATNODE_COUNTER(fullpathfail2, numfullpathfail2,
     "Number of fullpath search errors (VOP_VPTOCNP failures)");
 STATNODE_COUNTER(fullpathfail4, numfullpathfail4, "Number of fullpath search errors (ENOMEM)");
 STATNODE_COUNTER(fullpathfound, numfullpathfound, "Number of successful fullpath calls");
+STATNODE_COUNTER(symlinktoobig, symlinktoobig, "Number of times symlink did not fit the cache");
 
 /*
  * Debug or developer statistics.
@@ -576,6 +578,8 @@ cache_symlink_alloc(size_t size, int flags)
 	if (size < CACHE_ZONE_LARGE_SIZE) {
 		return (uma_zalloc_smr(cache_zone_large, flags));
 	}
+	counter_u64_add(symlinktoobig, 1);
+	SDT_PROBE1(vfs, namecache, symlink, alloc__fail, size);
 	return (NULL);
 }
 
@@ -584,6 +588,8 @@ cache_symlink_free(char *string, size_t size)
 {
 
 	MPASS(string != NULL);
+	KASSERT(size < CACHE_ZONE_LARGE_SIZE,
+	    ("%s: size %zu too big", __func__, size));
 
 	if (size < CACHE_ZONE_SMALL_SIZE) {
 		uma_zfree_smr(cache_zone_small, string);
@@ -5073,20 +5079,6 @@ cache_fplookup_is_mp(struct cache_fpl *fpl)
  */
 #ifdef INVARIANTS
 static void
-cache_fpl_pathlen_dec(struct cache_fpl *fpl)
-{
-
-	cache_fpl_pathlen_sub(fpl, 1);
-}
-
-static void
-cache_fpl_pathlen_inc(struct cache_fpl *fpl)
-{
-
-	cache_fpl_pathlen_add(fpl, 1);
-}
-
-static void
 cache_fpl_pathlen_add(struct cache_fpl *fpl, size_t n)
 {
 
@@ -5103,17 +5095,21 @@ cache_fpl_pathlen_sub(struct cache_fpl *fpl, size_t n)
 	KASSERT(fpl->debug.ni_pathlen <= PATH_MAX,
 	    ("%s: pathlen underflow to %zd\n", __func__, fpl->debug.ni_pathlen));
 }
-#else
-static void __always_inline
-cache_fpl_pathlen_dec(struct cache_fpl *fpl)
-{
-}
 
-static void __always_inline
+static void
 cache_fpl_pathlen_inc(struct cache_fpl *fpl)
 {
+
+	cache_fpl_pathlen_add(fpl, 1);
 }
 
+static void
+cache_fpl_pathlen_dec(struct cache_fpl *fpl)
+{
+
+	cache_fpl_pathlen_sub(fpl, 1);
+}
+#else
 static void
 cache_fpl_pathlen_add(struct cache_fpl *fpl, size_t n)
 {
@@ -5121,6 +5117,16 @@ cache_fpl_pathlen_add(struct cache_fpl *fpl, size_t n)
 
 static void
 cache_fpl_pathlen_sub(struct cache_fpl *fpl, size_t n)
+{
+}
+
+static void
+cache_fpl_pathlen_inc(struct cache_fpl *fpl)
+{
+}
+
+static void
+cache_fpl_pathlen_dec(struct cache_fpl *fpl)
 {
 }
 #endif
@@ -5252,7 +5258,7 @@ cache_fplookup_parse_advance(struct cache_fpl *fpl)
  *
  * Lockless lookup tries to elide checking for spurious slashes and should they
  * be present is guaranteed to fail to find an entry. In this case the caller
- * must check if the name starts with a slash and this call routine.  It is
+ * must check if the name starts with a slash and call this routine.  It is
  * going to fast forward across the spurious slashes and set the state up for
  * retry.
  */
@@ -5336,11 +5342,13 @@ cache_fplookup_failed_vexec(struct cache_fpl *fpl, int error)
 	 * Hack: handle O_SEARCH.
 	 *
 	 * Open Group Base Specifications Issue 7, 2018 edition states:
+	 * <quote>
 	 * If the access mode of the open file description associated with the
 	 * file descriptor is not O_SEARCH, the function shall check whether
 	 * directory searches are permitted using the current permissions of
 	 * the directory underlying the file descriptor. If the access mode is
 	 * O_SEARCH, the function shall not perform the check.
+	 * </quote>
 	 *
 	 * Regular lookup tests for the NOEXECCHECK flag for every path
 	 * component to decide whether to do the permission check. However,
