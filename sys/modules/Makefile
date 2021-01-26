@@ -158,7 +158,6 @@ SUBDIR=	\
 	${_if_me} \
 	if_infiniband \
 	if_lagg \
-	${_if_ndis} \
 	${_if_stf} \
 	if_tuntap \
 	if_vlan \
@@ -261,7 +260,6 @@ SUBDIR=	\
 	mxge \
 	my \
 	${_nctgpio} \
-	${_ndis} \
 	${_netgraph} \
 	${_nfe} \
 	nfscl \
@@ -633,7 +631,6 @@ _em=		em
 _et=		et
 _ftwd=		ftwd
 _exca=		exca
-_if_ndis=	if_ndis
 _io=		io
 _itwd=		itwd
 _ix=		ix
@@ -643,7 +640,6 @@ _lio=		lio
 .endif
 _mgb=		mgb
 _nctgpio=	nctgpio
-_ndis=		ndis
 _ntb=		ntb
 _ocs_fc=	ocs_fc
 _pccard=	pccard
