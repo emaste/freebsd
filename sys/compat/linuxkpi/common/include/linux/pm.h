@@ -1,9 +1,10 @@
-/*
- * Copyright (C) 2016 Cavium Inc.
- * All rights reserved.
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * Developed by Semihalf.
- * Based on work by Nathan Whitehorn.
+ * Copyright (c) 2020 The FreeBSD Foundation
+ *
+ * This software was developed by Björn Zeeb under sponsorship from
+ * the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,72 +30,23 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
-#include <string.h>
+#ifndef	_LINUXKPI_LINUX_PM_H
+#define	_LINUXKPI_LINUX_PM_H
 
-#include "partedit.h"
-
-/* EFI partition size in bytes */
-#define	EFI_BOOTPART_SIZE	(260 * 1024 * 1024)
-
-const char *
-default_scheme(void)
-{
-
-	return ("GPT");
+#ifdef CONFIG_PM_SLEEP
+#define	SIMPLE_DEV_PM_OPS(_name, _suspendfunc, _resumefunc)	\
+const struct dev_pm_ops _name = {				\
+        .suspend	= _suspendfunc,				\
+        .resume		= _resumefunc,				\
+        .freeze		= _suspendfunc,				\
+        .thaw		= _resumefunc,				\
+        .poweroff	= _suspendfunc,				\
+        .restore	= _resumefunc,				\
 }
-
-int
-is_scheme_bootable(const char *part_type)
-{
-
-	if (strcmp(part_type, "GPT") == 0)
-		return (1);
-
-	return (0);
+#else
+#define	SIMPLE_DEV_PM_OPS(_name, _suspendfunc, _resumefunc)	\
+const struct dev_pm_ops _name = {				\
 }
+#endif
 
-int
-is_fs_bootable(const char *part_type, const char *fs)
-{
-
-	if (strcmp(fs, "freebsd-ufs") == 0)
-		return (1);
-
-	return (0);
-}
-
-size_t
-bootpart_size(const char *scheme)
-{
-
-	/* We only support GPT with EFI */
-	if (strcmp(scheme, "GPT") != 0)
-		return (0);
-
-	return (EFI_BOOTPART_SIZE);
-}
-
-const char *
-bootpart_type(const char *scheme, const char **mountpoint)
-{
-
-	/* Only EFI is supported as boot partition */
-	return ("efi");
-}
-
-const char *
-bootcode_path(const char *part_type)
-{
-
-	return (NULL);
-}
-
-const char *
-partcode_path(const char *part_type, const char *fs_type)
-{
-
-	/* No boot partition data for ARM64 */
-	return (NULL);
-}
-
+#endif	/* _LINUXKPI_LINUX_PM_H */

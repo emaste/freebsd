@@ -256,7 +256,7 @@ if [ -n "$git_cmd" ] ; then
 		git_cnt=$(
 		    $git_cmd rev-list --first-parent --count HEAD 2>/dev/null)
 		if [ -n "$git_cnt" ] ; then
-			git="v${git_cnt}-${git}"
+			git="n${git_cnt}-${git}"
 		fi
 	fi
 	git_b=$($git_cmd rev-parse --abbrev-ref HEAD)

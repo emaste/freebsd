@@ -224,6 +224,8 @@ SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomtime,
 	"allocation before switching to a random one");
 
 #ifdef RATELIMIT
+counter_u64_t rate_limit_new;
+counter_u64_t rate_limit_chg;
 counter_u64_t rate_limit_active;
 counter_u64_t rate_limit_alloc_fail;
 counter_u64_t rate_limit_set_ok;
@@ -236,6 +238,11 @@ SYSCTL_COUNTER_U64(_net_inet_ip_rl, OID_AUTO, alloc_fail, CTLFLAG_RD,
    &rate_limit_alloc_fail, "Rate limited connection failures");
 SYSCTL_COUNTER_U64(_net_inet_ip_rl, OID_AUTO, set_ok, CTLFLAG_RD,
    &rate_limit_set_ok, "Rate limited setting succeeded");
+SYSCTL_COUNTER_U64(_net_inet_ip_rl, OID_AUTO, newrl, CTLFLAG_RD,
+   &rate_limit_new, "Total Rate limit new attempts");
+SYSCTL_COUNTER_U64(_net_inet_ip_rl, OID_AUTO, chgrl, CTLFLAG_RD,
+   &rate_limit_chg, "Total Rate limited change attempts");
+
 #endif /* RATELIMIT */
 
 #endif /* INET */
@@ -3399,7 +3406,12 @@ in_pcbattach_txrtlmt(struct inpcb *inp, struct ifnet *ifp,
 
 	INP_WLOCK_ASSERT(inp);
 
-	if (*st != NULL)
+	/*
+	 * If there is already a send tag, or the INP is being torn
+	 * down, allocating a new send tag is not allowed. Else send
+	 * tags may leak.
+	 */
+	if (*st != NULL || (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) != 0)
 		return (EINVAL);
 
 	error = m_snd_tag_alloc(ifp, &params, st);
@@ -3441,6 +3453,9 @@ in_pcbdetach_txrtlmt(struct inpcb *inp)
 		return;
 
 	m_snd_tag_rele(mst);
+#ifdef INET
+	counter_u64_add(rate_limit_active, -1);
+#endif
 }
 
 int
@@ -3583,6 +3598,8 @@ in_pcboutput_eagain(struct inpcb *inp)
 static void
 rl_init(void *st)
 {
+	rate_limit_new = counter_u64_alloc(M_WAITOK);
+	rate_limit_chg = counter_u64_alloc(M_WAITOK);
 	rate_limit_active = counter_u64_alloc(M_WAITOK);
 	rate_limit_alloc_fail = counter_u64_alloc(M_WAITOK);
 	rate_limit_set_ok = counter_u64_alloc(M_WAITOK);

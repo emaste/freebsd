@@ -1,5 +1,10 @@
-/*
- * Copyright (c) 2015 Hiroki Mori
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2020 The FreeBSD Foundation
+ *
+ * This software was developed by Björn Zeeb under sponsorship from
+ * the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -13,7 +18,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -22,71 +27,52 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Buffalo WZR2-G300N Device Tree Source.
- *
  * $FreeBSD$
  */
 
-/dts-v1/;
+#ifndef	_ASM_UNALIGNED_H
+#define	_ASM_UNALIGNED_H
 
-#include "rt1310a.dtsi"
+#include <linux/types.h>
+#include <asm/byteorder.h>
 
-/ {
-	compatible = "WZR2-G300N", "ralink,rt1310a-soc";
-	model = "WZR2-G300N";
+static __inline uint32_t
+get_unaligned_le32(const void *p)
+{
 
-	flash@1f000000 {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "cfi-flash";
-		reg = <0x1f000000 0x400000>;		// 4M at 0x1f000000
+	return (le32_to_cpup((const __le32 *)p));
+}
 
-		partition@0 {
-			reg = <0x00000000 0x0000e000>;
-			label = "uboot";
-		};
-		partition@1 {
-			reg = <0x0000e000 0x00002000>;
-			label = "uboot_env";
-		};
-		partition@2 {
-			reg = <0x00010000 0x000f0000>;
-			label = "kernel";
-		};
-		partition@3 {
-			reg = <0x00100000 0x002d0000>;
-			label = "rootfs";
-		};
-		partition@4 {
-			reg = <0x003d0000 0x00010000>;
-			label = "config";
-		};
-		partition@5 {
-			reg = <0x00010000 0x003c0000>;
-			label = "upgrade";
-		};
-	};
+static __inline void
+put_unaligned_le32(__le32 v, void *p)
+{
+	__le32 x;
 
-	gpio-leds {
-		compatible = "gpio-leds";
+	x = cpu_to_le32(v);
+	memcpy(p, &x, sizeof(x));
+}
 
-		status {
-			label = "status";
-			gpios = <&gpio0 4 0>;
-		};
-	};
+static __inline void
+put_unaligned_le64(__le64 v, void *p)
+{
+	__le64 x;
 
-	ip17x@0 {
-		compatible = "icplus,ip17x";
-		mii-poll = <0>;
-	};
+	x = cpu_to_le64(v);
+	memcpy(p, &x, sizeof(x));
+}
 
-};
+static __inline uint16_t
+get_unaligned_be16(const void *p)
+{
 
-&enet0 {
-	local-mac-address = [ 00 1a f1 01 1f 23 ];
-};
+	return (be16_to_cpup((const __be16 *)p));
+}
 
-&enet1 {
-	local-mac-address = [ 00 1a f1 01 1f 24 ];
-};
+static __inline uint32_t
+get_unaligned_be32(const void *p)
+{
+
+	return (be32_to_cpup((const __be32 *)p));
+}
+
+#endif	/* _ASM_UNALIGNED_H */
