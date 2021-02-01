@@ -1015,25 +1015,23 @@ dirloop:
 	}
 
 	/*
-	 * Handle "..": five special cases.
-	 * 0. If doing a capability lookup and lookup_cap_dotdot is
-	 *    disabled, return ENOTCAPABLE.
-	 * 1. Return an error if this is the last component of
-	 *    the name and the operation is DELETE or RENAME.
-	 * 2. If at root directory (e.g. after chroot)
-	 *    or at absolute root directory
-	 *    then ignore it so can't get out.
-	 * 3. If this vnode is the root of a mounted
-	 *    filesystem, then replace it with the
-	 *    vnode which was mounted on so we take the
-	 *    .. in the other filesystem.
-	 * 4. If the vnode is the top directory of
-	 *    the jail or chroot, don't let them out.
-	 * 5. If doing a capability lookup and lookup_cap_dotdot is
-	 *    enabled, return ENOTCAPABLE if the lookup would escape
-	 *    from the initial file descriptor directory.  Checks are
-	 *    done by ensuring that namei() already traversed the
-	 *    result of dotdot lookup.
+	 * Handle "..": six special cases.
+	 * 1. If doing a capability lookup and lookup_cap_dotdot is disabled,
+	 *    or NI_LCF_STRICTRELATIVE and not NI_LCF_CAP_DOTDOT is set, return
+	 *    ENOTCAPABLE.
+	 * 2. Return an error if this is the last component of the name and the
+	 *    operation is DELETE or RENAME.
+	 * 3. If at root directory (e.g. after chroot) or at absolute root
+	 *    directory then ignore it so can't get out.
+	 * 4. If this vnode is the root of a mounted filesystem, then replace
+	 *    it with the vnode which was mounted on so we take the .. in the
+	 *    other filesystem.
+	 * 5. If the vnode is the top directory of the jail or chroot, don't
+	 *    let them out.
+	 * 6. If doing a capability lookup and lookup_cap_dotdot is enabled,
+	 *    return ENOTCAPABLE if the lookup would escape from the initial
+	 *    file descriptor directory.  Checks are done by ensuring that
+	 *    namei() already traversed the result of dotdot lookup.
 	 */
 	if (cnp->cn_flags & ISDOTDOT) {
 		if ((ndp->ni_lcf & (NI_LCF_STRICTRELATIVE | NI_LCF_CAP_DOTDOT))
