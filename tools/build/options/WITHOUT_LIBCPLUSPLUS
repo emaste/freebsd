@@ -1,2 +1,0 @@
-.\" $FreeBSD$
-Avoid building libcxxrt and libc++.

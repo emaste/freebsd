@@ -722,6 +722,27 @@ cache_get_hash(char *name, u_char len, struct vnode *dvp)
 	return (fnv_32_buf(name, len, dvp->v_nchash));
 }
 
+static uint32_t
+cache_get_hash_iter_start(struct vnode *dvp)
+{
+
+	return (dvp->v_nchash);
+}
+
+static uint32_t
+cache_get_hash_iter(char c, uint32_t hash)
+{
+
+	return (fnv_32_buf(&c, 1, hash));
+}
+
+static uint32_t
+cache_get_hash_iter_finish(uint32_t hash)
+{
+
+	return (hash);
+}
+
 static inline struct nchashhead *
 NCP2BUCKET(struct namecache *ncp)
 {
@@ -3693,11 +3714,11 @@ struct cache_fpl {
 	struct nameidata *ndp;
 	struct componentname *cnp;
 	char *nulchar;
-	struct pwd **pwd;
 	struct vnode *dvp;
 	struct vnode *tvp;
 	seqc_t dvp_seqc;
 	seqc_t tvp_seqc;
+	uint32_t hash;
 	struct nameidata_saved snd;
 	struct nameidata_outer snd_outer;
 	int line;
@@ -3705,6 +3726,7 @@ struct cache_fpl {
 	bool in_smr;
 	bool fsearch;
 	bool savename;
+	struct pwd **pwd;
 #ifdef INVARIANTS
 	struct cache_fpl_debug debug;
 #endif
@@ -3714,7 +3736,7 @@ static bool cache_fplookup_is_mp(struct cache_fpl *fpl);
 static int cache_fplookup_cross_mount(struct cache_fpl *fpl);
 static int cache_fplookup_partial_setup(struct cache_fpl *fpl);
 static int cache_fplookup_skip_slashes(struct cache_fpl *fpl);
-static int cache_fplookup_preparse(struct cache_fpl *fpl);
+static int cache_fplookup_trailingslash(struct cache_fpl *fpl);
 static void cache_fpl_pathlen_dec(struct cache_fpl *fpl);
 static void cache_fpl_pathlen_inc(struct cache_fpl *fpl);
 static void cache_fpl_pathlen_add(struct cache_fpl *fpl, size_t n);
@@ -3972,6 +3994,13 @@ cache_fpl_islastcn(struct nameidata *ndp)
 }
 
 static bool
+cache_fpl_istrailingslash(struct cache_fpl *fpl)
+{
+
+	return (*(fpl->nulchar - 1) == '/');
+}
+
+static bool
 cache_fpl_isdotdot(struct componentname *cnp)
 {
 
@@ -4201,6 +4230,15 @@ cache_fplookup_final_modifying(struct cache_fpl *fpl)
 	if (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)
 		docache = false;
 
+	/*
+	 * Regular lookup nulifies the slash, which we don't do here.
+	 * Don't take chances with filesystem routines seeing it for
+	 * the last entry.
+	 */
+	if (cache_fpl_istrailingslash(fpl)) {
+		return (cache_fpl_partial(fpl));
+	}
+
 	mp = atomic_load_ptr(&dvp->v_mount);
 	if (__predict_false(mp == NULL)) {
 		return (cache_fpl_aborted(fpl));
@@ -4307,11 +4345,22 @@ cache_fplookup_final_modifying(struct cache_fpl *fpl)
 	}
 
 	/*
-	 * Check if the target is either a symlink or a mount point.
-	 * Since we expect this to be the terminal vnode it should
-	 * almost never be true.
+	 * If they want the symlink itself we are fine, but if they want to
+	 * follow it regular lookup has to be engaged.
 	 */
-	if (__predict_false(tvp->v_type == VLNK || cache_fplookup_is_mp(fpl))) {
+	if (tvp->v_type == VLNK) {
+		if ((cnp->cn_flags & FOLLOW) != 0) {
+			vput(dvp);
+			vput(tvp);
+			return (cache_fpl_aborted(fpl));
+		}
+	}
+
+	/*
+	 * Since we expect this to be the terminal vnode it should almost never
+	 * be a mount point.
+	 */
+	if (__predict_false(cache_fplookup_is_mp(fpl))) {
 		vput(dvp);
 		vput(tvp);
 		return (cache_fpl_aborted(fpl));
@@ -4468,12 +4517,23 @@ cache_fplookup_degenerate(struct cache_fpl *fpl)
 	struct vnode *dvp;
 	enum vgetstate dvs;
 	int error, lkflags;
+#ifdef INVARIANTS
+	char *cp;
+#endif
 
 	fpl->tvp = fpl->dvp;
 	fpl->tvp_seqc = fpl->dvp_seqc;
 
 	cnp = fpl->cnp;
 	dvp = fpl->dvp;
+
+#ifdef INVARIANTS
+	for (cp = cnp->cn_pnbuf; *cp != '\0'; cp++) {
+		KASSERT(*cp == '/',
+		    ("%s: encountered non-slash; string [%s]\n", __func__,
+		    cnp->cn_pnbuf));
+	}
+#endif
 
 	if (__predict_false(cnp->cn_nameiop != LOOKUP)) {
 		cache_fpl_smr_exit(fpl);
@@ -4522,7 +4582,6 @@ cache_fplookup_noentry(struct cache_fpl *fpl)
 	dvp = fpl->dvp;
 	dvp_seqc = fpl->dvp_seqc;
 
-	MPASS(*(cnp->cn_nameptr) != '/');
 	MPASS((cnp->cn_flags & MAKEENTRY) == 0);
 	MPASS((cnp->cn_flags & ISDOTDOT) == 0);
 	MPASS(!cache_fpl_isdotdot(cnp));
@@ -4533,6 +4592,17 @@ cache_fplookup_noentry(struct cache_fpl *fpl)
 	if (__predict_false(cnp->cn_namelen > NAME_MAX)) {
 		cache_fpl_smr_exit(fpl);
 		return (cache_fpl_handled_error(fpl, ENAMETOOLONG));
+	}
+
+	if (cnp->cn_nameptr[0] == '/') {
+		return (cache_fplookup_skip_slashes(fpl));
+	}
+
+	if (cnp->cn_nameptr[0] == '\0') {
+		if (fpl->tvp == NULL) {
+			return (cache_fplookup_degenerate(fpl));
+		}
+		return (cache_fplookup_trailingslash(fpl));
 	}
 
 	if (cnp->cn_nameiop != LOOKUP) {
@@ -4548,6 +4618,15 @@ cache_fplookup_noentry(struct cache_fpl *fpl)
 	 * walk may be complicated.
 	 */
 	if (!cache_fpl_islastcn(ndp)) {
+		return (cache_fpl_partial(fpl));
+	}
+
+	/*
+	 * Regular lookup nulifies the slash, which we don't do here.
+	 * Don't take chances with filesystem routines seeing it for
+	 * the last entry.
+	 */
+	if (cache_fpl_istrailingslash(fpl)) {
 		return (cache_fpl_partial(fpl));
 	}
 
@@ -4614,7 +4693,15 @@ cache_fplookup_noentry(struct cache_fpl *fpl)
 		return (cache_fpl_handled(fpl));
 	}
 
-	if (__predict_false(tvp->v_type == VLNK || cache_fplookup_is_mp(fpl))) {
+	if (tvp->v_type == VLNK) {
+		if ((cnp->cn_flags & FOLLOW) != 0) {
+			vput(dvp);
+			vput(tvp);
+			return (cache_fpl_aborted(fpl));
+		}
+	}
+
+	if (__predict_false(cache_fplookup_is_mp(fpl))) {
 		vput(dvp);
 		vput(tvp);
 		return (cache_fpl_aborted(fpl));
@@ -4773,12 +4860,19 @@ cache_symlink_resolve(struct cache_fpl *fpl, const char *string, size_t len)
 {
 	struct nameidata *ndp;
 	struct componentname *cnp;
+	size_t adjust;
 
 	ndp = fpl->ndp;
 	cnp = fpl->cnp;
 
 	if (__predict_false(len == 0)) {
 		return (ENOENT);
+	}
+
+	if (__predict_false(len > MAXPATHLEN - 2)) {
+		if (cache_fpl_istrailingslash(fpl)) {
+			return (EAGAIN);
+		}
 	}
 
 	ndp->ni_pathlen = fpl->nulchar - cnp->cn_nameptr - cnp->cn_namelen + 1;
@@ -4798,18 +4892,25 @@ cache_symlink_resolve(struct cache_fpl *fpl, const char *string, size_t len)
 		return (ELOOP);
 	}
 
+	adjust = len;
 	if (ndp->ni_pathlen > 1) {
 		bcopy(ndp->ni_next, cnp->cn_pnbuf + len, ndp->ni_pathlen);
 	} else {
-		cnp->cn_pnbuf[len] = '\0';
+		if (cache_fpl_istrailingslash(fpl)) {
+			adjust = len + 1;
+			cnp->cn_pnbuf[len] = '/';
+			cnp->cn_pnbuf[len + 1] = '\0';
+		} else {
+			cnp->cn_pnbuf[len] = '\0';
+		}
 	}
 	bcopy(string, cnp->cn_pnbuf, len);
 
-	ndp->ni_pathlen += len;
-	cache_fpl_pathlen_add(fpl, len);
+	ndp->ni_pathlen += adjust;
+	cache_fpl_pathlen_add(fpl, adjust);
 	cnp->cn_nameptr = cnp->cn_pnbuf;
 	fpl->nulchar = &cnp->cn_nameptr[ndp->ni_pathlen - 1];
-
+	fpl->tvp = NULL;
 	return (0);
 }
 
@@ -4869,8 +4970,7 @@ cache_fplookup_symlink(struct cache_fpl *fpl)
 			return (cache_fpl_aborted(fpl));
 		}
 	}
-
-	return (cache_fplookup_preparse(fpl));
+	return (0);
 }
 
 static int
@@ -4885,6 +4985,7 @@ cache_fplookup_next(struct cache_fpl *fpl)
 
 	cnp = fpl->cnp;
 	dvp = fpl->dvp;
+	hash = fpl->hash;
 
 	if (__predict_false(cnp->cn_nameptr[0] == '.')) {
 		if (cnp->cn_namelen == 1) {
@@ -4897,8 +4998,6 @@ cache_fplookup_next(struct cache_fpl *fpl)
 
 	MPASS(!cache_fpl_isdotdot(cnp));
 
-	hash = cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp);
-
 	CK_SLIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
 		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
 		    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen))
@@ -4906,9 +5005,6 @@ cache_fplookup_next(struct cache_fpl *fpl)
 	}
 
 	if (__predict_false(ncp == NULL)) {
-		if (cnp->cn_nameptr[0] == '/') {
-			return (cache_fplookup_skip_slashes(fpl));
-		}
 		return (cache_fplookup_noentry(fpl));
 	}
 
@@ -5154,54 +5250,18 @@ cache_fpl_pathlen_dec(struct cache_fpl *fpl)
 }
 #endif
 
-static int __always_inline
-cache_fplookup_preparse(struct cache_fpl *fpl)
-{
-	struct componentname *cnp;
-
-	cnp = fpl->cnp;
-
-	if (__predict_false(cnp->cn_nameptr[0] == '\0')) {
-		return (cache_fplookup_degenerate(fpl));
-	}
-
-	/*
-	 * By this point the shortest possible pathname is one character + nul
-	 * terminator, hence 2.
-	 */
-	KASSERT(fpl->debug.ni_pathlen >= 2, ("%s: pathlen %zu\n", __func__,
-	    fpl->debug.ni_pathlen));
-	KASSERT(&cnp->cn_nameptr[fpl->debug.ni_pathlen - 2] == fpl->nulchar - 1,
-	    ("%s: mismatch on string (%p != %p) [%s]\n", __func__,
-	    &cnp->cn_nameptr[fpl->debug.ni_pathlen - 2], fpl->nulchar - 1,
-	    cnp->cn_pnbuf));
-	if (__predict_false(*(fpl->nulchar - 1) == '/')) {
-		/*
-		 * TODO
-		 * Regular lookup performs the following:
-		 * *ndp->ni_next = '\0';
-		 * cnp->cn_flags |= TRAILINGSLASH;
-		 *
-		 * Which is problematic since it modifies data read
-		 * from userspace. Then if fast path lookup was to
-		 * abort we would have to either restore it or convey
-		 * the flag. Since this is a corner case just ignore
-		 * it for simplicity.
-		 */
-		return (cache_fpl_aborted(fpl));
-	}
-	return (0);
-}
-
 static void
 cache_fplookup_parse(struct cache_fpl *fpl)
 {
 	struct nameidata *ndp;
 	struct componentname *cnp;
+	struct vnode *dvp;
 	char *cp;
+	uint32_t hash;
 
 	ndp = fpl->ndp;
 	cnp = fpl->cnp;
+	dvp = fpl->dvp;
 
 	/*
 	 * Find the end of this path component, it is either / or nul.
@@ -5209,6 +5269,8 @@ cache_fplookup_parse(struct cache_fpl *fpl)
 	 * Store / as a temporary sentinel so that we only have one character
 	 * to test for. Pathnames tend to be short so this should not be
 	 * resulting in cache misses.
+	 *
+	 * TODO: fix this to be word-sized.
 	 */
 	KASSERT(&cnp->cn_nameptr[fpl->debug.ni_pathlen - 1] == fpl->nulchar,
 	    ("%s: mismatch between pathlen (%zu) and nulchar (%p != %p), string [%s]\n",
@@ -5217,17 +5279,30 @@ cache_fplookup_parse(struct cache_fpl *fpl)
 	KASSERT(*fpl->nulchar == '\0',
 	    ("%s: expected nul at %p; string [%s]\n", __func__, fpl->nulchar,
 	    cnp->cn_pnbuf));
+	hash = cache_get_hash_iter_start(dvp);
 	*fpl->nulchar = '/';
 	for (cp = cnp->cn_nameptr; *cp != '/'; cp++) {
 		KASSERT(*cp != '\0',
 		    ("%s: encountered unexpected nul; string [%s]\n", __func__,
 		    cnp->cn_nameptr));
+		hash = cache_get_hash_iter(*cp, hash);
 		continue;
 	}
 	*fpl->nulchar = '\0';
+	fpl->hash = cache_get_hash_iter_finish(hash);
 
 	cnp->cn_namelen = cp - cnp->cn_nameptr;
 	cache_fpl_pathlen_sub(fpl, cnp->cn_namelen);
+
+#ifdef INVARIANTS
+	if (cnp->cn_namelen <= NAME_MAX) {
+		if (fpl->hash != cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp)) {
+			panic("%s: mismatched hash for [%s] len %ld", __func__,
+			    cnp->cn_nameptr, cnp->cn_namelen);
+		}
+	}
+#endif
+
 	/*
 	 * Hack: we have to check if the found path component's length exceeds
 	 * NAME_MAX. However, the condition is very rarely true and check can
@@ -5235,27 +5310,6 @@ cache_fplookup_parse(struct cache_fpl *fpl)
 	 * then it could not have been too long to begin with.
 	 */
 	ndp->ni_next = cp;
-
-#ifdef INVARIANTS
-	/*
-	 * Code below is only here to assure compatibility with regular lookup.
-	 * It covers handling of trailing slashes and names like "/", both of
-	 * which of can be taken care of upfront which lockless lookup does
-	 * in cache_fplookup_preparse. Regular lookup performs these for each
-	 * path component.
-	 */
-	while (*cp == '/' && (cp[1] == '/' || cp[1] == '\0')) {
-		cp++;
-		if (*cp == '\0') {
-			panic("%s: ran into TRAILINGSLASH handling from [%s]\n",
-			    __func__, cnp->cn_pnbuf);
-		}
-	}
-
-	if (cnp->cn_nameptr[0] == '\0') {
-		panic("%s: ran into degenerate name from [%s]\n", __func__, cnp->cn_pnbuf);
-	}
-#endif
 }
 
 static void
@@ -5321,6 +5375,139 @@ cache_fplookup_skip_slashes(struct cache_fpl *fpl)
 }
 
 /*
+ * Handle trailing slashes (e.g., "foo/").
+ *
+ * If a trailing slash is found the terminal vnode must be a directory.
+ * Regular lookup shortens the path by nulifying the first trailing slash and
+ * sets the TRAILINGSLASH flag to denote this took place. There are several
+ * checks on it performed later.
+ *
+ * Similarly to spurious slashes, lockless lookup handles this in a speculative
+ * manner relying on an invariant that a non-directory vnode will get a miss.
+ * In this case cn_nameptr[0] == '\0' and cn_namelen == 0.
+ *
+ * Thus for a path like "foo/bar/" the code unwinds the state back to 'bar/'
+ * and denotes this is the last path component, which avoids looping back.
+ *
+ * Only plain lookups are supported for now to restrict corner cases to handle.
+ */
+static int __noinline
+cache_fplookup_trailingslash(struct cache_fpl *fpl)
+{
+#ifdef INVARIANTS
+	size_t ni_pathlen;
+#endif
+	struct nameidata *ndp;
+	struct componentname *cnp;
+	struct namecache *ncp;
+	struct vnode *tvp;
+	char *cn_nameptr_orig, *cn_nameptr_slash;
+	seqc_t tvp_seqc;
+	u_char nc_flag;
+
+	ndp = fpl->ndp;
+	cnp = fpl->cnp;
+	tvp = fpl->tvp;
+	tvp_seqc = fpl->tvp_seqc;
+
+	MPASS(fpl->dvp == fpl->tvp);
+	KASSERT(cache_fpl_istrailingslash(fpl),
+	    ("%s: expected trailing slash at %p; string [%s]\n", __func__, fpl->nulchar - 1,
+	    cnp->cn_pnbuf));
+	KASSERT(cnp->cn_nameptr[0] == '\0',
+	    ("%s: expected nul char at %p; string [%s]\n", __func__, &cnp->cn_nameptr[0],
+	    cnp->cn_pnbuf));
+	KASSERT(cnp->cn_namelen == 0,
+	    ("%s: namelen 0 but got %ld; string [%s]\n", __func__, cnp->cn_namelen,
+	    cnp->cn_pnbuf));
+	MPASS(cnp->cn_nameptr > cnp->cn_pnbuf);
+
+	if (cnp->cn_nameiop != LOOKUP) {
+		return (cache_fpl_aborted(fpl));
+	}
+
+	if (__predict_false(tvp->v_type != VDIR)) {
+		if (!vn_seqc_consistent(tvp, tvp_seqc)) {
+			return (cache_fpl_aborted(fpl));
+		}
+		cache_fpl_smr_exit(fpl);
+		return (cache_fpl_handled_error(fpl, ENOTDIR));
+	}
+
+	/*
+	 * Denote the last component.
+	 */
+	ndp->ni_next = &cnp->cn_nameptr[0];
+	MPASS(cache_fpl_islastcn(ndp));
+
+	/*
+	 * Unwind trailing slashes.
+	 */
+	cn_nameptr_orig = cnp->cn_nameptr;
+	while (cnp->cn_nameptr >= cnp->cn_pnbuf) {
+		cnp->cn_nameptr--;
+		if (cnp->cn_nameptr[0] != '/') {
+			break;
+		}
+	}
+
+	/*
+	 * Unwind to the beginning of the path component.
+	 *
+	 * Note the path may or may not have started with a slash.
+	 */
+	cn_nameptr_slash = cnp->cn_nameptr;
+	while (cnp->cn_nameptr > cnp->cn_pnbuf) {
+		cnp->cn_nameptr--;
+		if (cnp->cn_nameptr[0] == '/') {
+			break;
+		}
+	}
+	if (cnp->cn_nameptr[0] == '/') {
+		cnp->cn_nameptr++;
+	}
+
+	cnp->cn_namelen = cn_nameptr_slash - cnp->cn_nameptr + 1;
+	cache_fpl_pathlen_add(fpl, cn_nameptr_orig - cnp->cn_nameptr);
+	cache_fpl_checkpoint(fpl);
+
+#ifdef INVARIANTS
+	ni_pathlen = fpl->nulchar - cnp->cn_nameptr + 1;
+	if (ni_pathlen != fpl->debug.ni_pathlen) {
+		panic("%s: mismatch (%zu != %zu) nulchar %p nameptr %p [%s] ; full string [%s]\n",
+		    __func__, ni_pathlen, fpl->debug.ni_pathlen, fpl->nulchar,
+		    cnp->cn_nameptr, cnp->cn_nameptr, cnp->cn_pnbuf);
+	}
+#endif
+
+	/*
+	 * The previous directory is this one.
+	 */
+	if (cnp->cn_nameptr[0] == '.' && cnp->cn_namelen == 1) {
+		return (0);
+	}
+
+	/*
+	 * The previous directory is something else.
+	 */
+	tvp = fpl->tvp;
+	ncp = atomic_load_consume_ptr(&tvp->v_cache_dd);
+	if (__predict_false(ncp == NULL)) {
+		return (cache_fpl_aborted(fpl));
+	}
+	nc_flag = atomic_load_char(&ncp->nc_flag);
+	if ((nc_flag & NCF_ISDOTDOT) != 0) {
+		return (cache_fpl_aborted(fpl));
+	}
+	fpl->dvp = ncp->nc_dvp;
+	fpl->dvp_seqc = vn_seqc_read_any(fpl->dvp);
+	if (seqc_in_modify(fpl->dvp_seqc)) {
+		return (cache_fpl_aborted(fpl));
+	}
+	return (0);
+}
+
+/*
  * See the API contract for VOP_FPLOOKUP_VEXEC.
  */
 static int __noinline
@@ -5333,6 +5520,13 @@ cache_fplookup_failed_vexec(struct cache_fpl *fpl, int error)
 	cnp = fpl->cnp;
 	dvp = fpl->dvp;
 	dvp_seqc = fpl->dvp_seqc;
+
+	/*
+	 * Hack: delayed degenerate path checking.
+	 */
+	if (cnp->cn_nameptr[0] == '\0' && fpl->tvp == NULL) {
+		return (cache_fplookup_degenerate(fpl));
+	}
 
 	/*
 	 * Hack: delayed name len checking.
@@ -5425,10 +5619,7 @@ cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
 		return (cache_fpl_aborted(fpl));
 	}
 
-	error = cache_fplookup_preparse(fpl);
-	if (__predict_false(cache_fpl_terminated(fpl))) {
-		return (error);
-	}
+	MPASS(fpl->tvp == NULL);
 
 	for (;;) {
 		cache_fplookup_parse(fpl);
@@ -5588,6 +5779,7 @@ cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 	fpl.nulchar = &cnp->cn_nameptr[ndp->ni_pathlen - 1];
 	fpl.fsearch = false;
 	fpl.savename = (cnp->cn_flags & SAVENAME) != 0;
+	fpl.tvp = NULL; /* for degenerate path handling */
 	fpl.pwd = pwdp;
 	pwd = pwd_get_smr();
 	*(fpl.pwd) = pwd;
