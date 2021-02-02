@@ -1257,6 +1257,7 @@ dirloop:
 	 *    file descriptor directory.
 	 */
 	if (cnp->cn_flags & ISDOTDOT) {
+		/* Case 1 */
 		if (__predict_false((ndp->ni_lcf & (NI_LCF_STRICTREL_KTR |
 		    NI_LCF_CAP_DOTDOT_KTR)) == NI_LCF_STRICTREL_KTR))
 			NI_CAP_VIOLATION(ndp, cnp->cn_pnbuf);
@@ -1265,6 +1266,7 @@ dirloop:
 			error = ENOTCAPABLE;
 			goto bad;
 		}
+		/* Case 2 */
 		if ((cnp->cn_flags & ISLASTCN) != 0 &&
 		    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)) {
 			error = EINVAL;
@@ -1272,8 +1274,10 @@ dirloop:
 		}
 		for (;;) {
 			bool isroot;
+			/* For Case 5 */
 
 			isroot = vfs_lookup_isroot(ndp, dp);
+			/* Case 3 and 5 */
 			if (__predict_false(isroot && (ndp->ni_lcf &
 			    (NI_LCF_STRICTREL | NI_LCF_STRICTREL_KTR)) != 0)) {
 				if ((ndp->ni_lcf & NI_LCF_STRICTREL_KTR) != 0)
@@ -1290,6 +1294,7 @@ dirloop:
 				vref(dp);
 				goto nextname;
 			}
+			/* Case 4 */
 			if ((dp->v_vflag & VV_ROOT) == 0)
 				break;
 			if (VN_IS_DOOMED(dp)) {	/* forced unmount */
@@ -1303,6 +1308,7 @@ dirloop:
 			vn_lock(dp,
 			    enforce_lkflags(dp->v_mount, cnp->cn_lkflags |
 			    LK_RETRY));
+			/* Case 6 */
 		}
 	}
 
