@@ -1037,6 +1037,7 @@ dirloop:
 	 *    namei() already traversed the result of dotdot lookup.
 	 */
 	if (cnp->cn_flags & ISDOTDOT) {
+		/* Case 1 */
 		if ((ndp->ni_lcf & (NI_LCF_STRICTRELATIVE | NI_LCF_CAP_DOTDOT))
 		    == NI_LCF_STRICTRELATIVE) {
 #ifdef KTRACE
@@ -1046,16 +1047,19 @@ dirloop:
 			error = ENOTCAPABLE;
 			goto bad;
 		}
+		/* Case 2 */
 		if ((cnp->cn_flags & ISLASTCN) != 0 &&
 		    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)) {
 			error = EINVAL;
 			goto bad;
 		}
 		for (;;) {
+			/* For Case 5 */
 			for (pr = cnp->cn_cred->cr_prison; pr != NULL;
 			     pr = pr->pr_parent)
 				if (dp == pr->pr_root)
 					break;
+			/* Case 3 and 5 */
 			if (dp == ndp->ni_rootdir || 
 			    dp == ndp->ni_topdir || 
 			    dp == rootvnode ||
@@ -1067,6 +1071,7 @@ dirloop:
 				VREF(dp);
 				goto nextname;
 			}
+			/* Case 4 */
 			if ((dp->v_vflag & VV_ROOT) == 0)
 				break;
 			if (VN_IS_DOOMED(dp)) {	/* forced unmount */
@@ -1080,6 +1085,7 @@ dirloop:
 			vn_lock(dp,
 			    compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags |
 			    LK_RETRY, ISDOTDOT));
+			/* Case 6 */
 			error = nameicap_check_dotdot(ndp, dp);
 			if (error != 0) {
 #ifdef KTRACE
