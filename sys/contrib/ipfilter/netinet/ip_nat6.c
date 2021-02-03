@@ -106,22 +106,22 @@ static const char rcsid[] = "@(#)$Id: ip_nat6.c,v 1.22.2.20 2012/07/22 08:04:23 
 #endif
 
 #ifdef USE_INET6
-static struct hostmap *ipf_nat6_hostmap __P((ipf_nat_softc_t *, ipnat_t *,
+static struct hostmap *ipf_nat6_hostmap(ipf_nat_softc_t *, ipnat_t *,
 					     i6addr_t *, i6addr_t *,
-					     i6addr_t *, u_32_t));
-static int ipf_nat6_match __P((fr_info_t *, ipnat_t *));
-static void ipf_nat6_tabmove __P((ipf_nat_softc_t *, nat_t *));
-static int ipf_nat6_decap __P((fr_info_t *, nat_t *));
-static int ipf_nat6_nextaddr __P((fr_info_t *, nat_addr_t *, i6addr_t *,
-				  i6addr_t *));
-static int ipf_nat6_icmpquerytype __P((int));
-static int ipf_nat6_out __P((fr_info_t *, nat_t *, int, u_32_t));
-static int ipf_nat6_in __P((fr_info_t *, nat_t *, int, u_32_t));
-static int ipf_nat6_builddivertmp __P((ipf_nat_softc_t *, ipnat_t *));
-static int ipf_nat6_nextaddrinit __P((ipf_main_softc_t *, char *,
-				      nat_addr_t *, int, void *));
-static int ipf_nat6_insert __P((ipf_main_softc_t *, ipf_nat_softc_t *,
-				nat_t *));
+					     i6addr_t *, u_32_t);
+static int ipf_nat6_match(fr_info_t *, ipnat_t *);
+static void ipf_nat6_tabmove(ipf_nat_softc_t *, nat_t *);
+static int ipf_nat6_decap(fr_info_t *, nat_t *);
+static int ipf_nat6_nextaddr(fr_info_t *, nat_addr_t *, i6addr_t *,
+				  i6addr_t *);
+static int ipf_nat6_icmpquerytype(int);
+static int ipf_nat6_out(fr_info_t *, nat_t *, int, u_32_t);
+static int ipf_nat6_in(fr_info_t *, nat_t *, int, u_32_t);
+static int ipf_nat6_builddivertmp(ipf_nat_softc_t *, ipnat_t *);
+static int ipf_nat6_nextaddrinit(ipf_main_softc_t *, char *,
+				      nat_addr_t *, int, void *);
+static int ipf_nat6_insert(ipf_main_softc_t *, ipf_nat_softc_t *,
+				nat_t *);
 
 
 #define	NINCLSIDE6(y,x)	ATOMIC_INCL(softn->ipf_nat_stats.ns_side6[y].x)
@@ -1434,7 +1434,7 @@ ipf_nat6_icmperrorlookup(fin, dir)
 	mb_t *m;
 
 	m = fin->fin_m;
-# if defined(MENTAT)
+# if SOLARIS
 	if ((char *)oip6 + fin->fin_dlen - ICMPERR_ICMPHLEN >
 	    (char *)m->b_wptr) {
 		ATOMIC_INCL(nside->ns_icmp_mbuf);
@@ -2858,7 +2858,7 @@ ipf_nat6_out(fin, nat, natadd, nflags)
 
 		m = fin->fin_m;
 
-#if defined(MENTAT) && defined(_KERNEL)
+#if SOLARIS && defined(_KERNEL)
 		m->b_rptr += skip;
 #else
 		m->m_data += skip;
@@ -3321,7 +3321,7 @@ ipf_nat6_in(fin, nat, natadd, nflags)
 
 		m = fin->fin_m;
 
-#if defined(MENTAT) && defined(_KERNEL)
+#if SOLARIS && defined(_KERNEL)
 		m->b_rptr += skip;
 #else
 		m->m_data += skip;

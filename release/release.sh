@@ -246,8 +246,11 @@ chroot_setup() {
 		fi
 	fi
 	if [ -z "${NOPORTS}" ] && [ -z "${PORTS_UPDATE_SKIP}" ]; then
-		if [ -d "${CHROOTDIR}/usr/ports/.git" ]; then
-			git -C ${CHROOTDIR}/usr/ports pull -q
+		# if [ -d "${CHROOTDIR}/usr/ports/.git" ]; then
+			# git -C ${CHROOTDIR}/usr/ports pull -q
+		# XXX: Workaround for the overlap in the Git conversion timeframe.
+		if [ -d "${CHROOTDIR}/usr/ports/.svn" ]; then
+			${SVNCMD} update ${CHROOTDIR}/usr/ports
 		else
 			#${VCSCMD} ${PORT} -b ${PORTBRANCH} ${CHROOTDIR}/usr/ports
 			# XXX: Workaround for the overlap in the Git
@@ -317,7 +320,7 @@ extra_chroot_setup() {
 				pkg clean -y
 		fi
 	fi
-	if [ -d ${CHROOTDIR}/usr/ports ]; then
+	if [ -z "${NODOC}" ] && [ -d ${CHROOTDIR}/usr/ports ]; then
 		# Trick the ports 'run-autotools-fixup' target to do the right
 		# thing.
 		_OSVERSION=$(chroot ${CHROOTDIR} /usr/bin/uname -U)
