@@ -736,9 +736,7 @@ timerfd_close(struct file *fp, struct thread *td)
 	timespecclear(&tfd->tfd_time.it_value);
 	timespecclear(&tfd->tfd_time.it_interval);
 
-	mtx_lock(&tfd->tfd_lock);
 	callout_drain(&tfd->tfd_callout);
-	mtx_unlock(&tfd->tfd_lock);
 
 	seldrain(&tfd->tfd_sel);
 	knlist_destroy(&tfd->tfd_sel.si_note);
@@ -981,6 +979,7 @@ linux_timerfd_settime(struct thread *td, struct linux_timerfd_settime_args *args
 		linux_timerfd_curval(tfd, &ots);
 
 	tfd->tfd_time = nts;
+	tfd->tfd_count = 0;
 	if (timespecisset(&nts.it_value)) {
 		linux_timerfd_clocktime(tfd, &cts);
 		ts = nts.it_value;

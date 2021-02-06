@@ -276,52 +276,6 @@ cache_ncp_invalidate(struct namecache *ncp)
 	__predict_true((_nc_flag & (NCF_INVALID | NCF_WIP | NCF_WHITE)) == 0);	\
 })
 
-/*
- * Name caching works as follows:
- *
- * Names found by directory scans are retained in a cache
- * for future reference.  It is managed LRU, so frequently
- * used names will hang around.  Cache is indexed by hash value
- * obtained from (dvp, name) where dvp refers to the directory
- * containing name.
- *
- * If it is a "negative" entry, (i.e. for a name that is known NOT to
- * exist) the vnode pointer will be NULL.
- *
- * Upon reaching the last segment of a path, if the reference
- * is for DELETE, or NOCACHE is set (rewrite), and the
- * name is located in the cache, it will be dropped.
- *
- * These locks are used (in the order in which they can be taken):
- * NAME		TYPE	ROLE
- * vnodelock	mtx	vnode lists and v_cache_dd field protection
- * bucketlock	mtx	for access to given set of hash buckets
- * neglist	mtx	negative entry LRU management
- *
- * It is legal to take multiple vnodelock and bucketlock locks. The locking
- * order is lower address first. Both are recursive.
- *
- * "." lookups are lockless.
- *
- * ".." and vnode -> name lookups require vnodelock.
- *
- * name -> vnode lookup requires the relevant bucketlock to be held for reading.
- *
- * Insertions and removals of entries require involved vnodes and bucketlocks
- * to be locked to provide safe operation against other threads modifying the
- * cache.
- *
- * Some lookups result in removal of the found entry (e.g. getting rid of a
- * negative entry with the intent to create a positive one), which poses a
- * problem when multiple threads reach the state. Similarly, two different
- * threads can purge two different vnodes and try to remove the same name.
- *
- * If the already held vnode lock is lower than the second required lock, we
- * can just take the other lock. However, in the opposite case, this could
- * deadlock. As such, this is resolved by trylocking and if that fails unlocking
- * the first node, locking everything in order and revalidating the state.
- */
-
 VFS_SMR_DECLARE;
 
 static SYSCTL_NODE(_vfs_cache, OID_AUTO, param, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
@@ -705,8 +659,30 @@ out:
 }
 
 /*
+ * Hashing.
+ *
+ * The code was made to use FNV in 2001 and this choice needs to be revisited.
+ *
+ * Short summary of the difficulty:
+ * The longest name which can be inserted is NAME_MAX characters in length (or
+ * 255 at the time of writing this comment), while majority of names used in
+ * practice are significantly shorter (mostly below 10). More importantly
+ * majority of lookups performed find names are even shorter than that.
+ *
+ * This poses a problem where hashes which do better than FNV past word size
+ * (or so) tend to come with additional overhead when finalizing the result,
+ * making them noticeably slower for the most commonly used range.
+ *
+ * Consider a path like: /usr/obj/usr/src/sys/amd64/GENERIC/vnode_if.c
+ *
+ * When looking it up the most time consuming part by a large margin (at least
+ * on amd64) is hashing.  Replacing FNV with something which pessimizes short
+ * input would make the slowest part stand out even more.
+ */
+
+/*
  * TODO: With the value stored we can do better than computing the hash based
- * on the address. The choice of FNV should also be revisited.
+ * on the address.
  */
 static void
 cache_prehash(struct vnode *vp)
@@ -1745,7 +1721,7 @@ retry:
 	mtx_lock(dvlp);
 	ncp = dvp->v_cache_dd;
 	if (ncp == NULL) {
-		SDT_PROBE3(vfs, namecache, lookup, miss, dvp, "..", NULL);
+		SDT_PROBE2(vfs, namecache, lookup, miss, dvp, "..");
 		mtx_unlock(dvlp);
 		return (0);
 	}
@@ -1872,8 +1848,7 @@ retry:
 
 	if (__predict_false(ncp == NULL)) {
 		mtx_unlock(blp);
-		SDT_PROBE3(vfs, namecache, lookup, miss, dvp, cnp->cn_nameptr,
-		    NULL);
+		SDT_PROBE2(vfs, namecache, lookup, miss, dvp, cnp->cn_nameptr);
 		counter_u64_add(nummiss, 1);
 		return (0);
 	}
@@ -1968,8 +1943,7 @@ cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 
 	if (__predict_false(ncp == NULL)) {
 		vfs_smr_exit();
-		SDT_PROBE3(vfs, namecache, lookup, miss, dvp, cnp->cn_nameptr,
-		    NULL);
+		SDT_PROBE2(vfs, namecache, lookup, miss, dvp, cnp->cn_nameptr);
 		counter_u64_add(nummiss, 1);
 		return (0);
 	}
@@ -2802,9 +2776,8 @@ cache_validate(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
 		    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen)) {
 			if (ncp->nc_vp != vp)
-				panic("%s: mismatch (%p != %p); ncp %p [%s] dvp %p vp %p\n",
-				    __func__, vp, ncp->nc_vp, ncp, ncp->nc_name, ncp->nc_dvp,
-				    ncp->nc_vp);
+				panic("%s: mismatch (%p != %p); ncp %p [%s] dvp %p\n",
+				    __func__, vp, ncp->nc_vp, ncp, ncp->nc_name, ncp->nc_dvp);
 		}
 	}
 	mtx_unlock(blp);

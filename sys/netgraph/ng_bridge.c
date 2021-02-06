@@ -91,6 +91,8 @@ static MALLOC_DEFINE(M_NETGRAPH_BRIDGE, "netgraph_bridge",
 struct ng_bridge_link {
 	hook_p				hook;		/* netgraph hook */
 	u_int16_t			loopCount;	/* loop ignore timer */
+	unsigned int			learnMac : 1,   /* autolearn macs */
+					sendUnknown : 1;/* send unknown macs out */
 	struct ng_bridge_link_stats	stats;		/* link stats */
 };
 
@@ -103,7 +105,8 @@ struct ng_bridge_private {
 	u_int			numBuckets;	/* num buckets in table */
 	u_int			hashMask;	/* numBuckets - 1 */
 	int			numLinks;	/* num connected links */
-	int			persistent;	/* can exist w/o hooks */
+	unsigned int		persistent : 1,	/* can exist w/o hooks */
+				sendUnknown : 1;/* links receive unknowns by default */
 	struct callout		timer;		/* one second periodic timer */
 };
 typedef struct ng_bridge_private *priv_p;
@@ -307,6 +310,7 @@ ng_bridge_constructor(node_p node)
 	priv->conf.loopTimeout = DEFAULT_LOOP_TIMEOUT;
 	priv->conf.maxStaleness = DEFAULT_MAX_STALENESS;
 	priv->conf.minStableAge = DEFAULT_MIN_STABLE_AGE;
+	priv->sendUnknown = 1;	       /* classic bridge */
 
 	/*
 	 * This node has all kinds of stuff that could be screwed by SMP.
@@ -334,38 +338,51 @@ static	int
 ng_bridge_newhook(node_p node, hook_p hook, const char *name)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
+	char linkName[NG_HOOKSIZ];
+	u_int32_t linkNum;
+	link_p link;
+	const char *prefix = NG_BRIDGE_HOOK_LINK_PREFIX;
+	bool isUplink;
 
 	/* Check for a link hook */
-	if (strlen(name) > strlen(NG_BRIDGE_HOOK_LINK_PREFIX)) {
-		char linkName[NG_HOOKSIZ];
-		u_int32_t linkNum;
-		link_p link;
+	if (strlen(name) <= strlen(prefix))
+		return (EINVAL);       /* Unknown hook name */
 
-		/* primitive parsing */
-		linkNum = strtoul(name + strlen(NG_BRIDGE_HOOK_LINK_PREFIX),
-				  NULL, 10);
-		/* validation by comparing against the reconstucted name  */
-		snprintf(linkName, sizeof(linkName),
-			 "%s%u", NG_BRIDGE_HOOK_LINK_PREFIX,
-			 linkNum);
-		if (strcmp(linkName, name) != 0)
-			return (EINVAL);
-		
-		if(NG_PEER_NODE(hook) == node)
-		        return (ELOOP);
+	isUplink = (name[0] == 'u');
+	if (isUplink)
+		prefix = NG_BRIDGE_HOOK_UPLINK_PREFIX;
 
-		link = malloc(sizeof(*link), M_NETGRAPH_BRIDGE,
-			      M_WAITOK|M_ZERO);
-		if (link == NULL)
-			return (ENOMEM);
-		link->hook = hook;
-		NG_HOOK_SET_PRIVATE(hook, link);
-		priv->numLinks++;
-		return (0);
+	/* primitive parsing */
+	linkNum = strtoul(name + strlen(prefix), NULL, 10);
+	/* validation by comparing against the reconstucted name  */
+	snprintf(linkName, sizeof(linkName), "%s%u", prefix, linkNum);
+	if (strcmp(linkName, name) != 0)
+		return (EINVAL);
+
+	if (linkNum == 0 && isUplink)
+		return (EINVAL);
+
+	if(NG_PEER_NODE(hook) == node)
+	        return (ELOOP);
+
+	link = malloc(sizeof(*link), M_NETGRAPH_BRIDGE, M_ZERO);
+	if (link == NULL)
+		return (ENOMEM);
+
+	link->hook = hook;
+	if (isUplink) {
+		link->learnMac = 0;
+		link->sendUnknown = 1;
+		if (priv->numLinks == 0)	/* if the first link is an uplink */
+		    priv->sendUnknown = 0;	/* switch to restrictive mode */
+	} else {
+		link->learnMac = 1;
+		link->sendUnknown = priv->sendUnknown;
 	}
 
-	/* Unknown hook name */
-	return (EINVAL);
+	NG_HOOK_SET_PRIVATE(hook, link);
+	priv->numLinks++;
+	return (0);
 }
 
 /*
@@ -438,6 +455,11 @@ ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			i = 0;
 			for (bucket = 0; bucket < priv->numBuckets; bucket++) {
 				SLIST_FOREACH(hent, &priv->tab[bucket], next) {
+					const char *name = NG_HOOK_NAME(hent->host.link->hook);
+					const char *prefix = name[0] == 'u' ?
+					    NG_BRIDGE_HOOK_UPLINK_PREFIX :
+					    NG_BRIDGE_HOOK_LINK_PREFIX;
+
 					memcpy(ary->hosts[i].addr,
 					    hent->host.addr,
 					    sizeof(ary->hosts[i].addr));
@@ -445,9 +467,7 @@ ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 					ary->hosts[i].staleness =
 					     hent->host.staleness;
 				        ary->hosts[i].linkNum = strtol(
-					    NG_HOOK_NAME(hent->host.link->hook) +
-					    strlen(NG_BRIDGE_HOOK_LINK_PREFIX),
-					    NULL, 10);
+					    name + strlen(prefix), NULL, 10);
 					i++;
 				}
 			}
@@ -506,15 +526,20 @@ ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			hook_p hook;
 			link_p link;
 			char linkName[NG_HOOKSIZ];
+			int linkNum;
 			    
 			/* Get link number */
 			if (msg->header.arglen != sizeof(u_int32_t)) {
 				error = EINVAL;
 				break;
 			}
-			snprintf(linkName, sizeof(linkName),
-				 "%s%u", NG_BRIDGE_HOOK_LINK_PREFIX,
-				 *((u_int32_t *)msg->data));
+			linkNum = *((int32_t *)msg->data);
+			if (linkNum < 0)
+				snprintf(linkName, sizeof(linkName),
+				    "%s%u", NG_BRIDGE_HOOK_UPLINK_PREFIX, -linkNum);
+			else
+				snprintf(linkName, sizeof(linkName),
+				    "%s%u", NG_BRIDGE_HOOK_LINK_PREFIX, linkNum);
 			    
 			if ((hook = ng_findhook(node, linkName)) == NULL) {
 				error = ENOTCONN;
@@ -608,6 +633,10 @@ ng_bridge_send_ctx(hook_p dst, void *arg)
 	if (destLink == ctx->incoming) {
 		return (1);
 	}
+
+	/* Skip sending unknowns to undesired links  */
+	if (!ctx->manycast && !destLink->sendUnknown)
+		return (1);
 
 	if (ctx->foundFirst == NULL) {
 		/*
@@ -750,7 +779,7 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 			host->link = ctx.incoming;
 			host->age = 0;
 		}
-	} else {
+	} else if (ctx.incoming->learnMac) {
 		if (!ng_bridge_put(priv, eh->ether_shost, ctx.incoming)) {
 			ctx.incoming->stats.memoryFailures++;
 			NG_FREE_ITEM(item);
