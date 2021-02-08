@@ -88,8 +88,12 @@ typedef	struct ng_item *item_p;
 typedef struct ng_node *node_p;
 typedef struct ng_hook *hook_p;
 typedef	struct ng_item const *item_cp;
-typedef struct ng_node const *node_cp;
 typedef struct ng_hook const *hook_cp;
+#ifdef	NETGRAPH_DEBUG
+typedef struct ng_node       *node_cp; /* annotated during debug */
+#else	/* NETGRAPH_DEBUG */
+typedef struct ng_node const *node_cp;
+#endif	/* NETGRAPH_DEBUG */
 
 /* node method definitions */
 typedef	int	ng_constructor_t(node_p node);
