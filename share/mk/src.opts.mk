@@ -99,7 +99,6 @@ __DEFAULT_YES_OPTIONS = \
     FILE \
     FINGER \
     FLOPPY \
-    FMTREE \
     FORTH \
     FP_LIBC \
     FREEBSD_UPDATE \
@@ -201,6 +200,7 @@ __DEFAULT_NO_OPTIONS = \
     CLEAN \
     DTRACE_TESTS \
     EXPERIMENTAL \
+    FMTREE \
     GNU_DIFF \
     HESIOD \
     LIBSOFT \

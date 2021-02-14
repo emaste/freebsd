@@ -66,6 +66,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_directio.h"
+#include "opt_ffs.h"
+#include "opt_ufs.h"
+
 #include <sys/param.h>
 #include <sys/bio.h>
 #include <sys/systm.h>
@@ -96,11 +100,13 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufs_extern.h>
 #include <ufs/ufs/ufsmount.h>
+#include <ufs/ufs/dir.h>
+#ifdef UFS_DIRHASH
+#include <ufs/ufs/dirhash.h>
+#endif
 
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
-#include "opt_directio.h"
-#include "opt_ffs.h"
 
 #define	ALIGNED_TO(ptr, s)	\
 	(((uintptr_t)(ptr) & (_Alignof(s) - 1)) == 0)
@@ -129,6 +135,7 @@ static vop_listextattr_t	ffs_listextattr;
 static vop_openextattr_t	ffs_openextattr;
 static vop_setextattr_t	ffs_setextattr;
 static vop_vptofh_t	ffs_vptofh;
+static vop_vput_pair_t	ffs_vput_pair;
 
 /* Global vfs data structures for ufs. */
 struct vop_vector ffs_vnodeops1 = {
@@ -145,6 +152,7 @@ struct vop_vector ffs_vnodeops1 = {
 	.vop_reallocblks =	ffs_reallocblks,
 	.vop_write =		ffs_write,
 	.vop_vptofh =		ffs_vptofh,
+	.vop_vput_pair =	ffs_vput_pair,
 };
 VFS_VOP_VECTOR_REGISTER(ffs_vnodeops1);
 
@@ -181,6 +189,7 @@ struct vop_vector ffs_vnodeops2 = {
 	.vop_openextattr =	ffs_openextattr,
 	.vop_setextattr =	ffs_setextattr,
 	.vop_vptofh =		ffs_vptofh,
+	.vop_vput_pair =	ffs_vput_pair,
 };
 VFS_VOP_VECTOR_REGISTER(ffs_vnodeops2);
 
@@ -256,7 +265,6 @@ ffs_syncvnode(struct vnode *vp, int waitfor, int flags)
 	bool still_dirty, unlocked, wait;
 
 	ip = VTOI(vp);
-	ip->i_flag &= ~IN_NEEDSYNC;
 	bo = &vp->v_bufobj;
 	ump = VFSTOUFS(vp->v_mount);
 
@@ -444,6 +452,8 @@ next:
 	}
 	if (error == 0 && unlocked)
 		error = ERELOOKUP;
+	if (error == 0)
+		ip->i_flag &= ~IN_NEEDSYNC;
 	return (error);
 }
 
@@ -581,6 +591,9 @@ ffs_unlock_debug(struct vop_unlock_args *ap)
 			VI_UNLOCK(vp);
 		}
 	}
+	KASSERT(vp->v_type != VDIR || vp->v_vnlock->lk_recurse != 0 ||
+	    (ip->i_flag & IN_ENDOFF) == 0,
+	    ("ufs dir vp %p ip %p flags %#x", vp, ip, ip->i_flag));
 #ifdef DIAGNOSTIC
 	if (VOP_ISLOCKED(vp) == LK_EXCLUSIVE && ip != NULL &&
 	    vp->v_vnlock->lk_recurse == 0)
@@ -1913,5 +1926,116 @@ ffs_getpages_async(struct vop_getpages_async_args *ap)
 	if (do_iodone && ap->a_iodone != NULL)
 		ap->a_iodone(ap->a_arg, ap->a_m, ap->a_count, error);
 
+	return (error);
+}
+
+static int
+ffs_vput_pair(struct vop_vput_pair_args *ap)
+{
+	struct mount *mp;
+	struct vnode *dvp, *vp, *vp1, **vpp;
+	struct inode *dp, *ip;
+	ino_t ip_ino;
+	u_int64_t ip_gen;
+	off_t old_size;
+	int error, vp_locked;
+
+	dvp = ap->a_dvp;
+	dp = VTOI(dvp);
+	vpp = ap->a_vpp;
+	vp = vpp != NULL ? *vpp : NULL;
+
+	if ((dp->i_flag & (IN_NEEDSYNC | IN_ENDOFF)) == 0) {
+		vput(dvp);
+		if (vp != NULL && ap->a_unlock_vp)
+			vput(vp);
+		return (0);
+	}
+
+	mp = dvp->v_mount;
+	if (vp != NULL) {
+		if (ap->a_unlock_vp) {
+			vput(vp);
+		} else {
+			MPASS(vp->v_type != VNON);
+			vp_locked = VOP_ISLOCKED(vp);
+			ip = VTOI(vp);
+			ip_ino = ip->i_number;
+			ip_gen = ip->i_gen;
+			VOP_UNLOCK(vp);
+		}
+	}
+
+	/*
+	 * If compaction or fsync was requested do it in ffs_vput_pair()
+	 * now that other locks are no longer held.
+         */
+	if ((dp->i_flag & IN_ENDOFF) != 0) {
+		VNASSERT(I_ENDOFF(dp) != 0 && I_ENDOFF(dp) < dp->i_size, dvp,
+		    ("IN_ENDOFF set but I_ENDOFF() is not"));
+		dp->i_flag &= ~IN_ENDOFF;
+		old_size = dp->i_size;
+		error = UFS_TRUNCATE(dvp, (off_t)I_ENDOFF(dp), IO_NORMAL |
+		    (DOINGASYNC(dvp) ? 0 : IO_SYNC), curthread->td_ucred);
+		if (error != 0 && error != ERELOOKUP) {
+			if (!ffs_fsfail_cleanup(VFSTOUFS(mp), error)) {
+				vn_printf(dvp,
+				    "IN_ENDOFF: failed to truncate, "
+				    "error %d\n", error);
+			}
+#ifdef UFS_DIRHASH
+			ufsdirhash_free(dp);
+#endif
+		}
+		SET_I_ENDOFF(dp, 0);
+	}
+	if ((dp->i_flag & IN_NEEDSYNC) != 0) {
+		do {
+			error = ffs_syncvnode(dvp, MNT_WAIT, 0);
+		} while (error == ERELOOKUP);
+	}
+
+	vput(dvp);
+
+	if (vp == NULL || ap->a_unlock_vp)
+		return (0);
+	MPASS(mp != NULL);
+
+	/*
+	 * It is possible that vp is reclaimed at this point. Only
+	 * routines that call us with a_unlock_vp == false can find
+	 * that their vp has been reclaimed. There are three areas
+	 * that are affected:
+	 * 1) vn_open_cred() - later VOPs could fail, but
+	 *    dead_open() returns 0 to simulate successful open.
+	 * 2) ffs_snapshot() - creation of snapshot fails with EBADF.
+	 * 3) NFS server (several places) - code is prepared to detect
+	 *    and respond to dead vnodes by returning ESTALE.
+	 */
+	VOP_LOCK(vp, vp_locked | LK_RETRY);
+	if (!VN_IS_DOOMED(vp))
+		return (0);
+
+	/*
+	 * Try harder to recover from reclaimed vp if reclaim was not
+	 * because underlying inode was cleared.  We saved inode
+	 * number and inode generation, so we can try to reinstantiate
+	 * exactly same version of inode.  If this fails, return
+	 * original doomed vnode and let caller to handle
+	 * consequences.
+	 *
+	 * Note that callers must keep write started around
+	 * VOP_VPUT_PAIR() calls, so it is safe to use mp without
+	 * busying it.
+	 */
+	VOP_UNLOCK(vp);
+	error = ffs_inotovp(mp, ip_ino, ip_gen, LK_EXCLUSIVE, &vp1,
+	    FFSV_REPLACE_DOOMED);
+	if (error != 0) {
+		VOP_LOCK(vp, vp_locked | LK_RETRY);
+	} else {
+		vrele(vp);
+		*vpp = vp1;
+	}
 	return (error);
 }

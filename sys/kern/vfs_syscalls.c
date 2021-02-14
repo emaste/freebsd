@@ -1183,7 +1183,8 @@ kern_openat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
 	 * vnode operations here.
 	 */
 	if (fp->f_ops == &badfileops) {
-		KASSERT(vp->v_type != VFIFO, ("Unexpected fifo."));
+		KASSERT(vp->v_type != VFIFO,
+		    ("Unexpected fifo fp %p vp %p", fp, vp));
 		finit_vnode(fp, flags, NULL, &vnops);
 	}
 
@@ -1370,13 +1371,12 @@ restart:
 		else {
 			error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp,
 						&nd.ni_cnd, &vattr);
-			if (error == 0)
-				vput(nd.ni_vp);
 		}
 	}
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vput(nd.ni_dvp);
+	VOP_VPUT_PAIR(nd.ni_dvp, error == 0 && !whiteout ? &nd.ni_vp : NULL,
+	    true);
 	vn_finished_write(mp);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error == ERELOOKUP)
 		goto restart;
 	return (error);
@@ -1457,12 +1457,10 @@ restart:
 		goto out;
 #endif
 	error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
-	if (error == 0)
-		vput(nd.ni_vp);
 #ifdef MAC
 out:
 #endif
-	vput(nd.ni_dvp);
+	VOP_VPUT_PAIR(nd.ni_dvp, error == 0 ? &nd.ni_vp : NULL, true);
 	vn_finished_write(mp);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error == ERELOOKUP)
@@ -1629,10 +1627,10 @@ kern_linkat_vp(struct thread *td, struct vnode *vp, int fd, const char *path,
 				return (EAGAIN);
 			}
 			error = VOP_LINK(nd.ni_dvp, vp, &nd.ni_cnd);
-			VOP_UNLOCK(vp);
-			vput(nd.ni_dvp);
+			VOP_VPUT_PAIR(nd.ni_dvp, &vp, true);
 			vn_finished_write(mp);
 			NDFREE(&nd, NDF_ONLY_PNBUF);
+			vp = NULL;
 		} else {
 			vput(nd.ni_dvp);
 			NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -1640,7 +1638,8 @@ kern_linkat_vp(struct thread *td, struct vnode *vp, int fd, const char *path,
 			return (EAGAIN);
 		}
 	}
-	vrele(vp);
+	if (vp != NULL)
+		vrele(vp);
 	return (error);
 }
 
@@ -1710,6 +1709,7 @@ restart:
 		else
 			vput(nd.ni_dvp);
 		vrele(nd.ni_vp);
+		nd.ni_vp = NULL;
 		error = EEXIST;
 		goto out;
 	}
@@ -1730,14 +1730,12 @@ restart:
 		goto out2;
 #endif
 	error = VOP_SYMLINK(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr, syspath);
-	if (error == 0)
-		vput(nd.ni_vp);
 #ifdef MAC
 out2:
 #endif
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vput(nd.ni_dvp);
+	VOP_VPUT_PAIR(nd.ni_dvp, error == 0 ? &nd.ni_vp : NULL, true);
 	vn_finished_write(mp);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error == ERELOOKUP)
 		goto restart;
 out:
@@ -3794,9 +3792,7 @@ restart:
 out:
 #endif
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vput(nd.ni_dvp);
-	if (error == 0)
-		vput(nd.ni_vp);
+	VOP_VPUT_PAIR(nd.ni_dvp, error == 0 ? &nd.ni_vp : NULL, true);
 	vn_finished_write(mp);
 	if (error == ERELOOKUP)
 		goto restart;

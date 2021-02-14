@@ -274,8 +274,9 @@ restart:
 			if (error == 0)
 #endif
 				error = VOP_CREATE(ndp->ni_dvp, &ndp->ni_vp,
-						   &ndp->ni_cnd, vap);
-			vput(ndp->ni_dvp);
+				    &ndp->ni_cnd, vap);
+			VOP_VPUT_PAIR(ndp->ni_dvp, error == 0 ? &ndp->ni_vp :
+			    NULL, false);
 			vn_finished_write(mp);
 			if (error) {
 				NDFREE(ndp, NDF_ONLY_PNBUF);
@@ -356,8 +357,6 @@ vn_open_vnode_advlock(struct vnode *vp, int fmode, struct file *fp)
 		fp->f_flag |= FHASLOCK;
 
 	vn_lock(vp, lock_flags | LK_RETRY);
-	if (error == 0 && VN_IS_DOOMED(vp))
-		error = ENOENT;
 	return (error);
 }
 
