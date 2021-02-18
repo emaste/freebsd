@@ -592,16 +592,13 @@ tcp6_input(struct mbuf **mp, int *offp, int proto)
 	 * better place to put this in?
 	 */
 	ip6 = mtod(m, struct ip6_hdr *);
-	ia6 = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */);
+	ia6 = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */, false);
 	if (ia6 && (ia6->ia6_flags & IN6_IFF_ANYCAST)) {
-		ifa_free(&ia6->ia_ifa);
 		icmp6_error(m, ICMP6_DST_UNREACH, ICMP6_DST_UNREACH_ADDR,
 			    (caddr_t)&ip6->ip6_dst - (caddr_t)ip6);
 		*mp = NULL;
 		return (IPPROTO_DONE);
 	}
-	if (ia6)
-		ifa_free(&ia6->ia_ifa);
 
 	*mp = m;
 	return (tcp_input(mp, offp, proto));
@@ -1249,10 +1246,9 @@ tfo_socket_result:
 		if (isipv6 && !V_ip6_use_deprecated) {
 			struct in6_ifaddr *ia6;
 
-			ia6 = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */);
+			ia6 = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */, false);
 			if (ia6 != NULL &&
 			    (ia6->ia6_flags & IN6_IFF_DEPRECATED)) {
-				ifa_free(&ia6->ia_ifa);
 				if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
 				    log(LOG_DEBUG, "%s; %s: Listen socket: "
 					"Connection attempt to deprecated "
@@ -1261,8 +1257,6 @@ tfo_socket_result:
 				rstreason = BANDLIM_RST_OPENPORT;
 				goto dropwithreset;
 			}
-			if (ia6)
-				ifa_free(&ia6->ia_ifa);
 		}
 #endif /* INET6 */
 		/*
@@ -1507,6 +1501,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	struct mbuf *mfree;
 	struct tcpopt to;
 	int tfo_syn;
+	u_int maxseg;
 
 #ifdef TCPDEBUG
 	/*
@@ -2508,8 +2503,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 #endif
 
 		if (SEQ_LEQ(th->th_ack, tp->snd_una)) {
-			u_int maxseg;
-
 			maxseg = tcp_maxseg(tp);
 			if (tlen == 0 &&
 			    (tiwin == tp->snd_wnd ||
@@ -2650,7 +2643,21 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 						tp->snd_cwnd += maxseg;
 					(void) tp->t_fb->tfb_tcp_output(tp);
 					goto drop;
-				} else if (tp->t_dupacks == tcprexmtthresh) {
+				} else if (tp->t_dupacks == tcprexmtthresh ||
+					    (tp->t_flags & TF_SACK_PERMIT &&
+					     V_tcp_do_rfc6675_pipe &&
+					     tp->sackhint.sacked_bytes >
+					     (tcprexmtthresh - 1) * maxseg)) {
+enter_recovery:
+					/*
+					 * Above is the RFC6675 trigger condition of
+					 * more than (dupthresh-1)*maxseg sacked data.
+					 * If the count of holes in the
+					 * scoreboard is >= dupthresh, we could
+					 * also enter loss recovery, but don't
+					 * have that value readily available.
+					 */
+					tp->t_dupacks = tcprexmtthresh;
 					tcp_seq onxt = tp->snd_nxt;
 
 					/*
@@ -2695,6 +2702,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 						tp->snd_recover = tp->snd_nxt;
 						tp->snd_cwnd = maxseg;
 						(void) tp->t_fb->tfb_tcp_output(tp);
+						if (SEQ_GT(th->th_ack, tp->snd_una))
+							goto resume_partialack;
 						goto drop;
 					}
 					tp->snd_nxt = th->th_ack;
@@ -2781,10 +2790,19 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			 */
 			if ((tp->t_flags & TF_SACK_PERMIT) &&
 			    (to.to_flags & TOF_SACK) &&
-			    sack_changed)
+			    sack_changed) {
 				tp->t_dupacks++;
+				/* limit overhead by setting maxseg last */
+				if (!IN_FASTRECOVERY(tp->t_flags) &&
+				    (tp->sackhint.sacked_bytes >
+				    ((tcprexmtthresh - 1) *
+				    (maxseg = tcp_maxseg(tp))))) {
+					goto enter_recovery;
+				}
+			}
 		}
 
+resume_partialack:
 		KASSERT(SEQ_GT(th->th_ack, tp->snd_una),
 		    ("%s: th_ack <= snd_una", __func__));
 
@@ -2795,7 +2813,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if (IN_FASTRECOVERY(tp->t_flags)) {
 			if (SEQ_LT(th->th_ack, tp->snd_recover)) {
 				if (tp->t_flags & TF_SACK_PERMIT)
-					if (V_tcp_do_prr)
+					if (V_tcp_do_prr && to.to_flags & TOF_SACK)
 						tcp_prr_partialack(tp, th);
 					else
 						tcp_sack_partialack(tp, th);

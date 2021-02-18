@@ -119,7 +119,7 @@ tests = ['zdb_002_pos', 'zdb_003_pos', 'zdb_004_pos', 'zdb_005_pos',
     'zdb_006_pos', 'zdb_args_neg', 'zdb_args_pos',
     'zdb_block_size_histogram', 'zdb_checksum', 'zdb_decompress',
     'zdb_display_block', 'zdb_object_range_neg', 'zdb_object_range_pos',
-    'zdb_objset_id', 'zdb_decompress_zstd']
+    'zdb_objset_id', 'zdb_decompress_zstd', 'zdb_recover', 'zdb_recover_2']
 pre =
 post =
 tags = ['functional', 'cli_root', 'zdb']
@@ -344,7 +344,8 @@ tests = ['zpool_create_001_pos', 'zpool_create_002_pos',
     'zpool_create_draid_003_pos', 'zpool_create_draid_004_pos',
     'zpool_create_features_001_pos', 'zpool_create_features_002_pos',
     'zpool_create_features_003_pos', 'zpool_create_features_004_neg',
-    'zpool_create_features_005_pos',
+    'zpool_create_features_005_pos', 'zpool_create_features_006_pos',
+    'zpool_create_features_007_pos', 'zpool_create_features_008_pos',
     'create-o_ashift', 'zpool_create_tempname', 'zpool_create_dryrun_output']
 tags = ['functional', 'cli_root', 'zpool_create']
 
@@ -468,7 +469,8 @@ tests = ['zpool_split_cliargs', 'zpool_split_devices',
 tags = ['functional', 'cli_root', 'zpool_split']
 
 [tests/functional/cli_root/zpool_status]
-tests = ['zpool_status_001_pos', 'zpool_status_002_pos']
+tests = ['zpool_status_001_pos', 'zpool_status_002_pos',
+    'zpool_status_features_001_pos']
 tags = ['functional', 'cli_root', 'zpool_status']
 
 [tests/functional/cli_root/zpool_sync]
@@ -491,7 +493,7 @@ tests = ['zpool_upgrade_001_pos', 'zpool_upgrade_002_pos',
     'zpool_upgrade_003_pos', 'zpool_upgrade_004_pos',
     'zpool_upgrade_005_neg', 'zpool_upgrade_006_neg',
     'zpool_upgrade_007_pos', 'zpool_upgrade_008_pos',
-    'zpool_upgrade_009_neg']
+    'zpool_upgrade_009_neg', 'zpool_upgrade_features_001_pos']
 tags = ['functional', 'cli_root', 'zpool_upgrade']
 
 [tests/functional/cli_root/zpool_wait]
@@ -727,8 +729,9 @@ tags = ['functional', 'raidz']
 [tests/functional/redundancy]
 tests = ['redundancy_draid1', 'redundancy_draid2', 'redundancy_draid3',
     'redundancy_draid_spare1', 'redundancy_draid_spare2',
-    'redundancy_draid_spare3', 'redundancy_mirror', 'redundancy_raidz1',
-    'redundancy_raidz2', 'redundancy_raidz3', 'redundancy_stripe']
+    'redundancy_draid_spare3', 'redundancy_mirror', 'redundancy_raidz',
+    'redundancy_raidz1', 'redundancy_raidz2', 'redundancy_raidz3',
+    'redundancy_stripe']
 tags = ['functional', 'redundancy']
 
 [tests/functional/refquota]

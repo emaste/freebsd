@@ -60,7 +60,7 @@
  *		in the range 5 to 9.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 1400004	/* Master, propagated to newvers */
+#define __FreeBSD_version 1400005	/* Master, propagated to newvers */
 
 /*
  * __FreeBSD_kernel__ indicates that this system uses the kernel of FreeBSD,
@@ -227,9 +227,10 @@
 	((off_t)(db) << DEV_BSHIFT)
 #endif
 
-#define	PRIMASK	0x0ff
-#define	PCATCH	0x100		/* OR'd with pri for tsleep to check signals */
-#define	PDROP	0x200	/* OR'd with pri to stop re-entry of interlock mutex */
+#define	PRIMASK		0x0ff
+#define	PCATCH		0x100	/* OR'd with pri for tsleep to check signals */
+#define	PDROP		0x200	/* OR'd with pri to stop re-entry of interlock mutex */
+#define	PRILASTFLAG	0x200	/* Last flag defined above */
 
 #define	NZERO	0		/* default "nice" */
 

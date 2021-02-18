@@ -213,8 +213,8 @@ static pfil_return_t pf_check6_out(struct mbuf **m, struct ifnet *ifp,
     int flags, void *ruleset __unused, struct inpcb *inp);
 #endif
 
-static int		hook_pf(void);
-static int		dehook_pf(void);
+static void		hook_pf(void);
+static void		dehook_pf(void);
 static int		shutdown_pf(void);
 static int		pf_load(void);
 static void		pf_unload(void);
@@ -1623,7 +1623,7 @@ pf_rule_to_krule(const struct pf_rule *rule, struct pf_krule *krule)
 	/* Don't allow userspace to set evaulations, packets or bytes. */
 	/* kif, anchor, overload_tbl are not copied over. */
 
-	krule->os_fingerprint = krule->os_fingerprint;
+	krule->os_fingerprint = rule->os_fingerprint;
 
 	krule->rtableid = rule->rtableid;
 	bcopy(rule->timeout, krule->timeout, sizeof(krule->timeout));
@@ -1814,12 +1814,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		else {
 			int cpu;
 
-			error = hook_pf();
-			if (error) {
-				DPFPRINTF(PF_DEBUG_MISC,
-				    ("pf: pfil registration failed\n"));
-				break;
-			}
+			hook_pf();
 			V_pf_status.running = 1;
 			V_pf_status.since = time_second;
 
@@ -1836,12 +1831,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = ENOENT;
 		else {
 			V_pf_status.running = 0;
-			error = dehook_pf();
-			if (error) {
-				V_pf_status.running = 1;
-				DPFPRINTF(PF_DEBUG_MISC,
-				    ("pf: pfil unregistration failed\n"));
-			}
+			dehook_pf();
 			V_pf_status.since = time_second;
 			DPFPRINTF(PF_DEBUG_MISC, ("pf: stopped\n"));
 		}
@@ -4565,14 +4555,15 @@ VNET_DEFINE_STATIC(pfil_hook_t, pf_ip6_out_hook);
 #define	V_pf_ip6_out_hook	VNET(pf_ip6_out_hook)
 #endif
 
-static int
+static void
 hook_pf(void)
 {
 	struct pfil_hook_args pha;
 	struct pfil_link_args pla;
+	int ret;
 
 	if (V_pf_pfil_hooked)
-		return (0);
+		return;
 
 	pha.pa_version = PFIL_VERSION;
 	pha.pa_modname = "pf";
@@ -4589,7 +4580,8 @@ hook_pf(void)
 	pla.pa_flags = PFIL_IN | PFIL_HEADPTR | PFIL_HOOKPTR;
 	pla.pa_head = V_inet_pfil_head;
 	pla.pa_hook = V_pf_ip4_in_hook;
-	(void)pfil_link(&pla);
+	ret = pfil_link(&pla);
+	MPASS(ret == 0);
 	pha.pa_func = pf_check_out;
 	pha.pa_flags = PFIL_OUT;
 	pha.pa_rulname = "default-out";
@@ -4597,7 +4589,8 @@ hook_pf(void)
 	pla.pa_flags = PFIL_OUT | PFIL_HEADPTR | PFIL_HOOKPTR;
 	pla.pa_head = V_inet_pfil_head;
 	pla.pa_hook = V_pf_ip4_out_hook;
-	(void)pfil_link(&pla);
+	ret = pfil_link(&pla);
+	MPASS(ret == 0);
 #endif
 #ifdef INET6
 	pha.pa_type = PFIL_TYPE_IP6;
@@ -4608,7 +4601,8 @@ hook_pf(void)
 	pla.pa_flags = PFIL_IN | PFIL_HEADPTR | PFIL_HOOKPTR;
 	pla.pa_head = V_inet6_pfil_head;
 	pla.pa_hook = V_pf_ip6_in_hook;
-	(void)pfil_link(&pla);
+	ret = pfil_link(&pla);
+	MPASS(ret == 0);
 	pha.pa_func = pf_check6_out;
 	pha.pa_rulname = "default-out6";
 	pha.pa_flags = PFIL_OUT;
@@ -4616,19 +4610,19 @@ hook_pf(void)
 	pla.pa_flags = PFIL_OUT | PFIL_HEADPTR | PFIL_HOOKPTR;
 	pla.pa_head = V_inet6_pfil_head;
 	pla.pa_hook = V_pf_ip6_out_hook;
-	(void)pfil_link(&pla);
+	ret = pfil_link(&pla);
+	MPASS(ret == 0);
 #endif
 
 	V_pf_pfil_hooked = 1;
-	return (0);
 }
 
-static int
+static void
 dehook_pf(void)
 {
 
 	if (V_pf_pfil_hooked == 0)
-		return (0);
+		return;
 
 #ifdef INET
 	pfil_remove_hook(V_pf_ip4_in_hook);
@@ -4640,7 +4634,6 @@ dehook_pf(void)
 #endif
 
 	V_pf_pfil_hooked = 0;
-	return (0);
 }
 
 static void
@@ -4688,20 +4681,10 @@ pf_load(void)
 static void
 pf_unload_vnet(void)
 {
-	int error;
 
 	V_pf_vnet_active = 0;
 	V_pf_status.running = 0;
-	error = dehook_pf();
-	if (error) {
-		/*
-		 * Should not happen!
-		 * XXX Due to error code ESRCH, kldunload will show
-		 * a message like 'No such process'.
-		 */
-		printf("%s : pfil unregisteration fail\n", __FUNCTION__);
-		return;
-	}
+	dehook_pf();
 
 	PF_RULES_WLOCK();
 	shutdown_pf();
