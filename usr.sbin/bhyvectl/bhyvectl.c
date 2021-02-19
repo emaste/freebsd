@@ -1964,7 +1964,8 @@ main(int argc, char *argv[])
 	if (!error) {
 		ctx = vm_open(vmname);
 		if (ctx == NULL) {
-			printf("VM:%s is not created.\n", vmname);
+			printf("VM:%s could not be opened: %s\n", vmname,
+			    strerror(errno));
 			exit (1);
 		}
 	}
