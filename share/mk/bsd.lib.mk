@@ -387,7 +387,7 @@ lib${LIB_PRIVATE}${LIB}_nossp_pic.a: ${NOSSPSOBJS}
 
 .endif # !defined(INTERNALLIB)
 
-.if defined(INTERNALLIB) && ${MK_PIE} != "no" && defined(LIB) && !empty(LIB)
+.if ${MK_PIE} != "no" && defined(LIB) && !empty(LIB)
 PIEOBJS+=	${OBJS:.o=.pieo}
 DEPENDOBJS+=	${PIEOBJS}
 CLEANFILES+=	${PIEOBJS}
