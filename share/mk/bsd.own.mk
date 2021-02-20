@@ -56,7 +56,7 @@
 # KMODMODE	KLD mode. [${BINMODE}]
 #
 #
-# EFIDIR	Base path for the UEFI ESP [/boot/efi]
+# EFIDIR	Base path for the UEFI ESP [/efi]
 #
 # EFIOWN	EFIDIR owner. [root]
 #
@@ -178,7 +178,7 @@ DTBODIR?=	/boot/dtb/overlays
 DTBOWN?=	root
 DTBGRP?=	wheel
 DTBMODE?=	444
-EFIDIR?=	/boot/efi
+EFIDIR?=	/efi
 EFIOWN?=	root
 EFIGRP?=	wheel
 EFIMODE?=	555

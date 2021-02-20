@@ -36,6 +36,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 2021XXXX: ESP mount point moved from /boot/efi to /efi
+OLD_DIRS+=boot/efi
+
 # 20210201: bump shared libraries which link against ncurses
 OLD_LIBS+=lib/libedit.so.7
 OLD_LIBS+=usr/lib/libdialog.so.8

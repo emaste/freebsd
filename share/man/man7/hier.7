@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd January 9, 2021
+.Dd February 19, 2021
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -53,8 +53,6 @@ Compiled flattened device tree (FDT) files; see
 .Xr fdt 4
 and
 .Xr dtc 1
-.It Pa efi/
-Mount point for EFI System Partition (ESP) on UEFI systems
 .It Pa firmware/
 loadable kernel modules containing binary firmware for hardware that needs
 firmware downloaded to it to function
@@ -91,6 +89,8 @@ file descriptor files;
 see
 .Xr \&fd 4
 .El
+.It Pa /efi/
+Mount point for EFI System Partition (ESP) on UEFI systems
 .It Pa /etc/
 system configuration files and scripts
 .Pp
