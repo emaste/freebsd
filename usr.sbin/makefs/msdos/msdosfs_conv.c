@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 #include <fs/msdosfs/bpb.h>
-#include <fs/msdosfs/direntry.h>
+#include "msdos/direntry.h"
 #include <fs/msdosfs/msdosfsmount.h>
 
 #include "makefs.h"
@@ -142,7 +142,7 @@ static const u_char u2l[256] = {
  * Determine the number of slots necessary for Win95 names
  */
 int
-winSlotCnt(const u_char *un, size_t unlen, struct msdosfsmount *pmp)
+winSlotCnt(const u_char *un, size_t unlen)
 {
 	const u_char *cp;
 
@@ -233,7 +233,7 @@ winChksum(uint8_t *name)
  */
 int
 unix2winfn(const u_char *un, size_t unlen, struct winentry *wep, int cnt,
-    int chksum, struct msdosfsmount *pmp)
+    int chksum)
 {
 	uint16_t wn[WIN_MAXLEN], *p;
 	int i, len;
@@ -296,8 +296,7 @@ unix2winfn(const u_char *un, size_t unlen, struct winentry *wep, int cnt,
  *	3 if conversion was successful and generation number was inserted
  */
 int
-unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen,
-    struct msdosfsmount *pmp)
+unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen)
 {
 	int i, j, l;
 	int conv = 1;

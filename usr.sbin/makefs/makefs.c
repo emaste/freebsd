@@ -97,7 +97,7 @@ main(int argc, char *argv[])
 	fstype_t	*fstype;
 	fsinfo_t	 fsoptions;
 	fsnode		*root;
-	int		 ch, i, len;
+	int	 	 ch, i, len;
 	const char	*subtree;
 	const char	*specfile;
 
@@ -434,7 +434,7 @@ static fstype_t *
 get_fstype(const char *type)
 {
 	int i;
-
+	
 	for (i = 0; fstypes[i].type != NULL; i++)
 		if (strcmp(fstypes[i].type, type) == 0)
 			return (&fstypes[i]);

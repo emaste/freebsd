@@ -163,7 +163,9 @@ struct ostatfs {
 	 */
 	long	f_spare[2];		/* unused spare */
 };
+#endif	/* _KERNEL */
 
+#if defined(_WANT_MOUNT) || defined(_KERNEL)
 TAILQ_HEAD(vnodelst, vnode);
 
 /* Mount options list */
@@ -243,7 +245,9 @@ struct mount {
 	TAILQ_ENTRY(mount) mnt_upper_link;	/* (m) we in the all uppers */
 	TAILQ_HEAD(, mount) mnt_uppers;		/* (m) upper mounts over us*/
 };
+#endif	/* _WANT_MOUNT || _KERNEL */
 
+#ifdef _KERNEL
 /*
  * Definitions for MNT_VNODE_FOREACH_ALL.
  */
@@ -997,6 +1001,7 @@ void	vfs_mount_error(struct mount *, const char *, ...);
 void	vfs_mountroot(void);			/* mount our root filesystem */
 void	vfs_mountedfrom(struct mount *, const char *from);
 void	vfs_notify_upper(struct vnode *, int);
+struct mount *vfs_ref_from_vp(struct vnode *);
 void	vfs_ref(struct mount *);
 void	vfs_rel(struct mount *);
 struct mount *vfs_mount_alloc(struct vnode *, struct vfsconf *, const char *,

@@ -64,10 +64,8 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 #include <unistd.h>
 
-#include "ffs/buf.h"
 #include <fs/msdosfs/bpb.h>
-#include <fs/msdosfs/direntry.h>
-#include <fs/msdosfs/denode.h>
+#include "msdos/denode.h"
 #include <fs/msdosfs/fat.h>
 #include <fs/msdosfs/msdosfsmount.h>
 
@@ -95,9 +93,6 @@ __FBSDID("$FreeBSD$");
 static int msdosfs_wfile(const char *, struct denode *, fsnode *);
 static void unix2fattime(const struct timespec *tsp, uint16_t *ddp,
     uint16_t *dtp);
-
-int winChkName(const u_char *un, size_t unlen, struct winentry *wep,
-    int chksum);
 
 static void
 msdosfs_times(struct denode *dep, const struct stat *st)
@@ -164,7 +159,7 @@ msdosfs_findslot(struct denode *dp, struct componentname *cnp)
 	u_int diroff;
 	int blsize;
 	struct msdosfsmount *pmp;
-	struct buf *bp = 0;
+	struct m_buf *bp = 0;
 	struct direntry *dep;
 	u_char dosfilename[12];
 	int wincnt = 1;
@@ -174,19 +169,19 @@ msdosfs_findslot(struct denode *dp, struct componentname *cnp)
 	pmp = dp->de_pmp;
 
 	switch (unix2dosfn((const u_char *)cnp->cn_nameptr, dosfilename,
-	    cnp->cn_namelen, 0, NULL /* XXX */)) {
+	    cnp->cn_namelen, 0)) {
 	case 0:
 		return (EINVAL);
 	case 1:
 		break;
 	case 2:
 		wincnt = winSlotCnt((const u_char *)cnp->cn_nameptr,
-		    cnp->cn_namelen, NULL /* XXX */) + 1;
+		    cnp->cn_namelen) + 1;
 		break;
 	case 3:
 		olddos = 0;
 		wincnt = winSlotCnt((const u_char *)cnp->cn_nameptr,
-		    cnp->cn_namelen, NULL /* XXX */) + 1;
+		    cnp->cn_namelen) + 1;
 		break;
 	}
 
@@ -219,7 +214,7 @@ msdosfs_findslot(struct denode *dp, struct componentname *cnp)
 				break;
 			return (error);
 		}
-		error = bread(pmp->pm_devvp, bn, blsize, 0, &bp);
+		error = bread((void *)pmp->pm_devvp, bn, blsize, 0, &bp);
 		if (error) {
 			return (error);
 		}
@@ -420,12 +415,12 @@ bad:
 static int
 msdosfs_updatede(struct denode *dep)
 {
-	struct buf *bp;
+	struct m_buf *bp;
 	struct direntry *dirp;
 	int error;
 
 	dep->de_flag &= ~DE_MODIFIED;
-	error = readde(dep, &bp, &dirp);
+	error = m_readde(dep, &bp, &dirp);
 	if (error)
 		return error;
 	DE_EXTERNALIZE(dirp, dep);
@@ -444,7 +439,7 @@ msdosfs_wfile(const char *path, struct denode *dep, fsnode *node)
 	struct stat *st = &node->inode->st;
 	size_t nsize, offs;
 	struct msdosfsmount *pmp = dep->de_pmp;
-	struct buf *bp;
+	struct m_buf *bp;
 	char *dat;
 	u_long cn = 0;
 
@@ -497,7 +492,8 @@ msdosfs_wfile(const char *path, struct denode *dep, fsnode *node)
 
 		MSDOSFS_DPRINTF(("%s(cn=%lu, bn=%llu, blsize=%d)\n",
 		    __func__, cn, (unsigned long long)bn, blsize));
-		if ((error = bread(pmp->pm_devvp, bn, blsize, 0, &bp)) != 0) {
+		if ((error = bread((void *)pmp->pm_devvp, bn, blsize, 0,
+		    &bp)) != 0) {
 			MSDOSFS_DPRINTF(("bread %d\n", error));
 			goto out;
 		}
@@ -549,7 +545,7 @@ msdosfs_mkdire(const char *path, struct denode *pdep, fsnode *node) {
 	int error;
 	u_long newcluster, pcl, bn;
 	struct direntry *denp;
-	struct buf *bp;
+	struct m_buf *bp;
 
 	cn.cn_nameptr = node->name;
 	cn.cn_namelen = strlen(node->name);
@@ -585,7 +581,7 @@ msdosfs_mkdire(const char *path, struct denode *pdep, fsnode *node) {
 	MSDOSFS_DPRINTF(("%s(newcluster %lu, bn=%lu)\n",
 	    __func__, newcluster, bn));
 	/* always succeeds */
-	bp = getblk(pmp->pm_devvp, bn, pmp->pm_bpcluster, 0, 0, 0);
+	bp = getblk((void *)pmp->pm_devvp, bn, pmp->pm_bpcluster, 0, 0, 0);
 	memset(bp->b_data, 0, pmp->pm_bpcluster);
 	memcpy(bp->b_data, &dosdirtemplate, sizeof dosdirtemplate);
 	denp = (struct direntry *)bp->b_data;

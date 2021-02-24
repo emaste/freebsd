@@ -65,14 +65,14 @@ __FBSDID("$FreeBSD$");
 static int scanc(u_int, const u_char *, const u_char *, int);
 
 static daddr_t ffs_alloccg(struct inode *, int, daddr_t, int);
-static daddr_t ffs_alloccgblk(struct inode *, struct buf *, daddr_t);
+static daddr_t ffs_alloccgblk(struct inode *, struct m_buf *, daddr_t);
 static daddr_t ffs_hashalloc(struct inode *, u_int, daddr_t, int,
 		     daddr_t (*)(struct inode *, int, daddr_t, int));
 static int32_t ffs_mapsearch(struct fs *, struct cg *, daddr_t, int);
 
 /*
  * Allocate a block in the file system.
- *
+ * 
  * The size of the requested block is given, which must be some
  * multiple of fs_fsize and <= fs_bsize.
  * A preference may be optionally specified. If a preference is given
@@ -96,7 +96,7 @@ ffs_alloc(struct inode *ip, daddr_t lbn __unused, daddr_t bpref, int size,
 	struct fs *fs = ip->i_fs;
 	daddr_t bno;
 	int cg;
-
+	
 	*bnp = 0;
 	if (size > fs->fs_bsize || fragoff(fs, size) != 0) {
 		errx(1, "ffs_alloc: bad size: bsize %d size %d",
@@ -127,7 +127,7 @@ nospace:
  * Select the desired position for the next block in a file.  The file is
  * logically divided into sections. The first section is composed of the
  * direct blocks. Each additional section contains fs_maxbpg blocks.
- *
+ * 
  * If no blocks have been allocated in the first section, the policy is to
  * request a block in the same cylinder group as the inode that describes
  * the file. If no blocks have been allocated in any other section, the
@@ -141,7 +141,7 @@ nospace:
  * indirect block, the information on the previous allocation is unavailable;
  * here a best guess is made based upon the logical block number being
  * allocated.
- *
+ * 
  * If a section is already partially allocated, the policy is to
  * contiguously allocate fs_maxcontig blocks.  The end of one of these
  * contiguous blocks and the beginning of the next is physically separated
@@ -294,7 +294,7 @@ static daddr_t
 ffs_alloccg(struct inode *ip, int cg, daddr_t bpref, int size)
 {
 	struct cg *cgp;
-	struct buf *bp;
+	struct m_buf *bp;
 	daddr_t bno, blkno;
 	int error, frags, allocsiz, i;
 	struct fs *fs = ip->i_fs;
@@ -302,8 +302,8 @@ ffs_alloccg(struct inode *ip, int cg, daddr_t bpref, int size)
 
 	if (fs->fs_cs(fs, cg).cs_nbfree == 0 && size == fs->fs_bsize)
 		return (0);
-	error = bread(ip->i_devvp, fsbtodb(fs, cgtod(fs, cg)), (int)fs->fs_cgsize,
-	    NULL, &bp);
+	error = bread((void *)ip->i_devvp, fsbtodb(fs, cgtod(fs, cg)),
+	    (int)fs->fs_cgsize, NULL, &bp);
 	if (error) {
 		brelse(bp);
 		return (0);
@@ -330,7 +330,7 @@ ffs_alloccg(struct inode *ip, int cg, daddr_t bpref, int size)
 			break;
 	if (allocsiz == fs->fs_frag) {
 		/*
-		 * no fragments were available, so a block will be
+		 * no fragments were available, so a block will be 
 		 * allocated, and hacked up
 		 */
 		if (cgp->cg_cs.cs_nbfree == 0) {
@@ -377,7 +377,7 @@ ffs_alloccg(struct inode *ip, int cg, daddr_t bpref, int size)
  * blocks may be fragmented by the routine that allocates them.
  */
 static daddr_t
-ffs_alloccgblk(struct inode *ip, struct buf *bp, daddr_t bpref)
+ffs_alloccgblk(struct inode *ip, struct m_buf *bp, daddr_t bpref)
 {
 	struct cg *cgp;
 	daddr_t blkno;
@@ -422,14 +422,14 @@ gotit:
  * Free a block or fragment.
  *
  * The specified block or fragment is placed back in the
- * free map. If a fragment is deallocated, a possible
+ * free map. If a fragment is deallocated, a possible 
  * block reassembly is checked.
  */
 void
 ffs_blkfree(struct inode *ip, daddr_t bno, long size)
 {
 	struct cg *cgp;
-	struct buf *bp;
+	struct m_buf *bp;
 	int32_t fragno, cgbno;
 	int i, error, cg, blk, frags, bbase;
 	struct fs *fs = ip->i_fs;
@@ -446,8 +446,8 @@ ffs_blkfree(struct inode *ip, daddr_t bno, long size)
 		    (uintmax_t)ip->i_number);
 		return;
 	}
-	error = bread(ip->i_devvp, fsbtodb(fs, cgtod(fs, cg)), (int)fs->fs_cgsize,
-	    NULL, &bp);
+	error = bread((void *)ip->i_devvp, fsbtodb(fs, cgtod(fs, cg)),
+	    (int)fs->fs_cgsize, NULL, &bp);
 	if (error) {
 		brelse(bp);
 		return;

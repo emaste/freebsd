@@ -50,7 +50,7 @@
  *	a component of the tree; contains a filename, a pointer to
  *	fsinode, optional symlink name, and tree pointers
  *
- * fsinode -
+ * fsinode - 
  *	equivalent to an inode, containing target file system inode number,
  *	refcount (nlink), and stat buffer
  *
@@ -58,7 +58,7 @@
  *
  *	name	"."		"bin"		"netbsd"
  *	type	S_IFDIR		S_IFDIR		S_IFREG
- *	next	  >		  >		NULL
+ *	next 	  >		  >		NULL
  *	parent	NULL		NULL		NULL
  *	child	NULL		  v
  *
