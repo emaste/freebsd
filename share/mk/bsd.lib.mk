@@ -255,18 +255,26 @@ LDFLAGS+=	-Wl,--version-script=${VERSION_MAP}
 
 .if defined(LIB) && !empty(LIB) || defined(SHLIB_NAME)
 OBJS+=		${SRCS:N*.h:${OBJS_SRCS_FILTER:ts:}:S/$/.o/}
+PIEOBJS+=	${SRCS:N*.[hsS]:N*.asm:${OBJS_SRCS_FILTER:ts:}:S/$/.pieo/g}
 BCOBJS+=	${SRCS:N*.[hsS]:N*.asm:${OBJS_SRCS_FILTER:ts:}:S/$/.bco/g}
 LLOBJS+=	${SRCS:N*.[hsS]:N*.asm:${OBJS_SRCS_FILTER:ts:}:S/$/.llo/g}
-CLEANFILES+=	${OBJS} ${BCOBJS} ${LLOBJS} ${STATICOBJS}
+CLEANFILES+=	${OBJS} ${PIEOBJS} ${BCOBJS} ${LLOBJS} ${STATICOBJS}
 .endif
 
 .if defined(LIB) && !empty(LIB)
 _LIBS=		lib${LIB_PRIVATE}${LIB}.a
 
+.if ${MK_PIE} != "no"
+lib${LIB_PRIVATE}${LIB}.a: ${PIEOBJS} ${STATICOBJS}
+	@${ECHO} building pie static ${LIB} library
+	@rm -f ${.TARGET}
+	${AR} ${ARFLAGS} ${.TARGET} ${PIEOBJS} ${STATICOBJS} ${ARADD}
+.else
 lib${LIB_PRIVATE}${LIB}.a: ${OBJS} ${STATICOBJS}
 	@${ECHO} building static ${LIB} library
 	@rm -f ${.TARGET}
 	${AR} ${ARFLAGS} ${.TARGET} ${OBJS} ${STATICOBJS} ${ARADD}
+.endif
 .endif
 
 .if !defined(INTERNALLIB)
@@ -381,9 +389,7 @@ lib${LIB_PRIVATE}${LIB}_nossp_pic.a: ${NOSSPSOBJS}
 .endif # !defined(INTERNALLIB)
 
 .if ${MK_PIE} != "no"
-PIEOBJS+=	${OBJS:.o=.pieo}
 DEPENDOBJS+=	${PIEOBJS}
-CLEANFILES+=	${PIEOBJS}
 
 _LIBS+=		lib${LIB_PRIVATE}${LIB}_pie.a
 
