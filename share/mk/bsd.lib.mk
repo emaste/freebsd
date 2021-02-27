@@ -390,13 +390,6 @@ lib${LIB_PRIVATE}${LIB}_nossp_pic.a: ${NOSSPSOBJS}
 
 .if ${MK_PIE} != "no"
 DEPENDOBJS+=	${PIEOBJS}
-
-_LIBS+=		lib${LIB_PRIVATE}${LIB}_pie.a
-
-lib${LIB_PRIVATE}${LIB}_pie.a: ${PIEOBJS}
-	@${ECHO} building pie ${LIB} library
-	@rm -f ${.TARGET}
-	${AR} ${ARFLAGS} ${.TARGET} ${PIEOBJS} ${ARADD}
 .endif
 
 .if defined(_SKIP_BUILD)

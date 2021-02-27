@@ -436,7 +436,7 @@ DPADD_${_l}?=	${LIB${_l:tu}}
 .if ${_PRIVATELIBS:M${_l}}
 LDADD_${_l}?=	-lprivate${_l}
 .elif ${_INTERNALLIBS:M${_l}}
-LDADD_${_l}?=	${LDADD_${_l}_L} -l${_l:S/${PIE_SUFFIX}//}${PIE_SUFFIX}
+LDADD_${_l}?=	${LDADD_${_l}_L} -l${_l}
 .else
 LDADD_${_l}?=	${LDADD_${_l}_L} -l${_l}
 .endif
@@ -490,96 +490,96 @@ LDADD+=		${LDADD_${_l}}
 _LIB_OBJTOP?=	${OBJTOP}
 # INTERNALLIB definitions.
 LIBELFTCDIR=	${_LIB_OBJTOP}/lib/libelftc
-LIBELFTC?=	${LIBELFTCDIR}/libelftc${PIE_SUFFIX}.a
+LIBELFTC?=	${LIBELFTCDIR}/libelftc.a
 
 LIBKYUA_CLIDIR=	${_LIB_OBJTOP}/lib/kyua/cli
-LIBKYUA_CLI?=	${LIBKYUA_CLIDIR}/libkyua_cli${PIE_SUFFIX}.a
+LIBKYUA_CLI?=	${LIBKYUA_CLIDIR}/libkyua_cli.a
 
 LIBKYUA_DRIVERSDIR=	${_LIB_OBJTOP}/lib/kyua/drivers
-LIBKYUA_DRIVERS?=	${LIBKYUA_DRIVERSDIR}/libkyua_drivers${PIE_SUFFIX}.a
+LIBKYUA_DRIVERS?=	${LIBKYUA_DRIVERSDIR}/libkyua_drivers.a
 
 LIBKYUA_ENGINEDIR=	${_LIB_OBJTOP}/lib/kyua/engine
-LIBKYUA_ENGINE?=	${LIBKYUA_ENGINEDIR}/libkyua_engine${PIE_SUFFIX}.a
+LIBKYUA_ENGINE?=	${LIBKYUA_ENGINEDIR}/libkyua_engine.a
 
 LIBKYUA_MODELDIR=	${_LIB_OBJTOP}/lib/kyua/model
-LIBKYUA_MODEL?=		${LIBKYUA_MODELDIR}/libkyua_model${PIE_SUFFIX}.a
+LIBKYUA_MODEL?=		${LIBKYUA_MODELDIR}/libkyua_model.a
 
 LIBKYUA_STOREDIR=	${_LIB_OBJTOP}/lib/kyua/store
-LIBKYUA_STORE?=		${LIBKYUA_STOREDIR}/libkyua_store${PIE_SUFFIX}.a
+LIBKYUA_STORE?=		${LIBKYUA_STOREDIR}/libkyua_store.a
 
 LIBKYUA_UTILSDIR=	${_LIB_OBJTOP}/lib/kyua/utils
-LIBKYUA_UTILS?=		${LIBKYUA_UTILSDIR}/libkyua_utils${PIE_SUFFIX}.a
+LIBKYUA_UTILS?=		${LIBKYUA_UTILSDIR}/libkyua_utils.a
 
 LIBLUADIR=	${_LIB_OBJTOP}/lib/liblua
-LIBLUA?=	${LIBLUADIR}/liblua${PIE_SUFFIX}.a
+LIBLUA?=	${LIBLUADIR}/liblua.a
 
 LIBLUTOKDIR=	${_LIB_OBJTOP}/lib/liblutok
-LIBLUTOK?=	${LIBLUTOKDIR}/liblutok${PIE_SUFFIX}.a
+LIBLUTOK?=	${LIBLUTOKDIR}/liblutok.a
 
 LIBPEDIR=	${_LIB_OBJTOP}/lib/libpe
-LIBPE?=		${LIBPEDIR}/libpe${PIE_SUFFIX}.a
+LIBPE?=		${LIBPEDIR}/libpe.a
 
 LIBOPENBSDDIR=	${_LIB_OBJTOP}/lib/libopenbsd
-LIBOPENBSD?=	${LIBOPENBSDDIR}/libopenbsd${PIE_SUFFIX}.a
+LIBOPENBSD?=	${LIBOPENBSDDIR}/libopenbsd.a
 
 LIBSMDIR=	${_LIB_OBJTOP}/lib/libsm
-LIBSM?=		${LIBSMDIR}/libsm${PIE_SUFFIX}.a
+LIBSM?=		${LIBSMDIR}/libsm.a
 
 LIBSMDBDIR=	${_LIB_OBJTOP}/lib/libsmdb
-LIBSMDB?=	${LIBSMDBDIR}/libsmdb${PIE_SUFFIX}.a
+LIBSMDB?=	${LIBSMDBDIR}/libsmdb.a
 
 LIBSMUTILDIR=	${_LIB_OBJTOP}/lib/libsmutil
-LIBSMUTIL?=	${LIBSMUTILDIR}/libsmutil${PIE_SUFFIX}.a
+LIBSMUTIL?=	${LIBSMUTILDIR}/libsmutil.a
 
 LIBNETBSDDIR?=	${_LIB_OBJTOP}/lib/libnetbsd
-LIBNETBSD?=	${LIBNETBSDDIR}/libnetbsd${PIE_SUFFIX}.a
+LIBNETBSD?=	${LIBNETBSDDIR}/libnetbsd.a
 
 LIBVERSDIR?=	${_LIB_OBJTOP}/kerberos5/lib/libvers
-LIBVERS?=	${LIBVERSDIR}/libvers${PIE_SUFFIX}.a
+LIBVERS?=	${LIBVERSDIR}/libvers.a
 
 LIBSLDIR=	${_LIB_OBJTOP}/kerberos5/lib/libsl
-LIBSL?=		${LIBSLDIR}/libsl${PIE_SUFFIX}.a
+LIBSL?=		${LIBSLDIR}/libsl.a
 
 LIBIFCONFIGDIR=	${_LIB_OBJTOP}/lib/libifconfig
-LIBIFCONFIG?=	${LIBIFCONFIGDIR}/libifconfig${PIE_SUFFIX}.a
+LIBIFCONFIG?=	${LIBIFCONFIGDIR}/libifconfig.a
 
 LIBIPFDIR=	${_LIB_OBJTOP}/sbin/ipf/libipf
-LIBIPF?=	${LIBIPFDIR}/libipf${PIE_SUFFIX}.a
+LIBIPF?=	${LIBIPFDIR}/libipf.a
 
 LIBTELNETDIR=	${_LIB_OBJTOP}/lib/libtelnet
-LIBTELNET?=	${LIBTELNETDIR}/libtelnet${PIE_SUFFIX}.a
+LIBTELNET?=	${LIBTELNETDIR}/libtelnet.a
 
 LIBCRONDIR=	${_LIB_OBJTOP}/usr.sbin/cron/lib
-LIBCRON?=	${LIBCRONDIR}/libcron${PIE_SUFFIX}.a
+LIBCRON?=	${LIBCRONDIR}/libcron.a
 
 LIBNTPDIR=	${_LIB_OBJTOP}/usr.sbin/ntp/libntp
-LIBNTP?=	${LIBNTPDIR}/libntp${PIE_SUFFIX}.a
+LIBNTP?=	${LIBNTPDIR}/libntp.a
 
 LIBNTPEVENTDIR=	${_LIB_OBJTOP}/usr.sbin/ntp/libntpevent
-LIBNTPEVENT?=	${LIBNTPEVENTDIR}/libntpevent${PIE_SUFFIX}.a
+LIBNTPEVENT?=	${LIBNTPEVENTDIR}/libntpevent.a
 
 LIBOPTSDIR=	${_LIB_OBJTOP}/usr.sbin/ntp/libopts
-LIBOPTS?=	${LIBOPTSDIR}/libopts${PIE_SUFFIX}.a
+LIBOPTS?=	${LIBOPTSDIR}/libopts.a
 
 LIBPARSEDIR=	${_LIB_OBJTOP}/usr.sbin/ntp/libparse
-LIBPARSE?=	${LIBPARSEDIR}/libparse${PIE_SUFFIX}.a
+LIBPARSE?=	${LIBPARSEDIR}/libparse.a
 
 LIBLPRDIR=	${_LIB_OBJTOP}/usr.sbin/lpr/common_source
-LIBLPR?=	${LIBLPRDIR}/liblpr${PIE_SUFFIX}.a
+LIBLPR?=	${LIBLPRDIR}/liblpr.a
 
 LIBFIFOLOGDIR=	${_LIB_OBJTOP}/usr.sbin/fifolog/lib
-LIBFIFOLOG?=	${LIBFIFOLOGDIR}/libfifolog${PIE_SUFFIX}.a
+LIBFIFOLOG?=	${LIBFIFOLOGDIR}/libfifolog.a
 
 LIBBSNMPTOOLSDIR=	${_LIB_OBJTOP}/usr.sbin/bsnmpd/tools/libbsnmptools
-LIBBSNMPTOOLS?=	${LIBBSNMPTOOLSDIR}/libbsnmptools${PIE_SUFFIX}.a
+LIBBSNMPTOOLS?=	${LIBBSNMPTOOLSDIR}/libbsnmptools.a
 
 LIBAMUDIR=	${_LIB_OBJTOP}/usr.sbin/amd/libamu
-LIBAMU?=	${LIBAMUDIR}/libamu${PIE_SUFFIX}.a
+LIBAMU?=	${LIBAMUDIR}/libamu.a
 
-LIBBE?=		${LIBBEDIR}/libbe${PIE_SUFFIX}.a
+LIBBE?=		${LIBBEDIR}/libbe.a
 
 LIBPMCSTATDIR=	${_LIB_OBJTOP}/lib/libpmcstat
-LIBPMCSTAT?=	${LIBPMCSTATDIR}/libpmcstat${PIE_SUFFIX}.a
+LIBPMCSTAT?=	${LIBPMCSTATDIR}/libpmcstat.a
 
 LIBC_NOSSP_PICDIR=	${_LIB_OBJTOP}/lib/libc
 LIBC_NOSSP_PIC?=	${LIBC_NOSSP_PICDIR}/libc_nossp_pic.a
