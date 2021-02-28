@@ -151,7 +151,7 @@ PO_FLAG=-pg
 	${CTFCONVERT_CMD}
 
 .c.pieo:
-	${CC} ${PIEFLAG} -DPIC ${STATIC_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CC} ${PIEFLAG} ${STATIC_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .cc.po .C.po .cpp.po .cxx.po:
