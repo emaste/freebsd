@@ -161,6 +161,8 @@ static void prison_racct_detach(struct prison *pr);
 #define	PD_LOCKED	0x10	/* pr_mtx is held */
 #define	PD_LIST_SLOCKED	0x20	/* allprison_lock is held shared */
 #define	PD_LIST_XLOCKED	0x40	/* allprison_lock is held exclusive */
+#define PD_OP_FLAGS	0x07	/* Operation flags */
+#define PD_LOCK_FLAGS	0x70	/* Lock status flags */
 
 /*
  * Parameter names corresponding to PR_* flag values.  Size values are for kvm
@@ -998,13 +1000,13 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			jid = 0;
 	}
 	sx_xlock(&allprison_lock);
+	drflags = PD_LIST_XLOCKED;
 	ppr = mypr;
 	if (!prison_isalive(ppr)) {
 		/* This jail is dying.  This process will surely follow. */
 		error = EAGAIN;
 		goto done_deref;
 	}
-	drflags = PD_LIST_XLOCKED;
 	if (jid != 0) {
 		if (jid < 0) {
 			error = EINVAL;
@@ -1835,7 +1837,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 
 	/* Attach this process to the prison if requested. */
 	if (flags & JAIL_ATTACH) {
-		error = do_jail_attach(td, pr, prison_lock_xlock(pr, drflags));
+		error = do_jail_attach(td, pr,
+		    prison_lock_xlock(pr, drflags & PD_LOCK_FLAGS));
 		drflags &= ~(PD_LOCKED | PD_LIST_XLOCKED);
 		if (error) {
 			vfs_opterror(opts, "attach failed");
@@ -2345,6 +2348,7 @@ do_jail_attach(struct thread *td, struct prison *pr, int drflags)
 
 	mtx_assert(&pr->pr_mtx, MA_OWNED);
 	sx_assert(&allprison_lock, SX_LOCKED);
+	drflags &= PD_LOCK_FLAGS;
 	/*
 	 * XXX: Note that there is a slight race here if two threads
 	 * in the same privileged process attempt to attach to two
@@ -2718,6 +2722,8 @@ prison_deref(struct prison *pr, int flags)
 	for (;;) {
 		if (flags & PD_KILL) {
 			/* Kill the prison and its descendents. */
+			KASSERT(pr != &prison0,
+			    ("prison_deref trying to kill prison0"));
 			if (!(flags & PD_DEREF)) {
 				prison_hold(pr);
 				flags |= PD_DEREF;
@@ -2754,7 +2760,6 @@ prison_deref(struct prison *pr, int flags)
 			}
 		}
 		if (flags & PD_KILL) {
-			flags &= ~PD_KILL;
 			/*
 			 * Any remaining user references are probably processes
 			 * that need to be killed, either in this prison or its
@@ -2762,6 +2767,8 @@ prison_deref(struct prison *pr, int flags)
 			 */
 			if (refcount_load(&pr->pr_uref) > 0)
 				killpr = pr;
+			/* Make sure the parent prison doesn't get killed. */
+			flags &= ~PD_KILL;
 		}
 		if (flags & PD_DEREF) {
 			/* Drop a reference. */
@@ -2899,6 +2906,7 @@ prison_deref_kill(struct prison *pr, struct prisonlist *freeprison)
 			cpr->pr_state = PRISON_STATE_DYING;
 			cpr->pr_flags |= PR_REMOVE;
 			mtx_unlock(&cpr->pr_mtx);
+			continue;
 		}
 		if (!(cpr->pr_flags & PR_REMOVE))
 			continue;
