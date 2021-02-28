@@ -255,7 +255,7 @@ LDFLAGS+=	-Wl,--version-script=${VERSION_MAP}
 
 .if defined(LIB) && !empty(LIB) || defined(SHLIB_NAME)
 OBJS+=		${SRCS:N*.h:${OBJS_SRCS_FILTER:ts:}:S/$/.o/}
-PIEOBJS+=	${SRCS:N*.[hsS]:N*.asm:${OBJS_SRCS_FILTER:ts:}:S/$/.pieo/g}
+PIEOBJS+=	${SRCS:N*.h:${OBJS_SRCS_FILTER:ts:}:S/$/.pieo/}
 BCOBJS+=	${SRCS:N*.[hsS]:N*.asm:${OBJS_SRCS_FILTER:ts:}:S/$/.bco/g}
 LLOBJS+=	${SRCS:N*.[hsS]:N*.asm:${OBJS_SRCS_FILTER:ts:}:S/$/.llo/g}
 CLEANFILES+=	${OBJS} ${PIEOBJS} ${BCOBJS} ${LLOBJS} ${STATICOBJS}
