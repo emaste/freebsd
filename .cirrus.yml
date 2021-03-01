@@ -26,5 +26,3 @@ task:
   - git submodule update
   script:
   - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=llvm11 WITHOUT_TOOLCHAIN=yes buildworld buildkernel"
-  package_script:
-  - su user -c "make CROSS_TOOLCHAIN=llvm11 WITHOUT_TOOLCHAIN=yes PKG_FORMAT=tar packages"
