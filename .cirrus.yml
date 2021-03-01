@@ -16,6 +16,7 @@ task:
   - pkg install -y llvm11
   - pkg install -y git-lite
   info_script:
+  - uname -a
   - df -h
   setup_user_script:
   - pw useradd user
