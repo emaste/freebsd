@@ -15,10 +15,9 @@ task:
   install_script:
   - pkg install -y llvm11
   - pkg install -y git-lite
-  info_script:
-  - uname -a
+  setup_script:
   - df -h
-  setup_user_script:
+  - uname -a
   - pw useradd user
   - mkdir -p /usr/obj/$(pwd -P)
   - chown user:user /usr/obj/$(pwd -P)
