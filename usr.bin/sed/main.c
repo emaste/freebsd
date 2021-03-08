@@ -121,7 +121,29 @@ u_long linenum;
 
 static void add_compunit(enum e_cut, char *);
 static void add_file(char *);
+static void handle_inplace(char c, char *argv[], int argc);
 static void usage(void);
+
+static void
+handle_inplace(char c, char *argv[], int argc)
+{
+	if (optarg) {
+		inplace = optarg;
+		return;
+	}
+	if (optind >= argc) {
+		warnx("option requires an argument -- %c", c);
+		usage();
+	}
+	if (*argv[optind] == '\0') {
+		inplace = "";
+	} else {
+		inplace = argv[optind];
+		warnx("-%c %s is deprecated, use -%c%s", c, inplace, c,
+		    inplace);
+	}
+	optind++;
+}
 
 int
 main(int argc, char *argv[])
@@ -135,14 +157,14 @@ main(int argc, char *argv[])
 	fflagstdin = 0;
 	inplace = NULL;
 
-	while ((c = getopt(argc, argv, "EI:ae:f:i:lnru")) != -1)
+	while ((c = getopt(argc, argv, "EI::ae:f:i::lnru")) != -1)
 		switch (c) {
 		case 'r':		/* Gnu sed compat */
 		case 'E':
 			rflags = REG_EXTENDED;
 			break;
 		case 'I':
-			inplace = optarg;
+			handle_inplace(c, argv, argc);
 			ispan = 1;	/* span across input files */
 			break;
 		case 'a':
@@ -163,7 +185,7 @@ main(int argc, char *argv[])
 			add_compunit(CU_FILE, optarg);
 			break;
 		case 'i':
-			inplace = optarg;
+			handle_inplace(c, argv, argc);
 			ispan = 0;	/* don't span across input files */
 			break;
 		case 'l':
@@ -211,8 +233,8 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: %s script [-Ealnru] [-i extension] [file ...]\n"
-	    "\t%s [-Ealnu] [-i extension] [-e script] ... [-f script_file]"
+	    "usage: %s script [-Ealnru] [-iextension] [file ...]\n"
+	    "\t%s [-Ealnu] [-iextension] [-e script] ... [-f script_file]"
 	    " ... [file ...]\n", getprogname(), getprogname());
 	exit(1);
 }
