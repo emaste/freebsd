@@ -64,7 +64,6 @@ int	toupper(int);
 
 #if __XSI_VISIBLE
 int	isascii(int);
-int	toascii(int);
 #endif
 
 #if __ISO_C_VISIBLE >= 1999
@@ -101,24 +100,6 @@ __END_DECLS
 #define	tolower(c)	__sbtolower(c)
 #define	toupper(c)	__sbtoupper(c)
 #endif /* !__cplusplus */
-
-#if __XSI_VISIBLE
-/*
- * POSIX.1-2001 specifies _tolower() and _toupper() to be macros equivalent to
- * tolower() and toupper() respectively, minus extra checking to ensure that
- * the argument is a lower or uppercase letter respectively.  We've chosen to
- * implement these macros with the same error checking as tolower() and
- * toupper() since this doesn't violate the specification itself, only its
- * intent.  We purposely leave _tolower() and _toupper() undocumented to
- * discourage their use.
- *
- * XXX isascii() and toascii() should similarly be undocumented.
- */
-#define	_tolower(c)	__sbtolower(c)
-#define	_toupper(c)	__sbtoupper(c)
-#define	isascii(c)	(((c) & ~0x7F) == 0)
-#define	toascii(c)	((c) & 0x7F)
-#endif
 
 #if __ISO_C_VISIBLE >= 1999 && !defined(__cplusplus)
 #define	isblank(c)	__sbistype((c), _CTYPE_B)

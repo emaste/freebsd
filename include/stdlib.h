@@ -176,9 +176,6 @@ _Noreturn void
 #if __POSIX_VISIBLE >= 199506 || __XSI_VISIBLE
 char	*realpath(const char * __restrict, char * __restrict);
 #endif
-#if __POSIX_VISIBLE >= 199506
-int	 rand_r(unsigned *);			/* (TSF) */
-#endif
 #if __POSIX_VISIBLE >= 200112
 int	 posix_memalign(void **, size_t, size_t); /* (ADV) */
 int	 setenv(const char *, const char *, int);

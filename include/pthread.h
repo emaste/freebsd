@@ -341,11 +341,6 @@ int		pthread_getschedparam(pthread_t pthread, int * __restrict,
 		    struct sched_param * __restrict);
 int		pthread_setschedparam(pthread_t, int,
 		    const struct sched_param *);
-#if __XSI_VISIBLE
-int		pthread_getconcurrency(void);
-int		pthread_setconcurrency(int);
-#endif
-
 void		__pthread_cleanup_push_imp(void (*)(void *), void *,
 			struct _pthread_cleanup_info *);
 void		__pthread_cleanup_pop_imp(int);

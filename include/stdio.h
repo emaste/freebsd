@@ -365,10 +365,6 @@ int	 getw(FILE *);
 int	 putw(int, FILE *);
 #endif /* BSD or X/Open before issue 6 */
 
-#if __XSI_VISIBLE
-char	*tempnam(const char *, const char *);
-#endif
-
 #if __POSIX_VISIBLE >= 200809
 FILE	*fmemopen(void * __restrict, size_t, const char * __restrict);
 ssize_t	 getdelim(char ** __restrict, size_t * __restrict, int,

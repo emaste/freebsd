@@ -46,10 +46,6 @@
 #include <machine/setjmp.h>
 
 __BEGIN_DECLS
-#if __XSI_VISIBLE >= 600
-void	_longjmp(jmp_buf, int) __dead2;
-int	_setjmp(jmp_buf) __returns_twice;
-#endif
 void	longjmp(jmp_buf, int) __dead2;
 #if __BSD_VISIBLE
 void	longjmperror(void);

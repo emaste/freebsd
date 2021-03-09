@@ -56,7 +56,6 @@ struct FTW {
 };
 
 __BEGIN_DECLS
-int	ftw(const char *, int (*)(const char *, const struct stat *, int), int);
 int	nftw(const char *, int (*)(const char *, const struct stat *, int,
 	    struct FTW *), int, int);
 __END_DECLS

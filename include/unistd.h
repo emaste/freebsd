@@ -569,7 +569,6 @@ int	 sethostname(const char *, int);
 int	 setlogin(const char *);
 int	 setloginclass(const char *);
 void	*setmode(const char *);
-int	 setpgrp(pid_t, pid_t);			/* obsoleted by setpgid() */
 void	 setproctitle(const char *_fmt, ...) __printf0like(1, 2);
 void	 setproctitle_fast(const char *_fmt, ...) __printf0like(1, 2);
 int	 setresgid(gid_t, gid_t, gid_t);
