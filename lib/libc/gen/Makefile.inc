@@ -157,11 +157,9 @@ SRCS+=	__getosreldate.c \
 	ttyname.c \
 	ttyslot.c \
 	ualarm.c \
-	ulimit.c \
 	uname.c \
 	unvis-compat.c \
 	usleep.c \
-	utime.c \
 	utxdb.c \
 	valloc.c \
 	wait.c \
