@@ -1182,7 +1182,7 @@
 /* #undef HAVE_UPDWTMPX */
 
 /* Define to 1 if you have the <utime.h> header file. */
-#define HAVE_UTIME_H 1
+/* #undef HAVE_UTIME_H */
 
 /* Define to 1 if you have the <utmpx.h> header file. */
 #define HAVE_UTMPX_H 1

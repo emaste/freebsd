@@ -2201,7 +2201,6 @@ SQLITE_EXTENSION_INIT1
 #if !defined(_WIN32) && !defined(WIN32)
 #  include <unistd.h>
 #  include <dirent.h>
-#  include <utime.h>
 #  include <sys/time.h>
 #else
 #  include "windows.h"

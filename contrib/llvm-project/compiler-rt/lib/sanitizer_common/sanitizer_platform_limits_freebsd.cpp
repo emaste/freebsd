@@ -71,7 +71,6 @@
 #include <term.h>
 #include <termios.h>
 #include <time.h>
-#include <utime.h>
 #include <utmpx.h>
 #include <vis.h>
 #include <wchar.h>

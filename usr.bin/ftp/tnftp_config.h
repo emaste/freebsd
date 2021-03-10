@@ -409,7 +409,7 @@
 #define HAVE_UTIMES 1
 
 /* Define to 1 if you have the <utime.h> header file. */
-#define HAVE_UTIME_H 1
+/* #undef HAVE_UTIME_H */
 
 /* Define to 1 if you have the `vfork' function. */
 #define HAVE_VFORK 1

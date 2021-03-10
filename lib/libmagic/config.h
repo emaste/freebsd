@@ -215,13 +215,13 @@
 #endif
 
 /* Define to 1 if you have the `utime' function. */
-#define HAVE_UTIME 1
+/* #undef HAVE_UTIME */
 
 /* Define to 1 if you have the `utimes' function. */
 #define HAVE_UTIMES 1
 
 /* Define to 1 if you have the <utime.h> header file. */
-#define HAVE_UTIME_H 1
+/* #undef HAVE_UTIME_H */
 
 /* Define to 1 if you have the `vasprintf' function. */
 #define HAVE_VASPRINTF 1

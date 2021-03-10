@@ -69,7 +69,6 @@
 #if BZ_UNIX
 #   include <fcntl.h>
 #   include <sys/types.h>
-#   include <utime.h>
 #   include <unistd.h>
 #   include <sys/stat.h>
 #   include <sys/times.h>

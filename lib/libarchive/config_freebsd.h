@@ -215,9 +215,10 @@
 #define HAVE_UNSETENV 1
 #define HAVE_UNSIGNED_LONG_LONG 1
 #define HAVE_UNSIGNED_LONG_LONG_INT 1
+#if __FreeBSD_version < 1400000
 #define HAVE_UTIME 1
+#endif
 #define HAVE_UTIMES 1
-#define HAVE_UTIME_H 1
 #define HAVE_VFORK 1
 #define HAVE_VPRINTF 1
 #define HAVE_WCHAR_H 1

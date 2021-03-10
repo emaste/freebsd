@@ -143,7 +143,6 @@
 #endif
 #endif
 #include <signal.h>
-#include <utime.h>
 #if defined(HAVE_SYS_SOCKET_H)
 # include <sys/socket.h>
 #endif
