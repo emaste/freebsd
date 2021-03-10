@@ -125,7 +125,6 @@ unsigned struct_sockaddr_sz = sizeof(struct sockaddr);
 unsigned ucontext_t_sz = sizeof(ucontext_t);
 unsigned struct_rlimit_sz = sizeof(struct rlimit);
 unsigned struct_timespec_sz = sizeof(struct timespec);
-unsigned struct_utimbuf_sz = sizeof(struct utimbuf);
 unsigned struct_itimerspec_sz = sizeof(struct itimerspec);
 unsigned struct_timeb_sz = sizeof(struct timeb);
 unsigned struct_msqid_ds_sz = sizeof(struct msqid_ds);

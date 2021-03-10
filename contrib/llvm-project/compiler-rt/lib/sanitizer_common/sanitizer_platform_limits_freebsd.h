@@ -59,7 +59,6 @@ extern unsigned struct_statfs_sz;
 extern unsigned struct_sockaddr_sz;
 extern unsigned ucontext_t_sz;
 extern unsigned struct_rlimit_sz;
-extern unsigned struct_utimbuf_sz;
 extern unsigned struct_timespec_sz;
 extern unsigned struct_regmatch_sz;
 extern unsigned struct_regex_sz;

@@ -1552,6 +1552,7 @@ PRE_SYSCALL(getegid16)() {}
 POST_SYSCALL(getegid16)(long res) {}
 #endif // SANITIZER_USES_UID16_SYSCALLS
 
+#if 0
 PRE_SYSCALL(utime)(void *filename, void *times) {}
 
 POST_SYSCALL(utime)(long res, void *filename, void *times) {
@@ -1562,6 +1563,7 @@ POST_SYSCALL(utime)(long res, void *filename, void *times) {
     if (times) POST_WRITE(times, struct_utimbuf_sz);
   }
 }
+#endif
 
 PRE_SYSCALL(utimes)(void *filename, void *utimes) {}
 
