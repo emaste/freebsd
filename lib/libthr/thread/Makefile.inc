@@ -10,7 +10,6 @@ SRCS+= \
 	thr_barrierattr.c \
 	thr_cancel.c \
 	thr_clean.c \
-	thr_concurrency.c \
 	thr_cond.c \
 	thr_condattr.c \
 	thr_create.c \
