@@ -124,6 +124,10 @@ ghashv8-armx.o					optional armv8crypto	\
 	clean		"ghashv8-armx.o"
 
 crypto/openssl/ossl_aarch64.c			optional ossl
+crypto/openssl/aarch64/chacha-armv8.S		optional ossl		\
+	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} ${WERROR} ${PROF} ${.IMPSRC}"
+crypto/openssl/aarch64/poly1305-armv8.S		optional ossl		\
+	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} ${WERROR} ${PROF} ${.IMPSRC}"
 crypto/openssl/aarch64/sha1-armv8.S		optional ossl		\
 	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} ${WERROR} ${PROF} ${.IMPSRC}"
 crypto/openssl/aarch64/sha256-armv8.S		optional ossl		\
@@ -199,6 +203,8 @@ dev/ice/ice_sched.c				optional ice pci \
 dev/ice/ice_sriov.c				optional ice pci \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
 dev/ice/ice_switch.c				optional ice pci \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
+dev/ice/ice_vlan_mode.c		optional	ice pci \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
 ice_ddp.c					optional ice_ddp	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk ice_ddp.fw:ice_ddp:0x01031300 -mice_ddp -c${.TARGET}"	\

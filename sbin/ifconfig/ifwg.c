@@ -280,6 +280,7 @@ dump_peer(const nvlist_t *nvl_peer)
 	char addr_buf[INET6_ADDRSTRLEN];
 	size_t size;
 	int count, port;
+	uint16_t persistent_keepalive;
 
 	printf("[Peer]\n");
 	if (nvlist_exists_binary(nvl_peer, "public-key")) {
@@ -292,7 +293,11 @@ dump_peer(const nvlist_t *nvl_peer)
 		sa_ntop(endpoint, addr_buf, &port);
 		printf("Endpoint = %s:%d\n", addr_buf, ntohs(port));
 	}
-
+	if (nvlist_exists_number(nvl_peer, "persistent-keepalive-interval")) {
+		persistent_keepalive = nvlist_get_number(nvl_peer,
+		    "persistent-keepalive-interval");
+		printf("PersistentKeepalive = %d\n", persistent_keepalive);
+	}
 	if (!nvlist_exists_binary(nvl_peer, "allowed-ips"))
 		return;
 	aips = nvlist_get_binary(nvl_peer, "allowed-ips", &size);
@@ -400,8 +405,6 @@ peerfinish(int s, void *arg)
 		errx(1, "failed to allocate nvl_array");
 	if (!nvlist_exists_binary(nvl_params, "public-key"))
 		errx(1, "must specify a public-key for adding peer");
-	if (!nvlist_exists_binary(nvl_params, "endpoint"))
-		errx(1, "must specify an endpoint for adding peer");
 	if (allowed_ips_count == 0)
 		errx(1, "must specify at least one range of allowed-ips to add a peer");
 
@@ -475,6 +478,26 @@ DECL_CMD_FUNC(setwgpubkey, val, d)
 	if (!key_from_base64(key, val))
 		errx(1, "invalid key %s", val);
 	nvlist_add_binary(nvl_params, "public-key", key, WG_KEY_LEN);
+}
+
+static
+DECL_CMD_FUNC(setwgpersistentkeepalive, val, d)
+{
+	unsigned long persistent_keepalive;
+	char *endp;
+
+	if (!do_peer)
+		errx(1, "setting persistent keepalive only valid when adding peer");
+
+	errno = 0;
+	persistent_keepalive = strtoul(val, &endp, 0);
+	if (errno != 0 || *endp != '\0')
+		errx(1, "persistent-keepalive must be numeric (seconds)");
+	if (persistent_keepalive > USHRT_MAX)
+		errx(1, "persistent-keepalive '%lu' too large",
+		    persistent_keepalive);
+	nvlist_add_number(nvl_params, "persistent-keepalive-interval",
+	    persistent_keepalive);
 }
 
 static
@@ -565,6 +588,7 @@ static struct cmd wireguard_cmds[] = {
     DEF_CMD("peer-list",  0, peerlist),
     DEF_CMD("peer",  0, peerstart),
     DEF_CMD_ARG("public-key",  setwgpubkey),
+    DEF_CMD_ARG("persistent-keepalive",  setwgpersistentkeepalive),
     DEF_CMD_ARG("allowed-ips",  setallowedips),
     DEF_CMD_ARG("endpoint",  setendpoint),
 };

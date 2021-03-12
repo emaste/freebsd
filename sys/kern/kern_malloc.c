@@ -537,7 +537,7 @@ malloc_dbg(caddr_t *vap, size_t *sizep, struct malloc_type *mtp,
 #ifdef EPOCH_TRACE
 			epoch_trace_list(curthread);
 #endif
-			KASSERT(1, 
+			KASSERT(0,
 			    ("malloc(M_WAITOK) with sleeping prohibited"));
 		}
 	}
@@ -802,6 +802,17 @@ mallocarray(size_t nmemb, size_t size, struct malloc_type *type, int flags)
 		panic("mallocarray: %zu * %zu overflowed", nmemb, size);
 
 	return (malloc(size * nmemb, type, flags));
+}
+
+void *
+mallocarray_domainset(size_t nmemb, size_t size, struct malloc_type *type,
+    struct domainset *ds, int flags)
+{
+
+	if (WOULD_OVERFLOW(nmemb, size))
+		panic("mallocarray_domainset: %zu * %zu overflowed", nmemb, size);
+
+	return (malloc_domainset(size * nmemb, type, ds, flags));
 }
 
 #ifdef INVARIANTS

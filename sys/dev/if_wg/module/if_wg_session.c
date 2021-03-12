@@ -254,15 +254,13 @@ wg_socket_reuse(struct wg_softc *sc, struct socket *so)
 	error = sosetopt(so, &sopt);
 	if (error) {
 		ifp = iflib_get_ifp(sc->wg_ctx);
-		if_printf(ifp,
-				  "cannot set REUSEPORT socket opt: %d\n", error);
+		if_printf(ifp, "cannot set REUSEPORT socket opt: %d\n", error);
 	}
 	sopt.sopt_name = SO_REUSEADDR;
 	error = sosetopt(so, &sopt);
 	if (error) {
 		ifp = iflib_get_ifp(sc->wg_ctx);
-		if_printf(ifp,
-				  "cannot set REUSEADDDR socket opt: %d\n", error);
+		if_printf(ifp, "cannot set REUSEADDDR socket opt: %d\n", error);
 	}
 	return (error);
 }
@@ -1893,20 +1891,22 @@ wg_input(struct mbuf *m0, int offset, struct inpcb *inpcb,
 	struct wg_pkt_data *pkt_data;
 	struct wg_endpoint *e;
 	struct wg_softc *sc = _sc;
-	struct udphdr *uh;
 	struct mbuf *m;
-	int pktlen, pkttype, hlen;
+	int pktlen, pkttype;
 	struct noise_remote *remote;
 	struct wg_tag *t;
 	void *data;
 
-	uh = (struct udphdr *)(m0->m_data + offset);
-	hlen = offset + sizeof(struct udphdr);
+	/* Caller provided us with srcsa, no need for this header. */
+	m_adj(m0, offset + sizeof(struct udphdr));
 
-	m_adj(m0, hlen);
-
+	/*
+	 * Ensure mbuf has at least enough contiguous data to peel off our
+	 * headers at the beginning.
+	 */
 	if ((m = m_defrag(m0, M_NOWAIT)) == NULL) {
 		DPRINTF(sc, "DEFRAG fail\n");
+		m_freem(m0);
 		return;
 	}
 	data = mtod(m, void *);
@@ -1937,8 +1937,10 @@ wg_input(struct mbuf *m0, int offset, struct inpcb *inpcb,
 		verify_endpoint(m);
 		if (mbufq_enqueue(&sc->sc_handshake_queue, m) == 0) {
 			GROUPTASK_ENQUEUE(&sc->sc_handshake);
-		} else
+		} else {
 			DPRINTF(sc, "Dropping handshake packet\n");
+			wg_m_freem(m);
+		}
 	} else if (pktlen >= sizeof(struct wg_pkt_data) + NOISE_MAC_SIZE
 	    && pkttype == MESSAGE_DATA) {
 

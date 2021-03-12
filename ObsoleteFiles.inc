@@ -36,6 +36,18 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210305: removed Poly1305_* symbols
+OLD_FILES+=usr/include/crypto/xform_poly1305.h
+
+# 20210304: remove old bc and dc support and test files
+.if !defined(WITHOUT_GH_BC)
+OLD_FILES+=usr/share/misc/bc.library
+OLD_FILES+=usr/tests/usr.bin/dc/Kyuafile
+OLD_FILES+=usr/tests/usr.bin/dc/bcode
+OLD_FILES+=usr/tests/usr.bin/dc/inout
+OLD_DIRS+=usr/tests/usr.bin/dc
+.endif
+
 # 20210302: fmtree removed
 OLD_FILES+=usr/sbin/fmtree
 OLD_FILES+=usr/share/man/man8/fmtree.8.gz
@@ -1225,10 +1237,18 @@ OLD_DIRS+=usr/lib/clang/10.0.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/10.0.0/lib
 OLD_DIRS+=usr/lib/clang/10.0.0
 
+# 20200520: xform_userland.h removed
+OLD_FILES+=usr/include/crypto/xform_userland.h
+
 # 20200515: libalias cuseeme protocol support retired
 OLD_LIBS+=lib/libalias_cuseeme.so
 OLD_FILES+=usr/lib/libalias_cuseeme.a
 OLD_FILES+=usr/lib/libalias_cuseeme_p.a
+
+# 20200511: Remove deprecated crypto algorithms
+OLD_FILES+=usr/include/crypto/cast.h
+OLD_FILES+=usr/include/crypto/castsb.h
+OLD_FILES+=usr/include/crypto/skipjack.h
 
 # 20200511: Remove ubsec(4)
 OLD_FILES+=usr/share/man/man4/ubsec.4.gz
@@ -1265,6 +1285,7 @@ OLD_FILES+=usr/share/man/man1/gdbserver.1.gz
 OLD_FILES+=usr/share/man/man1/kgdb.1.gz
 
 # 20200327: OCF refactoring
+OLD_FILES+=usr/include/crypto/cryptosoft.h
 OLD_FILES+=usr/share/man/man9/crypto_find_driver.9.gz
 OLD_FILES+=usr/share/man/man9/crypto_register.9.gz
 OLD_FILES+=usr/share/man/man9/crypto_unregister.9.gz

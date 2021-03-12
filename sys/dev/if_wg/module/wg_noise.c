@@ -454,7 +454,7 @@ noise_remote_begin_session(struct noise_remote *r)
 		    NOISE_SYMMETRIC_SIZE, NOISE_SYMMETRIC_SIZE, 0, 0,
 		    hs->hs_ck);
 	} else {
-		rw_exit_write(&r->r_keypair_lock);
+		rw_exit_write(&r->r_handshake_lock);
 		return EINVAL;
 	}
 
@@ -673,7 +673,7 @@ noise_remote_decrypt(struct noise_remote *r, struct noise_data *data,
 	 *    REKEY_AFTER_TIME_RECV seconds. */
 	ret = ESTALE;
 	kp = r->r_current;
-	if (kp->kp_is_initiator &&
+	if (kp != NULL && kp->kp_valid && kp->kp_is_initiator &&
 	    noise_timer_expired(&kp->kp_birthdate, REKEY_AFTER_TIME_RECV, 0))
 		goto error;
 

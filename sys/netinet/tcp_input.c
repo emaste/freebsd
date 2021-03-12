@@ -510,6 +510,7 @@ cc_post_recovery(struct tcpcb *tp, struct tcphdr *th)
 	}
 	/* XXXLAS: EXIT_RECOVERY ? */
 	tp->t_bytes_acked = 0;
+	tp->sackhint.prr_out = 0;
 }
 
 /*
@@ -688,7 +689,7 @@ tcp_input(struct mbuf **mp, int *offp, int proto)
 			/* XXX stat */
 			goto drop;
 		}
-		iptos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
+		iptos = IPV6_TRAFFIC_CLASS(ip6);
 	}
 #endif
 #if defined(INET) && defined(INET6)
@@ -2595,17 +2596,14 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 								    imax(1, tp->snd_nxt - tp->snd_una);
 							snd_cnt = howmany((long)tp->sackhint.prr_delivered *
 							    tp->snd_ssthresh, tp->sackhint.recover_fs) -
-							    (tp->sackhint.sack_bytes_rexmit +
-							    (tp->snd_nxt - tp->snd_recover));
+							    tp->sackhint.prr_out;
 						} else {
 							if (V_tcp_do_prr_conservative)
 								limit = tp->sackhint.prr_delivered -
-									(tp->sackhint.sack_bytes_rexmit +
-									(tp->snd_nxt - tp->snd_recover));
+									tp->sackhint.prr_out;
 							else
 								limit = imax(tp->sackhint.prr_delivered -
-									    (tp->sackhint.sack_bytes_rexmit +
-									    (tp->snd_nxt - tp->snd_recover)),
+									    tp->sackhint.prr_out,
 									    del_data) + maxseg;
 							snd_cnt = imin(tp->snd_ssthresh - pipe, limit);
 						}
@@ -2693,7 +2691,6 @@ enter_recovery:
 						 */
 						tp->sackhint.prr_delivered =
 						    tp->sackhint.sacked_bytes;
-						tp->sackhint.sack_bytes_rexmit = 0;
 						tp->sackhint.recover_fs = max(1,
 						    tp->snd_nxt - tp->snd_una);
 					}
@@ -3973,18 +3970,15 @@ tcp_prr_partialack(struct tcpcb *tp, struct tcphdr *th)
 			    imax(1, tp->snd_nxt - tp->snd_una);
 		snd_cnt = howmany((long)tp->sackhint.prr_delivered *
 			    tp->snd_ssthresh, tp->sackhint.recover_fs) -
-			    (tp->sackhint.sack_bytes_rexmit +
-			    (tp->snd_nxt - tp->snd_recover));
+			    tp->sackhint.prr_out;
 	} else {
 		if (V_tcp_do_prr_conservative)
 			limit = tp->sackhint.prr_delivered -
-			    (tp->sackhint.sack_bytes_rexmit +
-			    (tp->snd_nxt - tp->snd_recover));
+			    tp->sackhint.prr_out;
 		else
 			limit = imax(tp->sackhint.prr_delivered -
-				    (tp->sackhint.sack_bytes_rexmit +
-				    (tp->snd_nxt - tp->snd_recover)),
-				    del_data) + maxseg;
+				    tp->sackhint.prr_out, del_data) +
+				    maxseg;
 		snd_cnt = imin((tp->snd_ssthresh - pipe), limit);
 	}
 	snd_cnt = imax(snd_cnt, 0) / maxseg;

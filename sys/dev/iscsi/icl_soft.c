@@ -866,6 +866,7 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 	 * of error.
 	 */
 	available = sbspace(&so->so_snd);
+	ic->ic_check_send_space = false;
 
 	/*
 	 * Notify the socket upcall that we don't need wakeups
@@ -975,9 +976,9 @@ icl_send_thread(void *arg)
 			 * This way the icl_conn_send_pdus() can go through
 			 * all the queued PDUs without holding any locks.
 			 */
-			STAILQ_CONCAT(&queue, &ic->ic_to_send);
+			if (STAILQ_EMPTY(&queue) || ic->ic_check_send_space)
+				STAILQ_CONCAT(&queue, &ic->ic_to_send);
 
-			ic->ic_check_send_space = false;
 			ICL_CONN_UNLOCK(ic);
 			icl_conn_send_pdus(ic, &queue);
 			ICL_CONN_LOCK(ic);

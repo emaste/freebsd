@@ -331,7 +331,7 @@ pfattach_vnet(void)
 	for (int i = 0; i < SCNT_MAX; i++)
 		V_pf_status.scounters[i] = counter_u64_alloc(M_WAITOK);
 
-	if (swi_add(NULL, "pf send", pf_intr, curvnet, SWI_NET,
+	if (swi_add(&V_pf_swi_ie, "pf send", pf_intr, curvnet, SWI_NET,
 	    INTR_MPSAFE, &V_pf_swi_cookie) != 0)
 		/* XXXGL: leaked all above. */
 		return;
@@ -466,15 +466,8 @@ pf_free_rule(struct pf_krule *rule)
 		pfi_kkif_unref(rule->kif);
 	pf_kanchor_remove(rule);
 	pf_empty_kpool(&rule->rpool.list);
-	counter_u64_free(rule->evaluations);
-	for (int i = 0; i < 2; i++) {
-		counter_u64_free(rule->packets[i]);
-		counter_u64_free(rule->bytes[i]);
-	}
-	counter_u64_free(rule->states_cur);
-	counter_u64_free(rule->states_tot);
-	counter_u64_free(rule->src_nodes);
-	free(rule, M_PFRULE);
+
+	pf_krule_free(rule);
 }
 
 static void
@@ -1435,6 +1428,23 @@ pf_altq_get_nth_active(u_int32_t n)
 }
 #endif /* ALTQ */
 
+void
+pf_krule_free(struct pf_krule *rule)
+{
+	if (rule == NULL)
+		return;
+
+	counter_u64_free(rule->evaluations);
+	for (int i = 0; i < 2; i++) {
+		counter_u64_free(rule->packets[i]);
+		counter_u64_free(rule->bytes[i]);
+	}
+	counter_u64_free(rule->states_cur);
+	counter_u64_free(rule->states_tot);
+	counter_u64_free(rule->src_nodes);
+	free(rule, M_PFRULE);
+}
+
 static void
 pf_kpooladdr_to_pooladdr(const struct pf_kpooladdr *kpool,
     struct pf_pooladdr *pool)
@@ -1990,17 +2000,8 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 #undef ERROUT
 DIOCADDRULE_error:
 		PF_RULES_WUNLOCK();
-		counter_u64_free(rule->evaluations);
-		for (int i = 0; i < 2; i++) {
-			counter_u64_free(rule->packets[i]);
-			counter_u64_free(rule->bytes[i]);
-		}
-		counter_u64_free(rule->states_cur);
-		counter_u64_free(rule->states_tot);
-		counter_u64_free(rule->src_nodes);
-		free(rule, M_PFRULE);
-		if (kif)
-			pf_kkif_free(kif);
+		pf_krule_free(rule);
+		pf_kkif_free(kif);
 		break;
 	}
 
@@ -2297,19 +2298,8 @@ DIOCADDRULE_error:
 #undef ERROUT
 DIOCCHANGERULE_error:
 		PF_RULES_WUNLOCK();
-		if (newrule != NULL) {
-			counter_u64_free(newrule->evaluations);
-			for (int i = 0; i < 2; i++) {
-				counter_u64_free(newrule->packets[i]);
-				counter_u64_free(newrule->bytes[i]);
-			}
-			counter_u64_free(newrule->states_cur);
-			counter_u64_free(newrule->states_tot);
-			counter_u64_free(newrule->src_nodes);
-			free(newrule, M_PFRULE);
-		}
-		if (kif != NULL)
-			pf_kkif_free(kif);
+		pf_krule_free(newrule);
+		pf_kkif_free(kif);
 		break;
 	}
 
@@ -3152,8 +3142,7 @@ DIOCCHANGEADDR_error:
 			free(newpa, M_PFRULE);
 		}
 		PF_RULES_WUNLOCK();
-		if (kif != NULL)
-			pf_kkif_free(kif);
+		pf_kkif_free(kif);
 		break;
 	}
 
@@ -4681,6 +4670,7 @@ pf_load(void)
 static void
 pf_unload_vnet(void)
 {
+	int ret;
 
 	V_pf_vnet_active = 0;
 	V_pf_status.running = 0;
@@ -4690,7 +4680,10 @@ pf_unload_vnet(void)
 	shutdown_pf();
 	PF_RULES_WUNLOCK();
 
-	swi_remove(V_pf_swi_cookie);
+	ret = swi_remove(V_pf_swi_cookie);
+	MPASS(ret == 0);
+	ret = intr_event_destroy(V_pf_swi_ie);
+	MPASS(ret == 0);
 
 	pf_unload_vnet_purge();
 
