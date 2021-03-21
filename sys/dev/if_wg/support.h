@@ -71,15 +71,4 @@ siphash24(const SIPHASH_KEY *key, const void *src, size_t len)
 #define IFT_WIREGUARD IFT_PPP
 #endif
 
-static inline int
-sogetsockaddr(struct socket *so, struct sockaddr **nam)
-{
-	int error;
-
-	CURVNET_SET(so->so_vnet);
-	error = (*so->so_proto->pr_usrreqs->pru_sockaddr)(so, nam);
-	CURVNET_RESTORE();
-	return (error);
-}
-
 #endif
