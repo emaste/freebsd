@@ -44,21 +44,6 @@ main() {
 		runtime)
 			outname="runtime"
 			uclfile="${uclfile}"
-			;;
-		runtime_manuals)
-			outname="${origname}"
-			pkgdeps="runtime"
-			;;
-		runtime_*)
-			outname="${origname}"
-			uclfile="${outname##*}${uclfile}"
-			pkgdeps="runtime"
-			_descr="$(make -C ${srctree}/release/packages -f Makefile.package -V ${outname}_DESCR)"
-			;;
-		jail_*)
-			outname="${origname}"
-			uclfile="${outname##*}${uclfile}"
-			pkgdeps="runtime"
 			_descr="$(make -C ${srctree}/release/packages -f Makefile.package -V ${outname}_DESCR)"
 			;;
 		*_lib32_dev)
@@ -84,6 +69,11 @@ main() {
 		*_dbg)
 			outname="${outname%%_dbg}"
 			_descr="Debugging Symbols"
+			pkgdeps="${outname}"
+			;;
+		*_man)
+			outname="${outname%%_man}"
+			_descr="Manual Pages"
 			pkgdeps="${outname}"
 			;;
 		${origname})
