@@ -161,6 +161,7 @@ SUBDIR=	\
 	if_tuntap \
 	if_vlan \
 	if_vxlan \
+	${_if_wg} \
 	iflib \
 	${_igc} \
 	imgact_binmisc \
