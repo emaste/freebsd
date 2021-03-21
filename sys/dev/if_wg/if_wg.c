@@ -3461,5 +3461,5 @@ static moduledata_t wg_moduledata = {
 };
 
 DECLARE_MODULE(wg, wg_moduledata, SI_SUB_PSEUDO, SI_ORDER_ANY);
-MODULE_VERSION(wg, WIREGUARD_VERSION);
+MODULE_VERSION(wg, 1);
 MODULE_DEPEND(wg, crypto, 1, 1, 1);
