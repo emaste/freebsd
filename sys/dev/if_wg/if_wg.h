@@ -1,4 +1,5 @@
-/*
+/* SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 2019 Matt Dunwoodie <ncon@noconroy.net>
  *
  * Permission to use, copy, modify, and distribute this software for any
