@@ -98,6 +98,8 @@
         ..
         iicbus
         ..
+        if_wg
+        ..
         io
         ..
         mfi
