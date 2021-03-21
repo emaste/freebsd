@@ -1,7 +1,10 @@
-/* SPDX-License-Identifier: MIT
+/* SPDX-License-Identifier: ISC
  *
  * Copyright (C) 2021 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  * Copyright (C) 2021 Matt Dunwoodie <ncon@noconroy.net>
+ *
+ * support.h contains functions that are either not _yet_ upstream in FreeBSD 14, or are shimmed
+ * from OpenBSD. It is different from compat.h, which is strictly for backports.
  */
 
 #ifndef _WG_SUPPORT
@@ -10,10 +13,14 @@
 #include <sys/types.h>
 #include <sys/limits.h>
 #include <sys/endian.h>
+#include <sys/socket.h>
 #include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
+#include <sys/socketvar.h>
+#include <sys/protosw.h>
+#include <net/vnet.h>
 #include <vm/uma.h>
 
 /* TODO the following is openbsd compat defines to allow us to copy the wg_*
@@ -51,6 +58,28 @@ siphash24(const SIPHASH_KEY *key, const void *src, size_t len)
 
 	return (SipHashX(&ctx, 2, 4, (const uint8_t *)key, src, len));
 }
+
+#ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
+
+#ifndef PRIV_NET_WG
+#define PRIV_NET_WG PRIV_NET_HWIOCTL
+#endif
+
+#ifndef IFT_WIREGUARD
+#define IFT_WIREGUARD IFT_PPP
+#endif
+
+static inline int
+sogetsockaddr(struct socket *so, struct sockaddr **nam)
+{
+	int error;
+
+	CURVNET_SET(so->so_vnet);
+	error = (*so->so_proto->pr_usrreqs->pru_sockaddr)(so, nam);
+	CURVNET_RESTORE();
+	return (error);
+}
 
 #endif
