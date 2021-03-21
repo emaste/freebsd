@@ -13,7 +13,15 @@ ATF_TESTS_C=	ip_reass_test \
 		tcp_connect_port_test \
 		tcp_md5_getsockopt
 
-ATF_TESTS_SH=	carp fibs fibs_test redirect divert forward output lpm arp
+ATF_TESTS_SH=	carp fibs \
+		fibs_test \
+		redirect \
+		divert \
+		forward \
+		output \
+		lpm \
+		arp \
+		if_wg_test
 TEST_METADATA.output+=	required_programs="python"
 
 PROGS=	udp_dontroute tcp_user_cookie
