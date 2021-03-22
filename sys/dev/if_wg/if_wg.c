@@ -72,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #include "support.h"
 #include "wg_noise.h"
 #include "wg_cookie.h"
-#include "version.h"
 #include "if_wg.h"
 
 /* It'd be nice to use IF_MAXMTU, but that means more complicated mbuf allocations,
