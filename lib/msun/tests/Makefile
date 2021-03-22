@@ -54,11 +54,7 @@ NETBSD_ATF_TESTS_C+=	tanh_test
 
 ATF_TESTS_C+=	cexp_test
 ATF_TESTS_C+=	conj_test
-.if ${MACHINE_CPUARCH} != "aarch64"
-# Hits an assert in llvm when building for arm64:
-# https://llvm.org/bugs/show_bug.cgi?id=26081
 ATF_TESTS_C+=	csqrt_test
-.endif
 ATF_TESTS_C+=	ctrig_test
 ATF_TESTS_C+=	exponential_test
 ATF_TESTS_C+=	fenv_test
@@ -88,8 +84,6 @@ SRCS.ilogb2_test=	ilogb_test.c
 
 LIBADD.fenv_test+=	util
 LIBADD+=	m
-
-WARNS?=		6
 
 # Copied from lib/msun/Makefile
 .if ${MACHINE_CPUARCH} == "i386"
