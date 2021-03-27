@@ -1334,7 +1334,7 @@ t4_attach(device_t dev)
 			s->nofldtxq += nports * (num_vis - 1) * iaq.nofldtxq_vi;
 		s->neq += s->nofldtxq;
 
-		s->ofld_txq = malloc(s->nofldtxq * sizeof(struct sge_wrq),
+		s->ofld_txq = malloc(s->nofldtxq * sizeof(struct sge_ofld_txq),
 		    M_CXGBE, M_ZERO | M_WAITOK);
 	}
 #endif
@@ -6103,7 +6103,7 @@ vi_full_uninit(struct vi_info *vi)
 	struct sge_ofld_rxq *ofld_rxq;
 #endif
 #if defined(TCP_OFFLOAD) || defined(RATELIMIT)
-	struct sge_wrq *ofld_txq;
+	struct sge_ofld_txq *ofld_txq;
 #endif
 
 	if (vi->flags & VI_INIT_DONE) {
@@ -6120,7 +6120,7 @@ vi_full_uninit(struct vi_info *vi)
 
 #if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 		for_each_ofld_txq(vi, i, ofld_txq) {
-			quiesce_wrq(sc, ofld_txq);
+			quiesce_wrq(sc, &ofld_txq->wrq);
 		}
 #endif
 
@@ -7218,19 +7218,6 @@ cxgbe_sysctls(struct port_info *pi)
 
 #undef T4_REGSTAT
 #undef T4_PORTSTAT
-
-	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO, "tx_toe_tls_records",
-	    CTLFLAG_RD, &pi->tx_toe_tls_records,
-	    "# of TOE TLS records transmitted");
-	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO, "tx_toe_tls_octets",
-	    CTLFLAG_RD, &pi->tx_toe_tls_octets,
-	    "# of payload octets in transmitted TOE TLS records");
-	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO, "rx_toe_tls_records",
-	    CTLFLAG_RD, &pi->rx_toe_tls_records,
-	    "# of TOE TLS records received");
-	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO, "rx_toe_tls_octets",
-	    CTLFLAG_RD, &pi->rx_toe_tls_octets,
-	    "# of payload octets in received TOE TLS records");
 }
 
 static int
@@ -10672,6 +10659,9 @@ clear_stats(struct adapter *sc, u_int port_id)
 	struct sge_rxq *rxq;
 	struct sge_txq *txq;
 	struct sge_wrq *wrq;
+#if defined(TCP_OFFLOAD) || defined(RATELIMIT)
+	struct sge_ofld_txq *ofld_txq;
+#endif
 #ifdef TCP_OFFLOAD
 	struct sge_ofld_rxq *ofld_rxq;
 #endif
@@ -10759,9 +10749,11 @@ clear_stats(struct adapter *sc, u_int port_id)
 			}
 
 #if defined(TCP_OFFLOAD) || defined(RATELIMIT)
-			for_each_ofld_txq(vi, i, wrq) {
-				wrq->tx_wrs_direct = 0;
-				wrq->tx_wrs_copied = 0;
+			for_each_ofld_txq(vi, i, ofld_txq) {
+				ofld_txq->wrq.tx_wrs_direct = 0;
+				ofld_txq->wrq.tx_wrs_copied = 0;
+				counter_u64_zero(ofld_txq->tx_toe_tls_records);
+				counter_u64_zero(ofld_txq->tx_toe_tls_octets);
 			}
 #endif
 #ifdef TCP_OFFLOAD
@@ -10769,6 +10761,8 @@ clear_stats(struct adapter *sc, u_int port_id)
 				ofld_rxq->fl.cl_allocated = 0;
 				ofld_rxq->fl.cl_recycled = 0;
 				ofld_rxq->fl.cl_fast_recycled = 0;
+				ofld_rxq->rx_toe_tls_records = 0;
+				ofld_rxq->rx_toe_tls_octets = 0;
 			}
 #endif
 
