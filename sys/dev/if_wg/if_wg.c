@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet/udp_var.h>
+#include <netinet6/nd6.h>
 
 #include <machine/in_cksum.h>
 
@@ -276,6 +277,7 @@ struct wg_socket {
 	struct socket	*so_so4;
 	struct socket	*so_so6;
 	uint32_t	 so_user_cookie;
+	int		 so_fibnum;
 	in_port_t	 so_port;
 };
 
@@ -376,6 +378,7 @@ static int wg_socket_bind(struct socket *, struct socket *, in_port_t *);
 static void wg_socket_set(struct wg_softc *, struct socket *, struct socket *);
 static void wg_socket_uninit(struct wg_softc *);
 static void wg_socket_set_cookie(struct wg_softc *, uint32_t);
+static int wg_socket_set_fibnum(struct wg_softc *, int);
 static int wg_send(struct wg_softc *, struct wg_endpoint *, struct mbuf *);
 static void wg_timers_event_data_sent(struct wg_timers *);
 static void wg_timers_event_data_received(struct wg_timers *);
@@ -970,6 +973,7 @@ wg_socket_init(struct wg_softc *sc, in_port_t port)
 	MPASS(rc == 0);
 
 	so4->so_user_cookie = so6->so_user_cookie = sc->sc_socket.so_user_cookie;
+	so4->so_fibnum = so6->so_fibnum = sc->sc_socket.so_fibnum;
 
 	rc = wg_socket_bind(so4, so6, &port);
 	if (rc == 0) {
@@ -997,6 +1001,23 @@ static void wg_socket_set_cookie(struct wg_softc *sc, uint32_t user_cookie)
 		so->so_so4->so_user_cookie = user_cookie;
 	if (so->so_so6)
 		so->so_so6->so_user_cookie = user_cookie;
+}
+
+static int wg_socket_set_fibnum(struct wg_softc *sc, int fibnum)
+{
+	struct wg_socket *so = &sc->sc_socket;
+
+	if (fibnum < 0 || fibnum >= rt_numfibs)
+		return EINVAL;
+
+	sx_assert(&sc->sc_lock, SX_XLOCKED);
+
+	so->so_fibnum = fibnum;
+	if (so->so_so4)
+		so->so_so4->so_fibnum = fibnum;
+	if (so->so_so6)
+		so->so_so6->so_fibnum = fibnum;
+	return 0;
 }
 
 static void
@@ -1222,9 +1243,10 @@ static void
 wg_timers_set_persistent_keepalive(struct wg_timers *t, uint16_t interval)
 {
 	rw_rlock(&t->t_lock);
-	if (!t->t_disabled) {
+	if (interval != t->t_persistent_keepalive_interval) {
 		t->t_persistent_keepalive_interval = interval;
-		wg_timers_run_persistent_keepalive(t);
+		if (!t->t_disabled)
+			wg_timers_run_persistent_keepalive(t);
 	}
 	rw_runlock(&t->t_lock);
 }
@@ -1482,7 +1504,7 @@ wg_timers_run_persistent_keepalive(struct wg_timers *t)
 {
 	struct wg_peer	 *peer = __containerof(t, struct wg_peer, p_timers);
 
-	if (t->t_persistent_keepalive_interval != 0)
+	if (t->t_persistent_keepalive_interval > 0)
 		GROUPTASK_ENQUEUE(&peer->p_send_keepalive);
 }
 
@@ -1968,8 +1990,6 @@ wg_deliver_out(struct wg_peer *peer)
 	int ret;
 
 	NET_EPOCH_ENTER(et);
-	if (peer->p_sc->sc_ifp->if_link_state == LINK_STATE_DOWN)
-		goto done;
 
 	wg_peer_get_endpoint(peer, &endpoint);
 
@@ -1998,7 +2018,7 @@ wg_deliver_out(struct wg_peer *peer)
 		}
 		m_freem(m);
 	}
-done:
+
 	NET_EPOCH_EXIT(et);
 }
 
@@ -2335,14 +2355,37 @@ wg_input(struct mbuf *m0, int offset, struct inpcb *inpcb,
 
 	/*
 	 * Ensure mbuf has at least enough contiguous data to peel off our
-	 * headers at the beginning.
+	 * headers at the beginning, and make a jumbo contigious copy if we've
+	 * got a jumbo frame. This is pretty sloppy, and we should just fix the
+	 * crypto routines to deal with mbuf clusters instead.
 	 */
-	if ((m = m_defrag(m0, M_NOWAIT)) == NULL) {
+	if (!m0->m_next)
+		m = m0;
+	else {
+		int allocation_order;
+
+		if (m0->m_pkthdr.len <= MCLBYTES)
+			allocation_order = MCLBYTES;
+		else if (m0->m_pkthdr.len <= MJUMPAGESIZE)
+			allocation_order = MJUMPAGESIZE;
+		else if (m0->m_pkthdr.len <= MJUM9BYTES)
+			allocation_order = MJUM9BYTES;
+		else if (m0->m_pkthdr.len <= MJUM16BYTES)
+			allocation_order = MJUM16BYTES;
+		else {
+			m_freem(m0);
+			return;
+		}
+		if ((m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, allocation_order)) == NULL) {
+			m_freem(m0);
+			return;
+		}
+		m->m_len = m->m_pkthdr.len = m0->m_pkthdr.len;
+		m_copydata(m0, 0, m0->m_pkthdr.len, mtod(m, void *));
 		m_freem(m0);
-		return;
 	}
 	data = mtod(m, void *);
-	pkttype = *(uint32_t*)data;
+	pkttype = *(uint32_t *)data;
 	t = wg_tag_get(m);
 	if (t == NULL) {
 		goto free;
@@ -2369,7 +2412,6 @@ wg_input(struct mbuf *m0, int offset, struct inpcb *inpcb,
 		}
 	} else if (pktlen >= sizeof(struct wg_pkt_data) + NOISE_AUTHTAG_LEN
 	    && pkttype == WG_PKT_DATA) {
-
 		pkt_data = data;
 		remote = wg_index_get(sc, pkt_data->r_idx);
 		if (remote == NULL) {
@@ -3078,6 +3120,20 @@ wg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		break;
+	case SIOCGTUNFIB:
+		ifr->ifr_fib = sc->sc_socket.so_fibnum;
+		break;
+	case SIOCSTUNFIB:
+		ret = priv_check(curthread, PRIV_NET_WG);
+		if (ret)
+			break;
+		ret = priv_check(curthread, PRIV_NET_SETIFFIB);
+		if (ret)
+			break;
+		sx_xlock(&sc->sc_lock);
+		ret = wg_socket_set_fibnum(sc, ifr->ifr_fib);
+		sx_xunlock(&sc->sc_lock);
+		break;
 	default:
 		ret = ENOTTY;
 	}
@@ -3195,6 +3251,7 @@ wg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 
 	sc = malloc(sizeof(*sc), M_WG, M_WAITOK | M_ZERO);
 	sc->sc_ucred = crhold(curthread->td_ucred);
+	sc->sc_socket.so_fibnum = curthread->td_proc->p_fibnum;
 	ifp = sc->sc_ifp = if_alloc(IFT_WIREGUARD);
 	ifp->if_softc = sc;
 	if_initname(ifp, wgname, unit);
@@ -3230,7 +3287,7 @@ wg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	wg_aip_init(&sc->sc_aips);
 
 	if_setmtu(ifp, ETHERMTU - 80);
-	ifp->if_flags = IFF_POINTOPOINT | IFF_NOARP;
+	ifp->if_flags = IFF_NOARP;
 	ifp->if_init = wg_init;
 	ifp->if_reassign = wg_reassign;
 	ifp->if_qflush = wg_qflush;
@@ -3240,6 +3297,10 @@ wg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(uint32_t));
+#ifdef INET6
+	ND_IFINFO(ifp)->flags &= ~ND6_IFF_AUTO_LINKLOCAL;
+	ND_IFINFO(ifp)->flags |= ND6_IFF_NO_DAD;
+#endif
 
 	sx_xlock(&wg_sx);
 	LIST_INSERT_HEAD(&wg_list, sc, sc_entry);
@@ -3264,6 +3325,9 @@ wg_clone_destroy(struct ifnet *ifp)
 	sx_xunlock(&wg_sx);
 
 	if_link_state_change(sc->sc_ifp, LINK_STATE_DOWN);
+	CURVNET_SET(sc->sc_ifp->if_vnet);
+	if_purgeaddrs(sc->sc_ifp);
+	CURVNET_RESTORE();
 
 	sx_xlock(&sc->sc_lock);
 	wg_socket_uninit(sc);
@@ -3362,8 +3426,6 @@ wg_prison_remove(void *obj, void *data __unused)
 {
 	const struct prison *pr = obj;
 	struct wg_softc *sc;
-	struct ucred *cred;
-	bool dying;
 
 	/*
 	 * Do a pass through all if_wg interfaces and release creds on any from
@@ -3372,39 +3434,17 @@ wg_prison_remove(void *obj, void *data __unused)
 	 */
 	sx_slock(&wg_sx);
 	LIST_FOREACH(sc, &wg_list, sc_entry) {
-		cred = NULL;
-
 		sx_xlock(&sc->sc_lock);
-		dying = (sc->sc_flags & WGF_DYING) != 0;
-		if (!dying && sc->sc_ucred != NULL &&
-		    sc->sc_ucred->cr_prison == pr) {
-			/* Home jail is going away. */
-			cred = sc->sc_ucred;
+		if (!(sc->sc_flags & WGF_DYING) && sc->sc_ucred && sc->sc_ucred->cr_prison == pr) {
+			struct ucred *cred = sc->sc_ucred;
+			DPRINTF(sc, "Creating jail exiting\n");
+			if_link_state_change(sc->sc_ifp, LINK_STATE_DOWN);
+			wg_socket_uninit(sc);
 			sc->sc_ucred = NULL;
-
+			crfree(cred);
 			sc->sc_flags |= WGF_DYING;
 		}
-
-		/*
-		 * If this is our foreign vnet going away, we'll also down the
-		 * link and kill the socket because traffic needs to stop.  Any
-		 * address will be revoked in the rehoming process.
-		 */
-		if (cred != NULL || (!dying &&
-		    sc->sc_ifp->if_vnet == pr->pr_vnet)) {
-			if_link_state_change(sc->sc_ifp, LINK_STATE_DOWN);
-			/* Have to kill the sockets, as they also hold refs. */
-			wg_socket_uninit(sc);
-		}
-
 		sx_xunlock(&sc->sc_lock);
-
-		if (cred != NULL) {
-			CURVNET_SET(sc->sc_ifp->if_vnet);
-			if_purgeaddrs(sc->sc_ifp);
-			CURVNET_RESTORE();
-			crfree(cred);
-		}
 	}
 	sx_sunlock(&wg_sx);
 
