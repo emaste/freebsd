@@ -1,8 +1,9 @@
 #!/bin/sh
 
 #
-# Copyright (c) 2015 EMC Corp.
-# All rights reserved.
+# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+#
+# Copyright (c) 2021 Peter Holm <pho@FreeBSD.org>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -26,48 +27,57 @@
 # SUCH DAMAGE.
 #
 
+# Test scenario input by: "Patrick Sullivan" sulli00777@gmail.com
+
+# Bug 253593
+# "panic: ldvp 0xffff... fl 0x1 dvp 0xffff... fl 0 flags 0x34048144" seen.
+# https://people.freebsd.org/~pho/stress/log/log0087.txt
+
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
-
-# Test dynamic kern.maxvnodes implementation.
-
-# "panic: vm_fault_hold: fault on nofault entry, addr: 0xfffffe00b1b3c000"
-# seen: https://people.freebsd.org/~pho/stress/log/kostik1175.txt
-
-# https://people.freebsd.org/~pho/stress/log/log0084.txt
-# Fixed by: dc532884d582
 
 . ../default.cfg
 
-kldstat | grep -q tmpfs && loaded=1
 mount | grep $mntpoint | grep -q /dev/md && umount -f $mntpoint
-mount -o size=2g -t tmpfs tmpfs $mntpoint || exit 1
-chmod 777 $mntpoint
+mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
-oldmx=`sysctl -n kern.maxvnodes`
-trap "sysctl kern.maxvnodes=$oldmx > /dev/null" EXIT SIGINT
+odir=`pwd`
+cd /tmp
+sed '1,/^EOF/d' < $odir/$0 > chroot.c
+rm -f /tmp/chroot
+mycc -o chroot -Wall -Wextra -O0 -g chroot.c -static || exit 1
+rm -f chroot.c
 
-export runRUNTIME=10m
-export RUNDIR=$mntpoint/stressX
-export TESTPROGS="
-testcases/creat/creat
-testcases/mkdir/mkdir
-testcases/swap/swap
-"
-export creatINCARNATIONS=50
-export creatLOAD=100
+mdconfig -a -t swap -s 10m -u $mdstart || exit 1
+newfs -n $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
+mkdir -p $mntpoint/root/dir $mntpoint/jail $mntpoint/dev
+mount -t nullfs $mntpoint/root $mntpoint/jail
+mount -t devfs null $mntpoint/dev
+mv /tmp/chroot $mntpoint/root
 
-su $testuser -c 'cd ..; ./testcases/run/run $TESTPROGS' > /dev/null 2>&1 &
-
-min=1000
-max=$((oldmx * 4))
-while kill -0 $! 2>/dev/null; do
-	sysctl kern.maxvnodes=`jot -r 1 $min $max` > /dev/null
-	sleep .2
-done
+chroot $mntpoint/jail ./chroot &
+sleep .5
+mv $mntpoint/root/dir $mntpoint
 wait
 
-while mount | grep $mntpoint | grep -q tmpfs; do
+umount $mntpoint/dev
+umount $mntpoint/jail
+while mount | grep "on $mntpoint " | grep -q /dev/md; do
 	umount $mntpoint || sleep 1
 done
-[ $loaded ] && kldunload tmpfs.ko
-exit 0
+mdconfig -d -u $mdstart
+exit
+EOF
+#include <sys/types.h>
+#include <err.h>
+#include <stdio.h>
+#include <unistd.h>
+
+int
+main(void)
+{
+	if (chdir("dir") == -1)
+		err(1, "chdir() #1");
+	sleep(2);
+	fprintf(stderr, "cwd is %s\n", getwd(NULL));
+}
