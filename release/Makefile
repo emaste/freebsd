@@ -158,7 +158,7 @@ disc1: packagesystem
 	mkdir -p ${.TARGET}
 .if defined(WITH_PKGBASE)
 # TODO : We need to switch to create the installer data from the pkgs
-	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
+	cd ${WORLDDIR} && ${IMAKE} installworld installkernel distribution \
 	    DESTDIR=${.OBJDIR}/${.TARGET} INSTKERNNAME=kernel.GENERIC MK_AMD=no MK_AT=no \
 	    MK_INSTALLLIB=no MK_LIB32=no MK_MAIL=no \
 	    MK_TOOLCHAIN=no MK_PROFILE=no \
