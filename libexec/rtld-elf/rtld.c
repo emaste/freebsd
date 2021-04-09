@@ -166,6 +166,7 @@ static int symlook_list(SymLook *, const Objlist *, DoneList *);
 static int symlook_needed(SymLook *, const Needed_Entry *, DoneList *);
 static int symlook_obj1_sysv(SymLook *, const Obj_Entry *);
 static int symlook_obj1_gnu(SymLook *, const Obj_Entry *);
+static void *tls_get_addr_slow(Elf_Addr **, int, size_t, bool) __noinline;
 static void trace_loaded_objects(Obj_Entry *);
 static void unlink_object(Obj_Entry *);
 static void unload_object(Obj_Entry *, RtldLockState *lockstate);
@@ -3909,16 +3910,16 @@ dlinfo(void *handle, int request, void *p)
 static void
 rtld_fill_dl_phdr_info(const Obj_Entry *obj, struct dl_phdr_info *phdr_info)
 {
-	tls_index ti;
+	Elf_Addr **dtvp;
 
 	phdr_info->dlpi_addr = (Elf_Addr)obj->relocbase;
 	phdr_info->dlpi_name = obj->path;
 	phdr_info->dlpi_phdr = obj->phdr;
 	phdr_info->dlpi_phnum = obj->phsize / sizeof(obj->phdr[0]);
 	phdr_info->dlpi_tls_modid = obj->tlsindex;
-	ti.ti_module = obj->tlsindex;
-	ti.ti_offset = 0;
-	phdr_info->dlpi_tls_data = __tls_get_addr(&ti);
+	dtvp = _get_tp();
+	phdr_info->dlpi_tls_data = (char *)tls_get_addr_slow(dtvp,
+	    obj->tlsindex, 0, true) + TLS_DTV_OFFSET;
 	phdr_info->dlpi_adds = obj_loads;
 	phdr_info->dlpi_subs = obj_loads - obj_count;
 }
@@ -4871,39 +4872,42 @@ unref_dag(Obj_Entry *root)
 /*
  * Common code for MD __tls_get_addr().
  */
-static void *tls_get_addr_slow(Elf_Addr **, int, size_t) __noinline;
 static void *
-tls_get_addr_slow(Elf_Addr **dtvp, int index, size_t offset)
+tls_get_addr_slow(Elf_Addr **dtvp, int index, size_t offset, bool locked)
 {
-    Elf_Addr *newdtv, *dtv;
-    RtldLockState lockstate;
-    int to_copy;
+	Elf_Addr *newdtv, *dtv;
+	RtldLockState lockstate;
+	int to_copy;
 
-    dtv = *dtvp;
-    /* Check dtv generation in case new modules have arrived */
-    if (dtv[0] != tls_dtv_generation) {
-	wlock_acquire(rtld_bind_lock, &lockstate);
-	newdtv = xcalloc(tls_max_index + 2, sizeof(Elf_Addr));
-	to_copy = dtv[1];
-	if (to_copy > tls_max_index)
-	    to_copy = tls_max_index;
-	memcpy(&newdtv[2], &dtv[2], to_copy * sizeof(Elf_Addr));
-	newdtv[0] = tls_dtv_generation;
-	newdtv[1] = tls_max_index;
-	free(dtv);
-	lock_release(rtld_bind_lock, &lockstate);
-	dtv = *dtvp = newdtv;
-    }
+	dtv = *dtvp;
+	/* Check dtv generation in case new modules have arrived */
+	if (dtv[0] != tls_dtv_generation) {
+		if (!locked)
+			wlock_acquire(rtld_bind_lock, &lockstate);
+		newdtv = xcalloc(tls_max_index + 2, sizeof(Elf_Addr));
+		to_copy = dtv[1];
+		if (to_copy > tls_max_index)
+			to_copy = tls_max_index;
+		memcpy(&newdtv[2], &dtv[2], to_copy * sizeof(Elf_Addr));
+		newdtv[0] = tls_dtv_generation;
+		newdtv[1] = tls_max_index;
+		free(dtv);
+		if (!locked)
+			lock_release(rtld_bind_lock, &lockstate);
+		dtv = *dtvp = newdtv;
+	}
 
-    /* Dynamically allocate module TLS if necessary */
-    if (dtv[index + 1] == 0) {
-	/* Signal safe, wlock will block out signals. */
-	wlock_acquire(rtld_bind_lock, &lockstate);
-	if (!dtv[index + 1])
-	    dtv[index + 1] = (Elf_Addr)allocate_module_tls(index);
-	lock_release(rtld_bind_lock, &lockstate);
-    }
-    return ((void *)(dtv[index + 1] + offset));
+	/* Dynamically allocate module TLS if necessary */
+	if (dtv[index + 1] == 0) {
+		/* Signal safe, wlock will block out signals. */
+		if (!locked)
+			wlock_acquire(rtld_bind_lock, &lockstate);
+		if (!dtv[index + 1])
+			dtv[index + 1] = (Elf_Addr)allocate_module_tls(index);
+		if (!locked)
+			lock_release(rtld_bind_lock, &lockstate);
+	}
+	return ((void *)(dtv[index + 1] + offset));
 }
 
 void *
@@ -4916,7 +4920,7 @@ tls_get_addr_common(Elf_Addr **dtvp, int index, size_t offset)
 	if (__predict_true(dtv[0] == tls_dtv_generation &&
 	    dtv[index + 1] != 0))
 		return ((void *)(dtv[index + 1] + offset));
-	return (tls_get_addr_slow(dtvp, index, offset));
+	return (tls_get_addr_slow(dtvp, index, offset, false));
 }
 
 #if defined(__aarch64__) || defined(__arm__) || defined(__mips__) || \
