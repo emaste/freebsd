@@ -213,18 +213,11 @@ and
 .Xr bhyvectl 8 .
 .Pp
 This option only affects amd64/amd64.
-.It Va WITH_BIND_NOW
-Build all binaries with the
+.It Va WITHOUT_BIND_NOW
+Do not build all binaries with the
 .Dv DF_BIND_NOW
-flag set to indicate that the run-time loader should perform all relocation
-processing at process startup rather than on demand.
-The combination of the
-.Va BIND_NOW
-and
-.Va RELRO
-options provide "full" Relocation Read-Only (RELRO) support.
-With full RELRO the entire GOT is made read-only after performing relocation at
-startup, avoiding GOT overwrite attacks.
+flag set.
+Run-time relocation processing will be performed on demand.
 .It Va WITHOUT_BLACKLIST
 Set this if you do not want to build
 .Xr blacklistd 8
@@ -406,8 +399,8 @@ Do not build the Clang C/C++ compiler during the bootstrap phase of
 the build.
 To be able to build the system, either gcc or clang bootstrap must be
 enabled unless an alternate compiler is provided via XCC.
-.It Va WITH_CLANG_EXTRAS
-Build additional clang and llvm tools, such as bugpoint and
+.It Va WITHOUT_CLANG_EXTRAS
+Do not build additional clang and llvm tools, such as bugpoint and
 clang-format.
 .It Va WITH_CLANG_FORMAT
 Build clang-format.
@@ -725,8 +718,8 @@ and
 .Xr ftpd 8 .
 .It Va WITHOUT_GAMES
 Do not build games.
-.It Va WITHOUT_GNU_DIFF
-Do not build GNU
+.It Va WITH_GNU_DIFF
+Build and install GNU
 .Xr diff3 1 ;
 build BSD
 .Xr diff3 1
@@ -736,6 +729,10 @@ Neither build nor install
 .Lb libgmock ,
 .Lb libgtest ,
 and dependent tests.
+.It Va WITHOUT_GOT
+Do not install
+.Xr got 1 ,
+OpenBSD's gameoftrees Git-repository-compatible version control system.
 .It Va WITHOUT_GPIO
 Do not build
 .Xr gpioctl 8
@@ -863,9 +860,18 @@ Usually this will be added to the kernel config file with:
 makeoptions	WITH_KERNEL_BIN=1
 
 though it can also be used on the command line.
+.It Va WITHOUT_KERNEL_RETPOLINE
+Disable the "retpoline" mitigation for CVE-2017-5715 in the kernel
+build.
+.Pp
+This is a default setting on
+arm/armv7, arm64/aarch64, powerpc/powerpc, powerpc/powerpc64, powerpc/powerpc64le and riscv/riscv64.
 .It Va WITH_KERNEL_RETPOLINE
 Enable the "retpoline" mitigation for CVE-2017-5715 in the kernel
 build.
+.Pp
+This is a default setting on
+amd64/amd64 and i386/i386.
 .It Va WITHOUT_KERNEL_SYMBOLS
 Do not install standalone kernel debug symbol files.
 This option has no effect at build time.
@@ -1172,8 +1178,6 @@ When set, it enforces these options:
 .Va WITHOUT_DMAGENT
 .It
 .Va WITHOUT_MAILWRAPPER
-.It
-.Va WITHOUT_SENDMAIL
 .El
 .It Va WITHOUT_MAILWRAPPER
 Do not build the
@@ -1548,16 +1552,16 @@ Do not apply the Relocation Read-Only (RELRO) vulnerability mitigation.
 See also the
 .Va BIND_NOW
 option.
-.It Va WITH_REPRODUCIBLE_BUILD
-Exclude build metadata (such as the build time, user, or host)
-from the kernel, boot loaders, and uname output, so that builds produce
-bit-for-bit identical output.
+.It Va WITHOUT_REPRODUCIBLE_BUILD
+Include build metadata (such as the build time, user, and host)
+in the kernel, boot loaders, and uname output.
+Successive builds will not be bit-for-bit identical.
 .It Va WITHOUT_RESCUE
 Do not build
 .Xr rescue 8 .
-.It Va WITH_RETPOLINE
-Build the base system with the retpoline speculative execution
-vulnerability mitigation for CVE-2017-5715.
+.It Va WITHOUT_RETPOLINE
+Do not build the base system with the retpoline speculative execution
+vulnerability mitigation.
 .It Va WITHOUT_ROUTED
 Do not build
 .Xr routed 8
@@ -1573,10 +1577,6 @@ Disable support in the kernel for the
 .Xr sctp 4
 Stream Control Transmission Protocol
 loadable kernel module.
-.It Va WITHOUT_SENDMAIL
-Do not build
-.Xr sendmail 8
-and related programs.
 .It Va WITHOUT_SERVICESDB
 Do not install
 .Pa /var/db/services.db .
@@ -1696,8 +1696,8 @@ Do not build or install
 .Xr talk 1
 and
 .Xr talkd 8 .
-.It Va WITHOUT_TCP_WRAPPERS
-Do not build or install
+.It Va WITH_TCP_WRAPPERS
+Build and install
 .Xr tcpd 8 ,
 and related utilities.
 .It Va WITHOUT_TCSH
@@ -1927,7 +1927,7 @@ Options other than
 .Li none
 require the Clang compiler or GCC 12.0 or later.
 The default value is
-.Li none .
+.Li zero .
 Valid values are:
 .Bl -tag -width indent
 .It Li none
