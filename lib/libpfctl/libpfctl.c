@@ -197,6 +197,18 @@ pf_nvrule_addr_to_rule_addr(const nvlist_t *nvl, struct pf_rule_addr *addr)
 }
 
 static void
+pfctl_nv_add_mape(nvlist_t *nvparent, const char *name,
+    const struct pf_mape_portset *mape)
+{
+	nvlist_t *nvl = nvlist_create(0);
+
+	nvlist_add_number(nvl, "offset", mape->offset);
+	nvlist_add_number(nvl, "psidlen", mape->psidlen);
+	nvlist_add_number(nvl, "psid", mape->psid);
+	nvlist_add_nvlist(nvparent, name, nvl);
+}
+
+static void
 pfctl_nv_add_pool(nvlist_t *nvparent, const char *name,
     const struct pfctl_pool *pool)
 {
@@ -211,8 +223,17 @@ pfctl_nv_add_pool(nvlist_t *nvparent, const char *name,
 	ports[1] = pool->proxy_port[1];
 	nvlist_add_number_array(nvl, "proxy_port", ports, 2);
 	nvlist_add_number(nvl, "opts", pool->opts);
+	pfctl_nv_add_mape(nvl, "mape", &pool->mape);
 
 	nvlist_add_nvlist(nvparent, name, nvl);
+}
+
+static void
+pf_nvmape_to_mape(const nvlist_t *nvl, struct pf_mape_portset *mape)
+{
+	mape->offset = nvlist_get_number(nvl, "offset");
+	mape->psidlen = nvlist_get_number(nvl, "psidlen");
+	mape->psid = nvlist_get_number(nvl, "psid");
 }
 
 static void
@@ -230,6 +251,9 @@ pf_nvpool_to_pool(const nvlist_t *nvl, struct pfctl_pool *pool)
 	pool->tblidx = nvlist_get_number(nvl, "tblidx");
 	pf_nvuint_16_array(nvl, "proxy_port", 2, pool->proxy_port, NULL);
 	pool->opts = nvlist_get_number(nvl, "opts");
+
+	if (nvlist_exists_nvlist(nvl, "mape"))
+		pf_nvmape_to_mape(nvlist_get_nvlist(nvl, "mape"), &pool->mape);
 }
 
 static void
@@ -484,6 +508,14 @@ int
 pfctl_get_rule(int dev, u_int32_t nr, u_int32_t ticket, const char *anchor,
     u_int32_t ruleset, struct pfctl_rule *rule, char *anchor_call)
 {
+	return (pfctl_get_clear_rule(dev, nr, ticket, anchor, ruleset, rule,
+	    anchor_call, false));
+}
+
+int	pfctl_get_clear_rule(int dev, u_int32_t nr, u_int32_t ticket,
+	    const char *anchor, u_int32_t ruleset, struct pfctl_rule *rule,
+	    char *anchor_call, bool clear)
+{
 	struct pfioc_nv nv;
 	nvlist_t *nvl;
 	void *nvlpacked;
@@ -497,6 +529,9 @@ pfctl_get_rule(int dev, u_int32_t nr, u_int32_t ticket, const char *anchor,
 	nvlist_add_number(nvl, "ticket", ticket);
 	nvlist_add_string(nvl, "anchor", anchor);
 	nvlist_add_number(nvl, "ruleset", ruleset);
+
+	if (clear)
+		nvlist_add_bool(nvl, "clear_counter", true);
 
 	nvlpacked = nvlist_pack(nvl, &nv.len);
 	if (nvlpacked == NULL) {

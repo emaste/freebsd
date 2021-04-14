@@ -71,12 +71,13 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>		/* for ticks and hz */
+#include <sys/asan.h>
 #include <sys/domainset.h>
 #include <sys/eventhandler.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/sysctl.h>
 #include <sys/vmem.h>
@@ -220,25 +221,26 @@ kmem_alloc_attr_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
 	vm_object_t object;
 	vm_offset_t addr, i, offset;
 	vm_page_t m;
+	vm_size_t asize;
 	int pflags;
 	vm_prot_t prot;
 
 	object = kernel_object;
-	size = round_page(size);
+	asize = round_page(size);
 	vmem = vm_dom[domain].vmd_kernel_arena;
-	if (vmem_alloc(vmem, size, M_BESTFIT | flags, &addr))
+	if (vmem_alloc(vmem, asize, M_BESTFIT | flags, &addr))
 		return (0);
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	pflags = malloc2vm_flags(flags) | VM_ALLOC_WIRED;
 	prot = (flags & M_EXEC) != 0 ? VM_PROT_ALL : VM_PROT_RW;
 	VM_OBJECT_WLOCK(object);
-	for (i = 0; i < size; i += PAGE_SIZE) {
+	for (i = 0; i < asize; i += PAGE_SIZE) {
 		m = kmem_alloc_contig_pages(object, atop(offset + i),
 		    domain, pflags, 1, low, high, PAGE_SIZE, 0, memattr);
 		if (m == NULL) {
 			VM_OBJECT_WUNLOCK(object);
 			kmem_unback(object, addr, i);
-			vmem_free(vmem, addr, size);
+			vmem_free(vmem, addr, asize);
 			return (0);
 		}
 		KASSERT(vm_page_domain(m) == domain,
@@ -251,6 +253,7 @@ kmem_alloc_attr_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
 		    prot | PMAP_ENTER_WIRED, 0);
 	}
 	VM_OBJECT_WUNLOCK(object);
+	kasan_mark((void *)addr, size, asize, KASAN_KMEM_REDZONE);
 	return (addr);
 }
 
@@ -299,23 +302,24 @@ kmem_alloc_contig_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
 	vm_object_t object;
 	vm_offset_t addr, offset, tmp;
 	vm_page_t end_m, m;
+	vm_size_t asize;
 	u_long npages;
 	int pflags;
 
 	object = kernel_object;
-	size = round_page(size);
+	asize = round_page(size);
 	vmem = vm_dom[domain].vmd_kernel_arena;
-	if (vmem_alloc(vmem, size, flags | M_BESTFIT, &addr))
+	if (vmem_alloc(vmem, asize, flags | M_BESTFIT, &addr))
 		return (0);
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	pflags = malloc2vm_flags(flags) | VM_ALLOC_WIRED;
-	npages = atop(size);
+	npages = atop(asize);
 	VM_OBJECT_WLOCK(object);
 	m = kmem_alloc_contig_pages(object, atop(offset), domain,
 	    pflags, npages, low, high, alignment, boundary, memattr);
 	if (m == NULL) {
 		VM_OBJECT_WUNLOCK(object);
-		vmem_free(vmem, addr, size);
+		vmem_free(vmem, addr, asize);
 		return (0);
 	}
 	KASSERT(vm_page_domain(m) == domain,
@@ -332,6 +336,7 @@ kmem_alloc_contig_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
 		tmp += PAGE_SIZE;
 	}
 	VM_OBJECT_WUNLOCK(object);
+	kasan_mark((void *)addr, size, asize, KASAN_KMEM_REDZONE);
 	return (addr);
 }
 
@@ -407,21 +412,23 @@ kmem_malloc_domain(int domain, vm_size_t size, int flags)
 {
 	vmem_t *arena;
 	vm_offset_t addr;
+	vm_size_t asize;
 	int rv;
 
 	if (__predict_true((flags & M_EXEC) == 0))
 		arena = vm_dom[domain].vmd_kernel_arena;
 	else
 		arena = vm_dom[domain].vmd_kernel_rwx_arena;
-	size = round_page(size);
-	if (vmem_alloc(arena, size, flags | M_BESTFIT, &addr))
+	asize = round_page(size);
+	if (vmem_alloc(arena, asize, flags | M_BESTFIT, &addr))
 		return (0);
 
-	rv = kmem_back_domain(domain, kernel_object, addr, size, flags);
+	rv = kmem_back_domain(domain, kernel_object, addr, asize, flags);
 	if (rv != KERN_SUCCESS) {
-		vmem_free(arena, addr, size);
+		vmem_free(arena, addr, asize);
 		return (0);
 	}
+	kasan_mark((void *)addr, size, asize, KASAN_KMEM_REDZONE);
 	return (addr);
 }
 
@@ -613,6 +620,7 @@ kmem_free(vm_offset_t addr, vm_size_t size)
 	struct vmem *arena;
 
 	size = round_page(size);
+	kasan_mark((void *)addr, size, size, 0);
 	arena = _kmem_unback(kernel_object, addr, size);
 	if (arena != NULL)
 		vmem_free(arena, addr, size);
@@ -899,7 +907,6 @@ debug_vm_lowmem(SYSCTL_HANDLER_ARGS)
 		EVENTHANDLER_INVOKE(vm_lowmem, i);
 	return (0);
 }
-
 SYSCTL_PROC(_debug, OID_AUTO, vm_lowmem,
     CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, 0, debug_vm_lowmem, "I",
     "set to trigger vm_lowmem event with given flags");
@@ -911,7 +918,7 @@ debug_uma_reclaim(SYSCTL_HANDLER_ARGS)
 
 	i = 0;
 	error = sysctl_handle_int(oidp, &i, 0, req);
-	if (error != 0)
+	if (error != 0 || req->newptr == NULL)
 		return (error);
 	if (i != UMA_RECLAIM_TRIM && i != UMA_RECLAIM_DRAIN &&
 	    i != UMA_RECLAIM_DRAIN_CPU)
@@ -919,7 +926,31 @@ debug_uma_reclaim(SYSCTL_HANDLER_ARGS)
 	uma_reclaim(i);
 	return (0);
 }
-
 SYSCTL_PROC(_debug, OID_AUTO, uma_reclaim,
     CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, 0, debug_uma_reclaim, "I",
     "set to generate request to reclaim uma caches");
+
+static int
+debug_uma_reclaim_domain(SYSCTL_HANDLER_ARGS)
+{
+	int domain, error, request;
+
+	request = 0;
+	error = sysctl_handle_int(oidp, &request, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	domain = request >> 4;
+	request &= 0xf;
+	if (request != UMA_RECLAIM_TRIM && request != UMA_RECLAIM_DRAIN &&
+	    request != UMA_RECLAIM_DRAIN_CPU)
+		return (EINVAL);
+	if (domain < 0 || domain >= vm_ndomains)
+		return (EINVAL);
+	uma_reclaim_domain(request, domain);
+	return (0);
+}
+SYSCTL_PROC(_debug, OID_AUTO, uma_reclaim_domain,
+    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, 0,
+    debug_uma_reclaim_domain, "I",
+    "");
