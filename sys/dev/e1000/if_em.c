@@ -31,7 +31,7 @@
 #include <sys/sbuf.h>
 #include <machine/_inttypes.h>
 
-#define em_mac_min e1000_82547
+#define em_mac_min e1000_82571
 #define igb_mac_min e1000_82575
 
 /*********************************************************************
@@ -495,7 +495,7 @@ SYSCTL_INT(_hw_em, OID_AUTO, smart_pwr_down, CTLFLAG_RDTUN, &em_smart_pwr_down,
     0, "Set to true to leave smart power down enabled on newer adapters");
 
 /* Controls whether promiscuous also shows bad packets */
-static int em_debug_sbp = TRUE;
+static int em_debug_sbp = FALSE;
 SYSCTL_INT(_hw_em, OID_AUTO, sbp, CTLFLAG_RDTUN, &em_debug_sbp, 0,
     "Show bad packets in promiscuous mode");
 
@@ -1061,9 +1061,17 @@ em_if_attach_pre(if_ctx_t ctx)
 	}
 
 	if (!em_is_valid_ether_addr(hw->mac.addr)) {
-		device_printf(dev, "Invalid MAC address\n");
-		error = EIO;
-		goto err_late;
+		if (adapter->vf_ifp) {
+			u8 addr[ETHER_ADDR_LEN];
+			arc4rand(&addr, sizeof(addr), 0);
+			addr[0] &= 0xFE;
+			addr[0] |= 0x02;
+			bcopy(addr, hw->mac.addr, sizeof(addr));
+		} else {
+			device_printf(dev, "Invalid MAC address\n");
+			error = EIO;
+			goto err_late;
+		}
 	}
 
 	/* Disable ULP support */
@@ -1923,6 +1931,13 @@ em_identify_hardware(if_ctx_t ctx)
 		device_printf(dev, "Setup init failure\n");
 		return;
 	}
+
+	/* Are we a VF device? */
+	if ((adapter->hw.mac.type == e1000_vfadapt) ||
+	    (adapter->hw.mac.type == e1000_vfadapt_i350))
+		adapter->vf_ifp = 1;
+	else
+		adapter->vf_ifp = 0;
 }
 
 static int
@@ -2469,13 +2484,22 @@ em_reset(if_ctx_t ctx)
 	 * the remainder is used for the transmit buffer.
 	 */
 	switch (hw->mac.type) {
-	/* Total Packet Buffer on these is 48K */
+	/* 82547: Total Packet Buffer is 40K */
+	case e1000_82547:
+	case e1000_82547_rev_2:
+		if (hw->mac.max_frame_size > 8192)
+			pba = E1000_PBA_22K; /* 22K for Rx, 18K for Tx */
+		else
+			pba = E1000_PBA_30K; /* 30K for Rx, 10K for Tx */
+		break;
+	/* 82571/82572/80003es2lan: Total Packet Buffer is 48K */
 	case e1000_82571:
 	case e1000_82572:
 	case e1000_80003es2lan:
 			pba = E1000_PBA_32K; /* 32K for Rx, 16K for Tx */
 		break;
-	case e1000_82573: /* 82573: Total Packet Buffer is 32K */
+	/* 82573: Total Packet Buffer is 32K */
+	case e1000_82573:
 			pba = E1000_PBA_12K; /* 12K for Rx, 20K for Tx */
 		break;
 	case e1000_82574:
@@ -2520,6 +2544,7 @@ em_reset(if_ctx_t ctx)
 		pba = E1000_PBA_34K;
 		break;
 	default:
+		/* Remaining devices assumed to have a Packet Buffer of 64K. */
 		if (hw->mac.max_frame_size > 8192)
 			pba = E1000_PBA_40K; /* 40K for Rx, 24K for Tx */
 		else

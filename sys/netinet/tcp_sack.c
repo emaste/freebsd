@@ -130,10 +130,16 @@ VNET_DECLARE(struct uma_zone *, sack_hole_zone);
 
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, sack, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TCP SACK");
+
 VNET_DEFINE(int, tcp_do_sack) = 1;
-#define	V_tcp_do_sack			VNET(tcp_do_sack)
 SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, enable, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(tcp_do_sack), 0, "Enable/Disable TCP SACK support");
+    &VNET_NAME(tcp_do_sack), 0,
+    "Enable/Disable TCP SACK support");
+
+VNET_DEFINE(int, tcp_do_newsack) = 1;
+SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, revised, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(tcp_do_newsack), 0,
+    "Use revised SACK loss recovery per RFC 6675");
 
 VNET_DEFINE(int, tcp_sack_maxholes) = 128;
 SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, maxholes, CTLFLAG_VNET | CTLFLAG_RW,
@@ -491,7 +497,7 @@ static struct sackhole *
 tcp_sackhole_insert(struct tcpcb *tp, tcp_seq start, tcp_seq end,
     struct sackhole *after)
 {
-	struct sackhole *hole;
+	struct sackhole *hole, *tail;
 
 	/* Allocate a new SACK hole. */
 	hole = tcp_sackhole_alloc(tp, start, end);
@@ -502,7 +508,15 @@ tcp_sackhole_insert(struct tcpcb *tp, tcp_seq start, tcp_seq end,
 	if (after != NULL)
 		TAILQ_INSERT_AFTER(&tp->snd_holes, after, hole, scblink);
 	else
-		TAILQ_INSERT_TAIL(&tp->snd_holes, hole, scblink);
+		/*
+		 * With Rescue Retransmission, new holes may need to
+		 * be inserted just before the tail.
+		 */
+		if (((tail = TAILQ_LAST_FAST(&tp->snd_holes, sackhole,
+		    scblink)) != NULL) && SEQ_LEQ(end, tail->start))
+			TAILQ_INSERT_BEFORE(tail, hole, scblink);
+		else
+			TAILQ_INSERT_TAIL(&tp->snd_holes, hole, scblink);
 
 	/* Update SACK hint. */
 	if (tp->sackhint.nexthole == NULL)
@@ -826,7 +840,7 @@ tcp_sack_partialack(struct tcpcb *tp, struct tcphdr *th)
 	 * the trailing packets of a window are lost and no further data
 	 * is available for sending.
 	 */
-	if ((V_tcp_do_rfc6675_pipe) &&
+	if ((V_tcp_do_newsack) &&
 	    SEQ_LT(th->th_ack, tp->snd_recover) &&
 	    (tp->snd_recover == tp->snd_max) &&
 	    TAILQ_EMPTY(&tp->snd_holes) &&
