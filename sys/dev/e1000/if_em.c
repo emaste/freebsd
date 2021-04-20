@@ -180,6 +180,20 @@ static pci_vendor_info_t em_vendor_info_array[] =
 	PVID(0x8086, E1000_DEV_ID_PCH_CMP_I219_V11, "Intel(R) PRO/1000 Network Connection"),
 	PVID(0x8086, E1000_DEV_ID_PCH_CMP_I219_LM12, "Intel(R) PRO/1000 Network Connection"),
 	PVID(0x8086, E1000_DEV_ID_PCH_CMP_I219_V12, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_TGP_I219_LM13, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_TGP_I219_V13, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_TGP_I219_LM14, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_TGP_I219_V14, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_TGP_I219_LM15, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_TGP_I219_V15, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_ADL_I219_LM16, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_ADL_I219_V16, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_ADL_I219_LM17, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_ADL_I219_V17, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_MTP_I219_LM18, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_MTP_I219_V18, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_MTP_I219_LM19, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_MTP_I219_V19, "Intel(R) PRO/1000 Network Connection"),
 	/* required last entry */
 	PVID_END
 };
@@ -303,7 +317,6 @@ static int	em_enable_phy_wakeup(struct adapter *);
 static void	em_disable_aspm(struct adapter *);
 
 int		em_intr(void *arg);
-static void	em_disable_promisc(if_ctx_t ctx);
 
 /* MSI-X handlers */
 static int	em_if_msix_intr_assign(if_ctx_t, int);
@@ -1219,6 +1232,9 @@ em_if_mtu_set(if_ctx_t ctx, uint32_t mtu)
 	case e1000_pch_lpt:
 	case e1000_pch_spt:
 	case e1000_pch_cnp:
+	case e1000_pch_tgp:
+	case e1000_pch_adp:
+	case e1000_pch_mtp:
 	case e1000_82574:
 	case e1000_82583:
 	case e1000_80003es2lan:
@@ -1641,11 +1657,20 @@ static int
 em_if_set_promisc(if_ctx_t ctx, int flags)
 {
 	struct adapter *adapter = iflib_get_softc(ctx);
+	struct ifnet *ifp = iflib_get_ifp(ctx);
 	u32 reg_rctl;
-
-	em_disable_promisc(ctx);
+	int mcnt = 0;
 
 	reg_rctl = E1000_READ_REG(&adapter->hw, E1000_RCTL);
+	reg_rctl &= ~(E1000_RCTL_SBP | E1000_RCTL_UPE);
+	if (flags & IFF_ALLMULTI)
+		mcnt = MAX_NUM_MULTICAST_ADDRESSES;
+	else
+		mcnt = min(if_llmaddr_count(ifp), MAX_NUM_MULTICAST_ADDRESSES);
+
+	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES)
+		reg_rctl &= (~E1000_RCTL_MPE);
+	E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
 
 	if (flags & IFF_PROMISC) {
 		reg_rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
@@ -1661,37 +1686,15 @@ em_if_set_promisc(if_ctx_t ctx, int flags)
 	return (0);
 }
 
-static void
-em_disable_promisc(if_ctx_t ctx)
-{
-	struct adapter *adapter = iflib_get_softc(ctx);
-	struct ifnet *ifp = iflib_get_ifp(ctx);
-	u32 reg_rctl;
-	int mcnt = 0;
-
-	reg_rctl = E1000_READ_REG(&adapter->hw, E1000_RCTL);
-	reg_rctl &= (~E1000_RCTL_UPE);
-	if (if_getflags(ifp) & IFF_ALLMULTI)
-		mcnt = MAX_NUM_MULTICAST_ADDRESSES;
-	else
-		mcnt = if_llmaddr_count(ifp);
-	/* Don't disable if in MAX groups */
-	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES)
-		reg_rctl &=  (~E1000_RCTL_MPE);
-	reg_rctl &=  (~E1000_RCTL_SBP);
-	E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
-}
-
-
 static u_int
-em_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+em_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int idx)
 {
 	u8 *mta = arg;
 
-	if (cnt == MAX_NUM_MULTICAST_ADDRESSES)
-		return (1);
+	if (idx == MAX_NUM_MULTICAST_ADDRESSES)
+		return (0);
 
-	bcopy(LLADDR(sdl), &mta[cnt * ETHER_ADDR_LEN], ETHER_ADDR_LEN);
+	bcopy(LLADDR(sdl), &mta[idx * ETHER_ADDR_LEN], ETHER_ADDR_LEN);
 
 	return (1);
 }
@@ -1702,14 +1705,13 @@ em_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
  *  This routine is called whenever multicast address list is updated.
  *
  **********************************************************************/
-
 static void
 em_if_multi_set(if_ctx_t ctx)
 {
 	struct adapter *adapter = iflib_get_softc(ctx);
 	struct ifnet *ifp = iflib_get_ifp(ctx);
-	u32 reg_rctl = 0;
 	u8  *mta; /* Multicast array memory */
+	u32 reg_rctl = 0;
 	int mcnt = 0;
 
 	IOCTL_DEBUGOUT("em_set_multi: begin");
@@ -1729,11 +1731,20 @@ em_if_multi_set(if_ctx_t ctx)
 
 	mcnt = if_foreach_llmaddr(ifp, em_copy_maddr, mta);
 
-	if (mcnt >= MAX_NUM_MULTICAST_ADDRESSES) {
-		reg_rctl = E1000_READ_REG(&adapter->hw, E1000_RCTL);
+	reg_rctl = E1000_READ_REG(&adapter->hw, E1000_RCTL);
+
+	if (if_getflags(ifp) & IFF_PROMISC)
+		reg_rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
+	else if (mcnt >= MAX_NUM_MULTICAST_ADDRESSES ||
+	    if_getflags(ifp) & IFF_ALLMULTI) {
 		reg_rctl |= E1000_RCTL_MPE;
-		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
+		reg_rctl &= ~E1000_RCTL_UPE;
 	} else
+		reg_rctl &= ~(E1000_RCTL_UPE | E1000_RCTL_MPE);
+
+	E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
+
+	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES)
 		e1000_update_mc_addr_list(&adapter->hw, mta, mcnt);
 
 	if (adapter->hw.mac.type == e1000_82542 &&
@@ -2522,6 +2533,9 @@ em_reset(if_ctx_t ctx)
 	case e1000_pch_lpt:
 	case e1000_pch_spt:
 	case e1000_pch_cnp:
+	case e1000_pch_tgp:
+	case e1000_pch_adp:
+	case e1000_pch_mtp:
 		pba = E1000_PBA_26K;
 		break;
 	case e1000_82575:
@@ -2632,6 +2646,9 @@ em_reset(if_ctx_t ctx)
 	case e1000_pch_lpt:
 	case e1000_pch_spt:
 	case e1000_pch_cnp:
+	case e1000_pch_tgp:
+	case e1000_pch_adp:
+	case e1000_pch_mtp:
 		hw->fc.high_water = 0x5C20;
 		hw->fc.low_water = 0x5048;
 		hw->fc.pause_time = 0x0650;
