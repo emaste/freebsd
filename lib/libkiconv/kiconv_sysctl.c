@@ -59,7 +59,7 @@ kiconv_lookupconv(const char *drvname)
 				free(drivers);
 				return (0);
 			}
-		free(drivers)
+		free(drivers);
 	}
 	return (ENOENT);
 }
