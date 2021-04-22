@@ -73,7 +73,7 @@
 #define LLVM_VERSION_PATCH 1
 
 /* LLVM version string */
-#define LLVM_VERSION_STRING "11.0.1"
+#define LLVM_VERSION_STRING "12.0.0"
 
 /* Whether LLVM records statistics for use with GetStatistics(),
  * PrintStatistics() or PrintStatisticsJSON()
