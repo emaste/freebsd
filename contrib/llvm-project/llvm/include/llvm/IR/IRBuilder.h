@@ -852,7 +852,11 @@ public:
 
   /// Create an assume intrinsic call that allows the optimizer to
   /// assume that the provided condition will be true.
-  CallInst *CreateAssumption(Value *Cond);
+  ///
+  /// The optional argument \p OpBundles specifies operand bundles that are
+  /// added to the call instruction.
+  CallInst *CreateAssumption(Value *Cond,
+                             ArrayRef<OperandBundleDef> OpBundles = llvm::None);
 
   /// Create a llvm.experimental.noalias.scope.decl intrinsic call.
   Instruction *CreateNoAliasScopeDeclaration(Value *Scope);
@@ -2619,13 +2623,11 @@ public:
 
 private:
   /// Helper function that creates an assume intrinsic call that
-  /// represents an alignment assumption on the provided Ptr, Mask, Type
-  /// and Offset. It may be sometimes useful to do some other logic
-  /// based on this alignment check, thus it can be stored into 'TheCheck'.
+  /// represents an alignment assumption on the provided pointer \p PtrValue
+  /// with offset \p OffsetValue and alignment value \p AlignValue.
   CallInst *CreateAlignmentAssumptionHelper(const DataLayout &DL,
-                                            Value *PtrValue, Value *Mask,
-                                            Type *IntPtrTy, Value *OffsetValue,
-                                            Value **TheCheck);
+                                            Value *PtrValue, Value *AlignValue,
+                                            Value *OffsetValue);
 
 public:
   /// Create an assume intrinsic call that represents an alignment
@@ -2634,13 +2636,9 @@ public:
   /// An optional offset can be provided, and if it is provided, the offset
   /// must be subtracted from the provided pointer to get the pointer with the
   /// specified alignment.
-  ///
-  /// It may be sometimes useful to do some other logic
-  /// based on this alignment check, thus it can be stored into 'TheCheck'.
   CallInst *CreateAlignmentAssumption(const DataLayout &DL, Value *PtrValue,
                                       unsigned Alignment,
-                                      Value *OffsetValue = nullptr,
-                                      Value **TheCheck = nullptr);
+                                      Value *OffsetValue = nullptr);
 
   /// Create an assume intrinsic call that represents an alignment
   /// assumption on the provided pointer.
@@ -2649,15 +2647,11 @@ public:
   /// must be subtracted from the provided pointer to get the pointer with the
   /// specified alignment.
   ///
-  /// It may be sometimes useful to do some other logic
-  /// based on this alignment check, thus it can be stored into 'TheCheck'.
-  ///
   /// This overload handles the condition where the Alignment is dependent
   /// on an existing value rather than a static value.
   CallInst *CreateAlignmentAssumption(const DataLayout &DL, Value *PtrValue,
                                       Value *Alignment,
-                                      Value *OffsetValue = nullptr,
-                                      Value **TheCheck = nullptr);
+                                      Value *OffsetValue = nullptr);
 };
 
 /// This provides a uniform API for creating instructions and inserting
