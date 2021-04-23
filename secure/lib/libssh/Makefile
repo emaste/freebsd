@@ -21,8 +21,6 @@ SRCS+=	authfd.c authfile.c \
 	ssh-ed25519.c digest-openssl.c digest-libc.c hmac.c \
 	sc25519.c ge25519.c fe25519.c ed25519.c verify.c hash.c \
 	kex.c kexdh.c kexgex.c kexecdh.c kexc25519.c \
-	kexdhc.c kexgexc.c kexecdhc.c kexc25519c.c \
-	kexdhs.c kexgexs.c kexecdhs.c kexc25519s.c \
 	sntrup4591761.c kexsntrup4591761x25519.c kexkemc.c kexkems.c \
 	platform-pledge.c platform-tracing.c platform-misc.c
 PACKAGE=	ssh
