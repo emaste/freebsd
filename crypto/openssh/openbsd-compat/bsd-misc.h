@@ -64,19 +64,42 @@ struct timeval {
 int utimes(char *, struct timeval *);
 #endif /* HAVE_UTIMES */
 
+#ifndef AT_FDCWD
+# define AT_FDCWD (-2)
+#endif
+
+#ifndef HAVE_FCHMODAT
+int fchmodat(int, const char *, mode_t, int);
+#endif
+
+#ifndef HAVE_FCHOWNAT
+int fchownat(int, const char *, uid_t, gid_t, int);
+#endif
+
 #ifndef HAVE_TRUNCATE
 int truncate (const char *, off_t);
 #endif /* HAVE_TRUNCATE */
 
-#if !defined(HAVE_NANOSLEEP) && !defined(HAVE_NSLEEP)
 #ifndef HAVE_STRUCT_TIMESPEC
 struct timespec {
 	time_t	tv_sec;
 	long	tv_nsec;
 };
-#endif
+#endif /* !HAVE_STRUCT_TIMESPEC */
+
+#if !defined(HAVE_NANOSLEEP) && !defined(HAVE_NSLEEP)
+# include <time.h>
 int nanosleep(const struct timespec *, struct timespec *);
 #endif
+
+#ifndef HAVE_UTIMENSAT
+# include <time.h>
+/* start with the high bits and work down to minimise risk of overlap */
+# ifndef AT_SYMLINK_NOFOLLOW
+#  define AT_SYMLINK_NOFOLLOW 0x80000000
+# endif
+int utimensat(int, const char *, const struct timespec[2], int);
+#endif /* !HAVE_UTIMENSAT */
 
 #ifndef HAVE_USLEEP
 int usleep(unsigned int useconds);
@@ -155,6 +178,14 @@ int flock(int, int);
 
 #ifdef FFLUSH_NULL_BUG
 # define fflush(x)	(_ssh_compat_fflush(x))
+#endif
+
+#ifndef HAVE_LOCALTIME_R
+struct tm *localtime_r(const time_t *, struct tm *);
+#endif
+
+#ifndef HAVE_REALPATH
+#define realpath(x, y)	(sftp_realpath((x), (y)))
 #endif
 
 #endif /* _BSD_MISC_H */

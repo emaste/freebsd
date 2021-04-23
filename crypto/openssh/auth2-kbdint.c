@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-kbdint.c,v 1.9 2018/07/09 21:35:50 markus Exp $ */
+/* $OpenBSD: auth2-kbdint.c,v 1.12 2020/10/18 11:32:01 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -27,6 +27,8 @@
 
 #include <sys/types.h>
 
+#include <stdlib.h>
+#include <stdio.h>
 #include <stdarg.h>
 
 #include "xmalloc.h"
@@ -50,7 +52,7 @@ userauth_kbdint(struct ssh *ssh)
 	if ((r = sshpkt_get_cstring(ssh, &lang, NULL)) != 0 ||
 	    (r = sshpkt_get_cstring(ssh, &devs, NULL)) != 0 ||
 	    (r = sshpkt_get_end(ssh)) != 0)
-		fatal("%s: %s", __func__, ssh_err(r));
+		fatal_fr(r, "parse packet");
 
 	debug("keyboard-interactive devs %s", devs);
 
