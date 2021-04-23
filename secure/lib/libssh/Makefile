@@ -10,7 +10,7 @@ SRCS=	ssh_api.c ssherr.c sshbuf.c sshkey.c sshbuf-getput-basic.c \
 SRCS+=	authfd.c authfile.c \
 	canohost.c channels.c cipher.c cipher-aes.c cipher-aesctr.c \
 	cipher-ctr.c cleanup.c \
-	compat.c crc32.c fatal.c hostfile.c \
+	compat.c fatal.c hostfile.c \
 	log.c match.c moduli.c nchan.c packet.c \
 	readpass.c ttymodes.c xmalloc.c addrmatch.c \
 	atomicio.c dispatch.c mac.c uuencode.c misc.c utf8.c \
