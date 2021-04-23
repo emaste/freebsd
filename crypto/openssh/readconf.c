@@ -13,6 +13,7 @@
  */
 
 #include "includes.h"
+__RCSID("$FreeBSD$");
 
 #include <sys/types.h>
 #ifdef VMWARE_GUEST_WORKAROUND
