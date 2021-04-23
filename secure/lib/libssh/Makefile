@@ -13,7 +13,7 @@ SRCS+=	authfd.c authfile.c \
 	compat.c fatal.c hostfile.c \
 	log.c match.c moduli.c nchan.c packet.c \
 	readpass.c ttymodes.c xmalloc.c addrmatch.c \
-	atomicio.c dispatch.c mac.c uuencode.c misc.c utf8.c \
+	atomicio.c dispatch.c mac.c misc.c utf8.c \
 	monitor_fdpass.c rijndael.c ssh-dss.c ssh-ecdsa.c ssh-rsa.c dh.c \
 	msg.c progressmeter.c dns.c entropy.c umac.c umac128.c \
 	ssh-pkcs11.c smult_curve25519_ref.c \
