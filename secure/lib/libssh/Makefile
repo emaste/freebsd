@@ -11,7 +11,7 @@ SRCS+=	authfd.c authfile.c \
 	canohost.c channels.c cipher.c cipher-aes.c cipher-aesctr.c \
 	cipher-ctr.c cleanup.c \
 	compat.c crc32.c fatal.c hostfile.c \
-	log.c match.c moduli.c nchan.c packet.c opacket.c \
+	log.c match.c moduli.c nchan.c packet.c \
 	readpass.c ttymodes.c xmalloc.c addrmatch.c \
 	atomicio.c dispatch.c mac.c uuencode.c misc.c utf8.c \
 	monitor_fdpass.c rijndael.c ssh-dss.c ssh-ecdsa.c ssh-rsa.c dh.c \
