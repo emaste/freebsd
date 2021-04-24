@@ -91,7 +91,7 @@ void
 blacklist_notify(int action, const char *msg)
 {
 
-	if (blstate != NULL && packet_connection_is_on_socket())
+	if (blstate != NULL && ssh_packet_connection_is_on_socket(NULL))
 		(void)blacklist_r(blstate, action,
-		packet_get_connection_in(), msg);
+		ssh_packet_get_connection_in(NULL), msg);
 }

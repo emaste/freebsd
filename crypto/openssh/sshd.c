@@ -2222,7 +2222,7 @@ main(int ac, char **av)
 	allow_severity = options.log_facility|LOG_INFO;
 	deny_severity = options.log_facility|LOG_WARNING;
 	/* Check whether logins are denied from this host. */
-	if (packet_connection_is_on_socket()) {
+	if (ssh_packet_connection_is_on_socket(ssh)) {
 		struct request_info req;
 
 		request_init(&req, RQ_DAEMON, __progname, RQ_FILE, sock_in, 0);
