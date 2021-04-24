@@ -302,16 +302,6 @@ sshbuf_find(const struct sshbuf *b, size_t start_offset,
 char *sshbuf_dup_string(struct sshbuf *buf);
 
 /*
- * store struct pwd
- */
-int sshbuf_put_passwd(struct sshbuf *buf, const struct passwd *pwent);
-
-/*
- * extract struct pwd
- */
-struct passwd *sshbuf_get_passwd(struct sshbuf *buf);
-
-/*
  * free struct passwd obtained from sshbuf_get_passwd.
  * Fill a buffer from a file descriptor or filename. Both allocate the
  * buffer for the caller.

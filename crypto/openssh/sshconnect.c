@@ -562,8 +562,6 @@ ssh_connect(struct ssh *ssh, const char *host, const char *host_arg,
 	}
 	return ssh_proxy_connect(ssh, host, host_arg, port,
 	    options.proxy_command);
-	    *options.version_addendum == '\0' ? "" : " ",
-	    options.version_addendum);
 }
 
 /* defaults to 'no' */
@@ -1563,7 +1561,8 @@ ssh_login(struct ssh *ssh, Sensitive *sensitive, const char *orighost,
 	lowercase(host);
 
 	/* Exchange protocol version identification strings with the server. */
-	if ((r = kex_exchange_identification(ssh, timeout_ms, NULL)) != 0)
+	if ((r = kex_exchange_identification(ssh, timeout_ms,
+	    options.version_addendum)) != 0)
 		sshpkt_fatal(ssh, r, "banner exchange");
 
 	/* Put the connection into non-blocking mode. */

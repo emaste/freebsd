@@ -261,6 +261,8 @@ servconf_add_hostkey(const char *file, const int line,
 
 	if (file == defaultkey && access(path, R_OK) != 0)
 		return;
+	opt_array_append2(file, line, "HostKey",
+	    &options->host_key_files, &options->host_key_file_userprovided,
 	    &options->num_host_key_files, apath, userprovided);
 	free(apath);
 }
@@ -690,12 +692,15 @@ static struct {
 	{ "exposeauthinfo", sExposeAuthInfo, SSHCFG_ALL },
 	{ "rdomain", sRDomain, SSHCFG_ALL },
 	{ "casignaturealgorithms", sCASignatureAlgorithms, SSHCFG_ALL },
+	{ "securitykeyprovider", sSecurityKeyProvider, SSHCFG_GLOBAL },
 	{ "useblacklist", sUseBlacklist, SSHCFG_GLOBAL },
 	{ "useblocklist", sUseBlacklist, SSHCFG_GLOBAL }, /* alias */
+
 	{ "noneenabled", sUnsupported, SSHCFG_ALL },
 	{ "hpndisabled", sDeprecated, SSHCFG_ALL },
 	{ "hpnbuffersize", sDeprecated, SSHCFG_ALL },
 	{ "tcprcvbufpoll", sDeprecated, SSHCFG_ALL },
+
 	{ NULL, sBadOption, 0 }
 };
 

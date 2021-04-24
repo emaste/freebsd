@@ -1800,7 +1800,6 @@ main(int ac, char **av)
 	}
 
 	debug("sshd version %s, %s", SSH_VERSION, SSH_OPENSSL_VERSION);
-	    OpenSSL_version(OPENSSL_VERSION)
 
 	/* Store privilege separation user for later use if required. */
 	privsep_chroot = use_privsep && (getuid() == 0 || geteuid() == 0);
@@ -2048,6 +2047,10 @@ main(int ac, char **av)
 	if (!inetd_flag && madvise(NULL, 0, MADV_PROTECT) != 0)
 		debug("madvise(): %.200s", strerror(errno));
 
+	/*
+	 * Chdir to the root directory so that the current disk can be
+	 * unmounted if desired.
+	 */
 	if (chdir("/") == -1)
 		error("chdir(\"/\"): %s", strerror(errno));
 
@@ -2151,15 +2154,6 @@ main(int ac, char **av)
 	ssh_signal(SIGCHLD, SIG_DFL);
 	ssh_signal(SIGINT, SIG_DFL);
 
-#ifdef __FreeBSD__
-	/*
-	 * Initialize the resolver.  This may not happen automatically
-	 * before privsep chroot().
-	 */
-	if ((_res.options & RES_INIT) == 0) {
-		debug("res_init()");
-		res_init();
-	}
 #ifdef GSSAPI
 	/*
 	 * Force GSS-API to parse its configuration and load any
@@ -2172,6 +2166,16 @@ main(int ac, char **av)
 		gss_release_oid_set(&minor_status, &mechs);
 	}
 #endif
+
+#ifdef __FreeBSD__
+	/*
+	 * Initialize the resolver.  This may not happen automatically
+	 * before privsep chroot().
+	 */
+	if ((_res.options & RES_INIT) == 0) {
+		debug("res_init()");
+		res_init();
+	}
 #endif
 
 	/*

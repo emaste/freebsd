@@ -791,8 +791,10 @@ mm_answer_pwnamallow(struct ssh *ssh, int sock, struct sshbuf *m)
 	authctxt->pw = pwent;
 	authctxt->valid = 1;
 
+	/* XXX send fake class/dir/shell, etc. */
 	if ((r = sshbuf_put_u8(m, 1)) != 0)
-	    (r = sshbuf_put_passwd(m, pwent)) != 0)
+		fatal_fr(r, "assemble ok");
+	PUTPW(m, pw_uid);
 	PUTPW(m, pw_gid);
 #ifdef HAVE_STRUCT_PASSWD_PW_CHANGE
 	PUTPW(m, pw_change);
@@ -801,6 +803,15 @@ mm_answer_pwnamallow(struct ssh *ssh, int sock, struct sshbuf *m)
 	PUTPW(m, pw_expire);
 #endif
 	if ((r = sshbuf_put_cstring(m, pwent->pw_name)) != 0 ||
+	    (r = sshbuf_put_cstring(m, "*")) != 0 ||
+#ifdef HAVE_STRUCT_PASSWD_PW_GECOS
+	    (r = sshbuf_put_cstring(m, pwent->pw_gecos)) != 0 ||
+#endif
+#ifdef HAVE_STRUCT_PASSWD_PW_CLASS
+	    (r = sshbuf_put_cstring(m, pwent->pw_class)) != 0 ||
+#endif
+	    (r = sshbuf_put_cstring(m, pwent->pw_dir)) != 0 ||
+	    (r = sshbuf_put_cstring(m, pwent->pw_shell)) != 0)
 		fatal_fr(r, "assemble pw");
 
  out:
