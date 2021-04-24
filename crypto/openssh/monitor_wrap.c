@@ -251,7 +251,7 @@ mm_sshkey_sign(struct ssh *ssh, struct sshkey *key, u_char **sigp, size_t *lenp,
 			fatal_fr(r, "bad length for %s", #id); \
 		memcpy(&pw->id, p, len); \
 	} while (0)
-#ifdef HAVE_LOGIN_CAP
+#ifdef __HAVE_LOGIN_CAP
 login_cap_t *
 mm_login_getpwclass(const struct passwd *pwent)
 {

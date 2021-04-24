@@ -321,7 +321,7 @@ input_userauth_request(int type, u_int32_t seq, struct ssh *ssh)
 		    authctxt->user, authctxt->service, user, service);
 	}
 
-#ifdef HAVE_LOGIN_CAP
+#ifdef __HAVE_LOGIN_CAP
 	if (authctxt->pw != NULL &&
 	    (lc = PRIVSEP(login_getpwclass(authctxt->pw))) != NULL) {
 		from_host = auth_get_canonical_hostname(ssh, options.use_dns);

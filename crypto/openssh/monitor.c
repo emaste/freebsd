@@ -117,7 +117,7 @@ int mm_answer_sign(struct ssh *, int, struct sshbuf *);
 int mm_answer_pwnamallow(struct ssh *, int, struct sshbuf *);
 int mm_answer_auth2_read_banner(struct ssh *, int, struct sshbuf *);
 int mm_answer_authserv(struct ssh *, int, struct sshbuf *);
-#ifdef HAVE_LOGIN_CAP
+#ifdef __HAVE_LOGIN_CAP
 int mm_answer_login_getpwclass(int, struct sshbuf *);
 #endif
 int mm_answer_authpassword(struct ssh *, int, struct sshbuf *);
@@ -196,7 +196,7 @@ struct mon_table mon_dispatch_proto20[] = {
     {MONITOR_REQ_MODULI, MON_ONCE, mm_answer_moduli},
 #endif
     {MONITOR_REQ_SIGN, MON_ONCE, mm_answer_sign},
-#ifdef HAVE_LOGIN_CAP
+#ifdef __HAVE_LOGIN_CAP
     {MONITOR_REQ_GETPWCLASS, MON_ISAUTH, mm_answer_login_getpwclass},
 #endif
     {MONITOR_REQ_PWNAM, MON_ONCE, mm_answer_pwnamallow},
@@ -712,7 +712,7 @@ mm_answer_sign(struct ssh *ssh, int sock, struct sshbuf *m)
 		    &pwent->id, sizeof(pwent->id))) != 0) \
 			fatal_fr(r, "assemble %s", #id); \
 	} while (0)
-#ifdef HAVE_LOGIN_CAP
+#ifdef __HAVE_LOGIN_CAP
 int
 mm_answer_login_getpwclass(int sock, struct sshbuf *m)
 {
