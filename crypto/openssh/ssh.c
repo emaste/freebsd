@@ -1378,6 +1378,16 @@ main(int ac, char **av)
 	xasprintf(&cinfo->uidstr, "%llu",
 	    (unsigned long long)pw->pw_uid);
 
+	cinfo->keyalias = xstrdup(options.host_key_alias ?
+	    options.host_key_alias : host_arg);
+	cinfo->conn_hash_hex = ssh_connection_hash(cinfo->thishost, host,
+	    cinfo->portstr, options.user);
+	cinfo->host_arg = xstrdup(host_arg);
+	cinfo->remhost = xstrdup(host);
+	cinfo->remuser = xstrdup(options.user);
+	cinfo->homedir = xstrdup(pw->pw_dir);
+	cinfo->locuser = xstrdup(pw->pw_name);
+
 	/* Find canonic host name. */
 	if (strchr(host, '.') == 0) {
 		struct addrinfo hints;
@@ -1394,6 +1404,7 @@ main(int ac, char **av)
 			freeaddrinfo(ai);
 		}
 	}
+
 
 	/*
 	 * Expand tokens in arguments. NB. LocalCommand is expanded later,
