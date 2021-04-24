@@ -23,7 +23,8 @@ SRCS+=	authfd.c authfile.c \
 	kex.c kexdh.c kexgex.c kexecdh.c kexc25519.c \
 	kexgexc.c kexgexs.c \
 	kexsntrup761x25519.c sntrup761.c kexgen.c \
-	sftp-realpath.c platform-pledge.c platform-tracing.c platform-misc.c
+	sftp-realpath.c platform-pledge.c platform-tracing.c platform-misc.c \
+	sshbuf-io.c
 PACKAGE=	ssh
 
 # gss-genr.c should be in $SRCS but causes linking problems, so it is
