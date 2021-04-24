@@ -76,7 +76,7 @@ im_log(int priority, const char *message, va_list args)
 	default:
 		imlevel = SYSLOG_LEVEL_DEBUG2;
 	}
-	do_log(imlevel, message, args);
+	//do_log(imlevel, message, args);
 }
 
 void
