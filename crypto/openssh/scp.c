@@ -1,4 +1,4 @@
-/* $OpenBSD: scp.c,v 1.204 2019/02/10 11:15:52 djm Exp $ */
+/* $OpenBSD: scp.c,v 1.214 2021/04/03 06:18:40 djm Exp $ */
 /*
  * scp - secure remote copy.  This is basically patched BSD rcp which
  * uses ssh to do the data transfer (instead of using rcmd).
@@ -94,14 +94,16 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#ifdef HAVE_FNMATCH_H
 #include <fnmatch.h>
+#endif
 #include <limits.h>
 #include <locale.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdarg.h>
 #ifdef HAVE_STDINT_H
-#include <stdint.h>
+# include <stdint.h>
 #endif
 #include <stdio.h>
 #include <stdlib.h>
@@ -213,9 +215,9 @@ do_local_cmd(arglist *a)
 	}
 
 	do_cmd_pid = pid;
-	signal(SIGTERM, killchild);
-	signal(SIGINT, killchild);
-	signal(SIGHUP, killchild);
+	ssh_signal(SIGTERM, killchild);
+	ssh_signal(SIGINT, killchild);
+	ssh_signal(SIGHUP, killchild);
 
 	while (waitpid(pid, &status, 0) == -1)
 		if (errno != EINTR)
@@ -253,22 +255,22 @@ do_cmd(char *host, char *remuser, int port, char *cmd, int *fdin, int *fdout)
 	 * Reserve two descriptors so that the real pipes won't get
 	 * descriptors 0 and 1 because that will screw up dup2 below.
 	 */
-	if (pipe(reserved) < 0)
+	if (pipe(reserved) == -1)
 		fatal("pipe: %s", strerror(errno));
 
 	/* Create a socket pair for communicating with ssh. */
-	if (pipe(pin) < 0)
+	if (pipe(pin) == -1)
 		fatal("pipe: %s", strerror(errno));
-	if (pipe(pout) < 0)
+	if (pipe(pout) == -1)
 		fatal("pipe: %s", strerror(errno));
 
 	/* Free the reserved descriptors. */
 	close(reserved[0]);
 	close(reserved[1]);
 
-	signal(SIGTSTP, suspchild);
-	signal(SIGTTIN, suspchild);
-	signal(SIGTTOU, suspchild);
+	ssh_signal(SIGTSTP, suspchild);
+	ssh_signal(SIGTTIN, suspchild);
+	ssh_signal(SIGTTOU, suspchild);
 
 	/* Fork a child to execute the command on the remote host using ssh. */
 	do_cmd_pid = fork();
@@ -305,9 +307,9 @@ do_cmd(char *host, char *remuser, int port, char *cmd, int *fdin, int *fdout)
 	*fdout = pin[1];
 	close(pout[1]);
 	*fdin = pout[0];
-	signal(SIGTERM, killchild);
-	signal(SIGINT, killchild);
-	signal(SIGHUP, killchild);
+	ssh_signal(SIGTERM, killchild);
+	ssh_signal(SIGINT, killchild);
+	ssh_signal(SIGHUP, killchild);
 	return 0;
 }
 
@@ -346,6 +348,7 @@ do_cmd2(char *host, char *remuser, int port, char *cmd, int fdin, int fdout)
 			addargs(&args, "-l");
 			addargs(&args, "%s", remuser);
 		}
+		addargs(&args, "-oBatchMode=yes");
 		addargs(&args, "--");
 		addargs(&args, "%s", host);
 		addargs(&args, "%s", cmd);
@@ -370,7 +373,11 @@ typedef struct {
 BUF *allocbuf(BUF *, int, int);
 void lostconn(int);
 int okname(char *);
-void run_err(const char *,...);
+void run_err(const char *,...)
+    __attribute__((__format__ (printf, 1, 2)))
+    __attribute__((__nonnull__ (1)));
+int note_err(const char *,...)
+    __attribute__((__format__ (printf, 1, 2)));
 void verifydir(char *);
 
 struct passwd *pwd;
@@ -401,6 +408,8 @@ main(int argc, char **argv)
 	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
 	sanitise_stdfd();
 
+	seed_rng();
+
 	msetlocale();
 
 	/* Copy argv, because we modify it */
@@ -416,7 +425,6 @@ main(int argc, char **argv)
 	args.list = remote_remote_args.list = NULL;
 	addargs(&args, "%s", ssh_program);
 	addargs(&args, "-x");
-	addargs(&args, "-oForwardAgent=no");
 	addargs(&args, "-oPermitLocalCommand=no");
 	addargs(&args, "-oClearAllForwardings=yes");
 	addargs(&args, "-oRemoteCommand=none");
@@ -424,7 +432,7 @@ main(int argc, char **argv)
 
 	fflag = Tflag = tflag = 0;
 	while ((ch = getopt(argc, argv,
-	    "dfl:prtTvBCc:i:P:q12346S:o:F:")) != -1) {
+	    "12346ABCTdfpqrtvF:J:P:S:c:i:l:o:")) != -1) {
 		switch (ch) {
 		/* User-visible flags. */
 		case '1':
@@ -433,6 +441,7 @@ main(int argc, char **argv)
 		case '2':
 			/* Ignored */
 			break;
+		case 'A':
 		case '4':
 		case '6':
 		case 'C':
@@ -446,6 +455,7 @@ main(int argc, char **argv)
 		case 'c':
 		case 'i':
 		case 'F':
+		case 'J':
 			addargs(&remote_remote_args, "-%c", ch);
 			addargs(&remote_remote_args, "%s", optarg);
 			addargs(&args, "-%c", ch);
@@ -513,6 +523,9 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	/* Do this last because we want the user to be able to override it */
+	addargs(&args, "-oForwardAgent=no");
+
 	if ((pwd = getpwuid(userid = getuid())) == NULL)
 		fatal("unknown user %u", (u_int) userid);
 
@@ -556,7 +569,7 @@ main(int argc, char **argv)
 	    iamrecursive ? " -r" : "", pflag ? " -p" : "",
 	    targetshouldbedirectory ? " -d" : "");
 
-	(void) signal(SIGPIPE, lostconn);
+	(void) ssh_signal(SIGPIPE, lostconn);
 
 	if (colon(argv[argc - 1]))	/* Dest is remote host. */
 		toremote(argc, argv);
@@ -591,6 +604,7 @@ scpio(void *_cnt, size_t s)
 	off_t *cnt = (off_t *)_cnt;
 
 	*cnt += s;
+	refresh_progress_meter(0);
 	if (limit_kbps > 0)
 		bandwidth_limit(&bwlimit, s);
 	return 0;
@@ -616,7 +630,7 @@ do_times(int fd, int verb, const struct stat *sb)
 
 static int
 parse_scp_uri(const char *uri, char **userp, char **hostp, int *portp,
-     char **pathp)
+    char **pathp)
 {
 	int r;
 
@@ -834,7 +848,7 @@ brace_expand(const char *pattern, char ***patternsp, size_t *npatternsp)
 			goto fail;
 		}
 		if (invalid)
-			fatal("%s: invalid brace pattern \"%s\"", __func__, cp);
+			fatal_f("invalid brace pattern \"%s\"", cp);
 		if (expanded) {
 			/*
 			 * Current entry expanded to new entries on the
@@ -1062,7 +1076,7 @@ source(int argc, char **argv)
 	off_t i, statbytes;
 	size_t amt, nr;
 	int fd = -1, haderr, indx;
-	char *last, *name, buf[2048], encname[PATH_MAX];
+	char *last, *name, buf[PATH_MAX + 128], encname[PATH_MAX];
 	int len;
 
 	for (indx = 0; indx < argc; ++indx) {
@@ -1071,13 +1085,13 @@ source(int argc, char **argv)
 		len = strlen(name);
 		while (len > 1 && name[len-1] == '/')
 			name[--len] = '\0';
-		if ((fd = open(name, O_RDONLY|O_NONBLOCK, 0)) < 0)
+		if ((fd = open(name, O_RDONLY|O_NONBLOCK, 0)) == -1)
 			goto syserr;
 		if (strchr(name, '\n') != NULL) {
 			strnvis(encname, name, sizeof(encname), VIS_NL);
 			name = encname;
 		}
-		if (fstat(fd, &stb) < 0) {
+		if (fstat(fd, &stb) == -1) {
 syserr:			run_err("%s: %s", name, strerror(errno));
 			goto next;
 		}
@@ -1151,7 +1165,7 @@ next:			if (fd != -1) {
 		unset_nonblock(remout);
 
 		if (fd != -1) {
-			if (close(fd) < 0 && !haderr)
+			if (close(fd) == -1 && !haderr)
 				haderr = errno;
 			fd = -1;
 		}
@@ -1224,9 +1238,6 @@ sink(int argc, char **argv, const char *src)
 {
 	static BUF buffer;
 	struct stat stb;
-	enum {
-		YES, NO, DISPLAYED
-	} wrerr;
 	BUF *bp;
 	off_t i;
 	size_t j, count;
@@ -1234,7 +1245,7 @@ sink(int argc, char **argv, const char *src)
 	mode_t mode, omode, mask;
 	off_t size, statbytes;
 	unsigned long long ull;
-	int setimes, targisdir, wrerrno = 0;
+	int setimes, targisdir, wrerr;
 	char ch, *cp, *np, *targ, *why, *vect[1], buf[2048], visbuf[2048];
 	char **patterns = NULL;
 	size_t n, npatterns = 0;
@@ -1268,7 +1279,7 @@ sink(int argc, char **argv, const char *src)
 		 * the requested destination file glob.
 		 */
 		if (brace_expand(src, &patterns, &npatterns) != 0)
-			fatal("%s: could not expand pattern", __func__);
+			fatal_f("could not expand pattern");
 	}
 	for (first = 1;; first = 0) {
 		cp = buf;
@@ -1412,19 +1423,16 @@ sink(int argc, char **argv, const char *src)
 				if (pflag)
 					(void) chmod(np, mode);
 			} else {
-				/* Handle copying from a read-only
-				   directory */
+				/* Handle copying from a read-only directory */
 				mod_flag = 1;
-				if (mkdir(np, mode | S_IRWXU) < 0)
+				if (mkdir(np, mode | S_IRWXU) == -1)
 					goto bad;
 			}
 			vect[0] = xstrdup(np);
 			sink(1, vect, src);
 			if (setimes) {
 				setimes = 0;
-				if (utimes(vect[0], tv) < 0)
-					run_err("%s: set times: %s",
-					    vect[0], strerror(errno));
+				(void) utimes(vect[0], tv);
 			}
 			if (mod_flag)
 				(void) chmod(vect[0], mode);
@@ -1433,7 +1441,7 @@ sink(int argc, char **argv, const char *src)
 		}
 		omode = mode;
 		mode |= S_IWUSR;
-		if ((ofd = open(np, O_WRONLY|O_CREAT, mode)) < 0) {
+		if ((ofd = open(np, O_WRONLY|O_CREAT, mode)) == -1) {
 bad:			run_err("%s: %s", np, strerror(errno));
 			continue;
 		}
@@ -1443,8 +1451,13 @@ bad:			run_err("%s: %s", np, strerror(errno));
 			continue;
 		}
 		cp = bp->buf;
-		wrerr = NO;
+		wrerr = 0;
 
+		/*
+		 * NB. do not use run_err() unless immediately followed by
+		 * exit() below as it may send a spurious reply that might
+		 * desyncronise us from the peer. Use note_err() instead.
+		 */
 		statbytes = 0;
 		if (showprogress)
 			start_progress_meter(curfile, size, &statbytes);
@@ -1469,11 +1482,12 @@ bad:			run_err("%s: %s", np, strerror(errno));
 
 			if (count == bp->cnt) {
 				/* Keep reading so we stay sync'd up. */
-				if (wrerr == NO) {
+				if (!wrerr) {
 					if (atomicio(vwrite, ofd, bp->buf,
 					    count) != count) {
-						wrerr = YES;
-						wrerrno = errno;
+						note_err("%s: %s", np,
+						    strerror(errno));
+						wrerr = 1;
 					}
 				}
 				count = 0;
@@ -1481,16 +1495,14 @@ bad:			run_err("%s: %s", np, strerror(errno));
 			}
 		}
 		unset_nonblock(remin);
-		if (count != 0 && wrerr == NO &&
+		if (count != 0 && !wrerr &&
 		    atomicio(vwrite, ofd, bp->buf, count) != count) {
-			wrerr = YES;
-			wrerrno = errno;
+			note_err("%s: %s", np, strerror(errno));
+			wrerr = 1;
 		}
-		if (wrerr == NO && (!exists || S_ISREG(stb.st_mode)) &&
-		    ftruncate(ofd, size) != 0) {
-			run_err("%s: truncate: %s", np, strerror(errno));
-			wrerr = DISPLAYED;
-		}
+		if (!wrerr && (!exists || S_ISREG(stb.st_mode)) &&
+		    ftruncate(ofd, size) != 0)
+			note_err("%s: truncate: %s", np, strerror(errno));
 		if (pflag) {
 			if (exists || omode != mode)
 #ifdef HAVE_FCHMOD
@@ -1498,9 +1510,8 @@ bad:			run_err("%s: %s", np, strerror(errno));
 #else /* HAVE_FCHMOD */
 				if (chmod(np, omode)) {
 #endif /* HAVE_FCHMOD */
-					run_err("%s: set mode: %s",
+					note_err("%s: set mode: %s",
 					    np, strerror(errno));
-					wrerr = DISPLAYED;
 				}
 		} else {
 			if (!exists && omode != mode)
@@ -1509,36 +1520,25 @@ bad:			run_err("%s: %s", np, strerror(errno));
 #else /* HAVE_FCHMOD */
 				if (chmod(np, omode & ~mask)) {
 #endif /* HAVE_FCHMOD */
-					run_err("%s: set mode: %s",
+					note_err("%s: set mode: %s",
 					    np, strerror(errno));
-					wrerr = DISPLAYED;
 				}
 		}
-		if (close(ofd) == -1) {
-			wrerr = YES;
-			wrerrno = errno;
-		}
+		if (close(ofd) == -1)
+			note_err("%s: close: %s", np, strerror(errno));
 		(void) response();
 		if (showprogress)
 			stop_progress_meter();
-		if (setimes && wrerr == NO) {
+		if (setimes && !wrerr) {
 			setimes = 0;
-			if (utimes(np, tv) < 0) {
-				run_err("%s: set times: %s",
+			if (utimes(np, tv) == -1) {
+				note_err("%s: set times: %s",
 				    np, strerror(errno));
-				wrerr = DISPLAYED;
 			}
 		}
-		switch (wrerr) {
-		case YES:
-			run_err("%s: %s", np, strerror(wrerrno));
-			break;
-		case NO:
+		/* If no error was noted then signal success for this file */
+		if (note_err(NULL) == 0)
 			(void) atomicio(vwrite, remout, "", 1);
-			break;
-		case DISPLAYED:
-			break;
-		}
 	}
 done:
 	for (n = 0; n < npatterns; n++)
@@ -1595,8 +1595,9 @@ void
 usage(void)
 {
 	(void) fprintf(stderr,
-	    "usage: scp [-346BCpqrTv] [-c cipher] [-F ssh_config] [-i identity_file]\n"
-	    "           [-l limit] [-o ssh_option] [-P port] [-S program] source ... target\n");
+	    "usage: scp [-346ABCpqrTv] [-c cipher] [-F ssh_config] [-i identity_file]\n"
+	    "            [-J destination] [-l limit] [-o ssh_option] [-P port]\n"
+	    "            [-S program] source ... target\n");
 	exit(1);
 }
 
@@ -1623,6 +1624,38 @@ run_err(const char *fmt,...)
 		va_end(ap);
 		fprintf(stderr, "\n");
 	}
+}
+
+/*
+ * Notes a sink error for sending at the end of a file transfer. Returns 0 if
+ * no error has been noted or -1 otherwise. Use note_err(NULL) to flush
+ * any active error at the end of the transfer.
+ */
+int
+note_err(const char *fmt, ...)
+{
+	static char *emsg;
+	va_list ap;
+
+	/* Replay any previously-noted error */
+	if (fmt == NULL) {
+		if (emsg == NULL)
+			return 0;
+		run_err("%s", emsg);
+		free(emsg);
+		emsg = NULL;
+		return -1;
+	}
+
+	errs++;
+	/* Prefer first-noted error */
+	if (emsg != NULL)
+		return -1;
+
+	va_start(ap, fmt);
+	vasnmprintf(&emsg, INT_MAX, NULL, fmt, ap);
+	va_end(ap);
+	return -1;
 }
 
 void
@@ -1676,7 +1709,7 @@ allocbuf(BUF *bp, int fd, int blksize)
 #ifdef HAVE_STRUCT_STAT_ST_BLKSIZE
 	struct stat stb;
 
-	if (fstat(fd, &stb) < 0) {
+	if (fstat(fd, &stb) == -1) {
 		run_err("fstat: %s", strerror(errno));
 		return (0);
 	}

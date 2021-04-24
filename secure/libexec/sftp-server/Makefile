@@ -3,7 +3,7 @@
 .include <src.opts.mk>
 
 PROG=   sftp-server
-SRCS=   sftp-server.c sftp-common.c sftp-server-main.c
+SRCS=   sftp-server.c sftp-common.c sftp-server-main.c sftp-realpath.c
 MAN=	sftp-server.8
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 SRCS+=	ssh_namespace.h
