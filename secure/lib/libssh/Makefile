@@ -12,7 +12,7 @@ SRCS+=	authfd.c authfile.c \
 	cipher-ctr.c cleanup.c \
 	compat.c fatal.c hostfile.c \
 	log.c match.c moduli.c nchan.c packet.c \
-	readpass.c ttymodes.c xmalloc.c addrmatch.c \
+	readpass.c ttymodes.c xmalloc.c addr.c addrmatch.c \
 	atomicio.c dispatch.c mac.c misc.c utf8.c \
 	monitor_fdpass.c rijndael.c ssh-dss.c ssh-ecdsa.c ssh-rsa.c dh.c \
 	msg.c progressmeter.c dns.c entropy.c umac.c umac128.c \
@@ -23,7 +23,7 @@ SRCS+=	authfd.c authfile.c \
 	kex.c kexdh.c kexgex.c kexecdh.c kexc25519.c \
 	kexgexc.c kexgexs.c \
 	kexsntrup761x25519.c sntrup761.c kexgen.c \
-	platform-pledge.c platform-tracing.c platform-misc.c
+	sftp-realpath.c platform-pledge.c platform-tracing.c platform-misc.c
 PACKAGE=	ssh
 
 # gss-genr.c should be in $SRCS but causes linking problems, so it is
