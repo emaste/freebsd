@@ -426,11 +426,11 @@ fill_default_server_options(ServerOptions *options)
 	if (options->client_alive_count_max == -1)
 		options->client_alive_count_max = 3;
 	if (options->num_authkeys_files == 0) {
-		array_append(defaultkey, 0, "AuthorizedKeysFiles",
+		opt_array_append(defaultkey, 0, "AuthorizedKeysFiles",
 		    &options->authorized_keys_files,
 		    &options->num_authkeys_files,
 		    _PATH_SSH_USER_PERMITTED_KEYS);
-		array_append(defaultkey, 0, "AuthorizedKeysFiles",
+		opt_array_append(defaultkey, 0, "AuthorizedKeysFiles",
 		    &options->authorized_keys_files,
 		    &options->num_authkeys_files,
 		    _PATH_SSH_USER_PERMITTED_KEYS2);
