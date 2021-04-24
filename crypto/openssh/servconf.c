@@ -293,7 +293,7 @@ fill_default_server_options(ServerOptions *options)
 		servconf_add_hostkey(defaultkey, 0, options,
 		    _PATH_HOST_RSA_KEY_FILE, 0);
 		servconf_add_hostkey(defaultkey, 0, options,
-		    _PATH_HOST_DSA_KEY_FILE);
+		    _PATH_HOST_DSA_KEY_FILE, 0);
 #ifdef OPENSSL_HAS_ECC
 		servconf_add_hostkey(defaultkey, 0, options,
 		    _PATH_HOST_ECDSA_KEY_FILE, 0);
