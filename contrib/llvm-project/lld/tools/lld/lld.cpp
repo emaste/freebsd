@@ -147,7 +147,7 @@ static int lldMain(int argc, const char **argv, llvm::raw_ostream &stdoutOS,
                    llvm::raw_ostream &stderrOS, bool exitEarly = true) {
   std::vector<const char *> args(argv, argv + argc);
 #ifdef __FreeBSD__
-  return !elf::link(args, canExitEarly(), llvm::outs(), llvm::errs());
+  return !elf::link(args, exitEarly, stdoutOS, stderrOS);
 #else
   switch (parseFlavor(args)) {
   case Gnu:
