@@ -196,9 +196,11 @@ close_socket(SocketEntry *e)
 	sshbuf_free(e->input);
 	sshbuf_free(e->output);
 	sshbuf_free(e->request);
+	memset(e, '\0', sizeof(*e));
+	e->fd = -1;
+	e->type = AUTH_UNUSED;
 	if (last)
 		cleanup_exit(0);
-	e->type = AUTH_UNUSED;
 }
 
 static void
@@ -1083,6 +1085,8 @@ new_socket(sock_type type, int fd)
 {
 	u_int i, old_alloc, new_alloc;
 
+	debug_f("type = %s", type == AUTH_CONNECTION ? "CONNECTION" :
+	    (type == AUTH_SOCKET ? " SOCKET" : "UNKNOWN"));
 	if (type == AUTH_CONNECTION) {
 		debug("xcount %d -> %d", xcount, xcount + 1);
 		++xcount;
@@ -1426,7 +1430,7 @@ main(int ac, char **av)
 	__progname = ssh_get_progname(av[0]);
 	seed_rng();
 
-	while ((ch = getopt(ac, av, "cDdksE:a:P:t:x")) != -1) {
+	while ((ch = getopt(ac, av, "cDdksE:a:O:P:t:x")) != -1) {
 		switch (ch) {
 		case 'E':
 			fingerprint_hash = ssh_digest_alg_by_name(optarg);
