@@ -68,8 +68,8 @@ usage: etcupdate [-npBF] [-d workdir] [-r | -s source | -t tarball]
        etcupdate build [-B] [-d workdir] [-s source] [-L logfile] [-M options]
                  <tarball>
        etcupdate diff [-d workdir] [-D destdir] [-I patterns] [-L logfile]
-       etcupdate extract [-B] [-d workdir] [-s source | -t tarball] [-L logfile]
-                 [-M options]
+       etcupdate extract [-B] [-d workdir] [-s source | -t tarball]
+                 [-D destdir] [-L logfile] [-M options]
        etcupdate resolve [-p] [-d workdir] [-D destdir] [-L logfile]
        etcupdate revert [-d workdir] [-D destdir] [-L logfile] file ...
        etcupdate status [-d workdir] [-D destdir]
@@ -1644,7 +1644,7 @@ EOF
 			if [ -z "$preworld" ]; then
 				panic "New tree should be rotated to old"
 			fi
-			if ! remove_tree $old; then
+			if ! remove_tree $new; then
 				echo "Unable to remove previous pre-world tree."
 				exit 1
 			fi

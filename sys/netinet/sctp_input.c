@@ -98,49 +98,12 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset,
 	if (stcb == NULL) {
 		SCTP_INP_RLOCK(inp);
 	}
-	/* validate length */
-	if (ntohs(cp->ch.chunk_length) < sizeof(struct sctp_init_chunk)) {
-		op_err = sctp_generate_cause(SCTP_CAUSE_INVALID_PARAM, "");
-		sctp_abort_association(inp, stcb, m, iphlen, src, dst, sh, op_err,
-		    mflowtype, mflowid,
-		    vrf_id, port);
-		if (stcb)
-			*abort_no_unlock = 1;
-		goto outnow;
-	}
-	/* validate parameters */
+	/* Validate parameters */
 	init = &cp->init;
-	if (init->initiate_tag == 0) {
-		/* protocol error... send abort */
-		op_err = sctp_generate_cause(SCTP_CAUSE_INVALID_PARAM, "");
-		sctp_abort_association(inp, stcb, m, iphlen, src, dst, sh, op_err,
-		    mflowtype, mflowid,
-		    vrf_id, port);
-		if (stcb)
-			*abort_no_unlock = 1;
-		goto outnow;
-	}
-	if (ntohl(init->a_rwnd) < SCTP_MIN_RWND) {
-		/* invalid parameter... send abort */
-		op_err = sctp_generate_cause(SCTP_CAUSE_INVALID_PARAM, "");
-		sctp_abort_association(inp, stcb, m, iphlen, src, dst, sh, op_err,
-		    mflowtype, mflowid,
-		    vrf_id, port);
-		if (stcb)
-			*abort_no_unlock = 1;
-		goto outnow;
-	}
-	if (init->num_inbound_streams == 0) {
-		/* protocol error... send abort */
-		op_err = sctp_generate_cause(SCTP_CAUSE_INVALID_PARAM, "");
-		sctp_abort_association(inp, stcb, m, iphlen, src, dst, sh, op_err,
-		    mflowtype, mflowid,
-		    vrf_id, port);
-		if (stcb)
-			*abort_no_unlock = 1;
-		goto outnow;
-	}
-	if (init->num_outbound_streams == 0) {
+	if ((ntohl(init->initiate_tag) == 0) ||
+	    (ntohl(init->a_rwnd) < SCTP_MIN_RWND) ||
+	    (ntohs(init->num_inbound_streams) == 0) ||
+	    (ntohs(init->num_outbound_streams) == 0)) {
 		/* protocol error... send abort */
 		op_err = sctp_generate_cause(SCTP_CAUSE_INVALID_PARAM, "");
 		sctp_abort_association(inp, stcb, m, iphlen, src, dst, sh, op_err,
@@ -1277,49 +1240,12 @@ sctp_handle_init_ack(struct mbuf *m, int iphlen, int offset,
 		    "sctp_handle_init_ack: TCB is null\n");
 		return (-1);
 	}
-	if (ntohs(cp->ch.chunk_length) < sizeof(struct sctp_init_ack_chunk)) {
-		/* Invalid length */
-		op_err = sctp_generate_cause(SCTP_CAUSE_INVALID_PARAM, "");
-		sctp_abort_association(stcb->sctp_ep, stcb, m, iphlen,
-		    src, dst, sh, op_err,
-		    mflowtype, mflowid,
-		    vrf_id, net->port);
-		*abort_no_unlock = 1;
-		return (-1);
-	}
 	init_ack = &cp->init;
-	/* validate parameters */
-	if (init_ack->initiate_tag == 0) {
-		/* protocol error... send an abort */
-		op_err = sctp_generate_cause(SCTP_CAUSE_INVALID_PARAM, "");
-		sctp_abort_association(stcb->sctp_ep, stcb, m, iphlen,
-		    src, dst, sh, op_err,
-		    mflowtype, mflowid,
-		    vrf_id, net->port);
-		*abort_no_unlock = 1;
-		return (-1);
-	}
-	if (ntohl(init_ack->a_rwnd) < SCTP_MIN_RWND) {
-		/* protocol error... send an abort */
-		op_err = sctp_generate_cause(SCTP_CAUSE_INVALID_PARAM, "");
-		sctp_abort_association(stcb->sctp_ep, stcb, m, iphlen,
-		    src, dst, sh, op_err,
-		    mflowtype, mflowid,
-		    vrf_id, net->port);
-		*abort_no_unlock = 1;
-		return (-1);
-	}
-	if (init_ack->num_inbound_streams == 0) {
-		/* protocol error... send an abort */
-		op_err = sctp_generate_cause(SCTP_CAUSE_INVALID_PARAM, "");
-		sctp_abort_association(stcb->sctp_ep, stcb, m, iphlen,
-		    src, dst, sh, op_err,
-		    mflowtype, mflowid,
-		    vrf_id, net->port);
-		*abort_no_unlock = 1;
-		return (-1);
-	}
-	if (init_ack->num_outbound_streams == 0) {
+	/* Validate parameters. */
+	if ((ntohl(init_ack->initiate_tag) == 0) ||
+	    (ntohl(init_ack->a_rwnd) < SCTP_MIN_RWND) ||
+	    (ntohs(init_ack->num_inbound_streams) == 0) ||
+	    (ntohs(init_ack->num_outbound_streams) == 0)) {
 		/* protocol error... send an abort */
 		op_err = sctp_generate_cause(SCTP_CAUSE_INVALID_PARAM, "");
 		sctp_abort_association(stcb->sctp_ep, stcb, m, iphlen,
@@ -3412,19 +3338,16 @@ sctp_find_stream_reset(struct sctp_tcb *stcb, uint32_t seq, struct sctp_tmit_chu
 	int len, clen;
 
 	asoc = &stcb->asoc;
-	if (TAILQ_EMPTY(&stcb->asoc.control_send_queue)) {
+	chk = asoc->str_reset;
+	if (TAILQ_EMPTY(&asoc->control_send_queue) ||
+	    (chk == NULL)) {
 		asoc->stream_reset_outstanding = 0;
 		return (NULL);
 	}
-	if (stcb->asoc.str_reset == NULL) {
-		asoc->stream_reset_outstanding = 0;
-		return (NULL);
-	}
-	chk = stcb->asoc.str_reset;
 	if (chk->data == NULL) {
 		return (NULL);
 	}
-	if (bchk) {
+	if (bchk != NULL) {
 		/* he wants a copy of the chk pointer */
 		*bchk = chk;
 	}
@@ -4614,10 +4537,7 @@ process_control_chunks:
 		    chunk_buf);
 		if (ch == NULL) {
 			*offset = length;
-			if (stcb != NULL) {
-				SCTP_TCB_UNLOCK(stcb);
-			}
-			return (NULL);
+			return (stcb);
 		}
 
 		num_chunks++;
@@ -4651,12 +4571,12 @@ process_control_chunks:
 			/* The INIT chunk must be the only chunk. */
 			if ((num_chunks > 1) ||
 			    (length - *offset > (int)SCTP_SIZE32(chk_length))) {
-				/* RFC 4960 requires that no ABORT is sent */
+				/*
+				 * RFC 4960bis requires stopping the
+				 * processing of the packet.
+				 */
 				*offset = length;
-				if (stcb != NULL) {
-					SCTP_TCB_UNLOCK(stcb);
-				}
-				return (NULL);
+				return (stcb);
 			}
 			/* Honor our resource limit. */
 			if (chk_length > SCTP_LARGEST_INIT_ACCEPTED) {
