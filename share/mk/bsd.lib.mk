@@ -123,6 +123,10 @@ STATIC_CXXFLAGS+= -ftls-model=initial-exec
 CFLAGS += -mno-relax
 .endif
 
+.if ${COMPILER_TYPE} == "clang"
+CFLAGS+= -fembed-bitcode
+.endif
+
 .include <bsd.libnames.mk>
 
 # prefer .s to a .c, add .po, remove stuff not used in the BSD libraries
