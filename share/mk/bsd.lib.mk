@@ -124,7 +124,11 @@ CFLAGS += -mno-relax
 .endif
 
 .if ${COMPILER_TYPE} == "clang"
+.if ${CFLAGS:M-ffunction-sections} != "" ||  ${CFLAGS:M-fdata-sections} != ""
+.warning -fembed-bitcode not with -ffunction-sections or -fdata-sections
+.else
 CFLAGS+= -fembed-bitcode
+.endif
 .endif
 
 .include <bsd.libnames.mk>
